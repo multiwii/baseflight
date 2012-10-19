@@ -28,6 +28,9 @@ uint8_t rcOptions[CHECKBOXITEMS];
 
 int16_t axisPID[3];
 
+//pt1 element
+static float lastDTerm[3] = { 0.0, 0.0, 0.0};
+float dT;
 // **********************
 // GPS
 // **********************
@@ -531,7 +534,8 @@ void loop(void)
     }
 
     currentTime = micros();
-    if (cfg.looptime == 0 || (int32_t)(currentTime - loopTime) >= 0) {
+		
+   if (cfg.looptime == 0 || !f.HORIZON_MODE|| (int32_t)(currentTime - loopTime) >= 0) {
         loopTime = currentTime + cfg.looptime;
 
         computeIMU();
@@ -589,7 +593,8 @@ void loop(void)
             }
         }
 
-        // **** PITCH & ROLL & YAW PID ****    
+        // **** PITCH & ROLL & YAW PID ****
+				dT = cycleTime * 1e-6;				
         prop = max(abs(rcCommand[PITCH]), abs(rcCommand[ROLL])); // range [0;500]
         for (axis = 0; axis < 3; axis++) {
             if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
@@ -636,7 +641,9 @@ void loop(void)
             deltaSum = delta1[axis] + delta2[axis] + delta;
             delta2[axis] = delta1[axis];
             delta1[axis] = delta;
-
+						
+			deltaSum = lastDTerm[axis] + (dT / (0.5f / (M_PI * cfg.f_cut)+ dT)) * (deltaSum - lastDTerm[axis]);
+            lastDTerm[axis] = deltaSum;
             DTerm = ((int32_t)deltaSum * dynD8[axis]) >> 5; // 32 bits is needed for calculation
             axisPID[axis] =  PTerm + ITerm - DTerm;
         }

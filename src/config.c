@@ -132,6 +132,10 @@ static void resetConf(void)
     featureClearAll();
     featureSet(FEATURE_VBAT);
 
+		//pt1 element
+
+		cfg.f_cut= 20.0f;
+		
     // cfg.looptime = 0;
     cfg.P8[ROLL] = 40;
     cfg.I8[ROLL] = 30;

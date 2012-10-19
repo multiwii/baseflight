@@ -126,6 +126,9 @@ typedef struct config_t {
     uint32_t enabledFeatures;
 
     uint16_t looptime;                      // imu loop time in us
+		
+		//brm pt1 element
+		uint16_t f_cut;                         
 
     uint8_t P8[PIDITEMS];
     uint8_t I8[PIDITEMS];
