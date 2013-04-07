@@ -48,7 +48,7 @@
     PWM5..8 used for motors
     PWM9..10 used for servo or else motors
     PWM11..14 used for motors
-    
+
     2) multirotor PPM input with more servos
     PWM1 used for PPM
     PWM5..8 used for motors
@@ -76,7 +76,11 @@ typedef void pwmCallbackPtr(uint8_t port, uint16_t capture);
 
 static pwmHardware_t timerHardware[] = {
     { TIM2, GPIOA, GPIO_Pin_0, TIM_Channel_1, TIM2_IRQn, 0, },          // PWM1
+#ifdef OLIMEXINO
+    { TIM2, GPIOA, GPIO_Pin_12, TIM_Channel_2, TIM2_IRQn, 0, },          // PWM2
+#else
     { TIM2, GPIOA, GPIO_Pin_1, TIM_Channel_2, TIM2_IRQn, 0, },          // PWM2
+#endif
     { TIM2, GPIOA, GPIO_Pin_2, TIM_Channel_3, TIM2_IRQn, 0, },          // PWM3
     { TIM2, GPIOA, GPIO_Pin_3, TIM_Channel_4, TIM2_IRQn, 0, },          // PWM4
     { TIM3, GPIOA, GPIO_Pin_6, TIM_Channel_1, TIM3_IRQn, 0, },          // PWM5
@@ -352,7 +356,7 @@ void TIM1_CC_IRQHandler(void)
 static void pwmTIMxHandler(TIM_TypeDef *tim, uint8_t portBase)
 {
     int8_t port;
-    
+
     // Generic CC handler for TIM2,3,4
     if (TIM_GetITStatus(tim, TIM_IT_CC1) == SET) {
         port = portBase + 0;
