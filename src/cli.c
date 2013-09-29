@@ -116,6 +116,7 @@ const clivalue_t valueTable[] = {
     { "mincommand", VAR_UINT16, &mcfg.mincommand, 0, 2000 },
     { "mincheck", VAR_UINT16, &mcfg.mincheck, 0, 2000 },
     { "maxcheck", VAR_UINT16, &mcfg.maxcheck, 0, 2000 },
+    { "disable_set_minthrottle", VAR_UINT8, &mcfg.disable_set_minthrottle, 0, 1 },
     { "deadband3d_low", VAR_UINT16, &mcfg.deadband3d_low, 0, 2000 },
     { "deadband3d_high", VAR_UINT16, &mcfg.deadband3d_high, 0, 2000 },
     { "neutral3d", VAR_UINT16, &mcfg.neutral3d, 0, 2000 },

@@ -13,7 +13,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 56;
+static const uint8_t EEPROM_CONF_VERSION = 57;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 
@@ -203,6 +203,7 @@ static void resetConf(void)
     // Motor/ESC/Servo
     mcfg.minthrottle = 1150;
     mcfg.maxthrottle = 1850;
+    mcfg.disable_set_minthrottle = 0;
     mcfg.mincommand = 1000;
     mcfg.deadband3d_low = 1406;
     mcfg.deadband3d_high = 1514;
