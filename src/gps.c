@@ -117,6 +117,7 @@ void gpsInitHardware(void)
             return;
 
         case GPS_UBLOX:
+        case GPS_UBLOX_9600:
             // UBX will run at mcfg.baudrate, it shouldn't be "autodetected". So here we force it to that rate
 
                 // Wait until GPS transmit buffer is empty
@@ -125,12 +126,21 @@ void gpsInitHardware(void)
 
             if (gpsData.state == GPS_INITIALIZING) {
                 if (gpsData.state_position < GPS_INIT_ENTRIES) {
-                    // try different speed to INIT
-                    serialSetBaudRate(core.gpsport, gpsInitData[gpsData.state_position].baudrate);
-                    // but print our FIXED init string for the baudrate we want to be at
-                    serialPrint(core.gpsport, gpsInitData[mcfg.gps_baudrate].ubx);
+                    if(mcfg.gps_type == GPS_UBLOX_9600) {
+                        // ie. ublox without eeprom/battery - always starting at 9600 baud in NMEA mode
+                        serialSetBaudRate(core.gpsport, 9600);
+                        serialPrint(core.gpsport, gpsInitData[mcfg.gps_baudrate].ubx);
+                        gpsData.baudrateIndex = mcfg.gps_baudrate;
+                        gpsSetState(GPS_INITDONE);
+                    }
+                    else {
+                        // try different speed to INIT
+                        serialSetBaudRate(core.gpsport, gpsInitData[gpsData.state_position].baudrate);
+                        // but print our FIXED init string for the baudrate we want to be at
+                        serialPrint(core.gpsport, gpsInitData[mcfg.gps_baudrate].ubx);
 
-                    gpsData.state_position++;
+                        gpsData.state_position++;
+                    }
                 } else {
                     // we're now (hopefully) at the correct rate, next state will switch to it
                     gpsData.baudrateIndex = mcfg.gps_baudrate;
@@ -203,6 +213,7 @@ static bool gpsNewFrame(uint8_t c)
         case GPS_MTK_NMEA:      // MTK in NMEA mode
             return gpsNewFrameNMEA(c);
         case GPS_UBLOX:         // UBX binary
+        case GPS_UBLOX_9600:
             return gpsNewFrameUBLOX(c);
         case GPS_MTK_BINARY:    // MTK in BINARY mode (TODO)
             return false;

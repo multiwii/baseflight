@@ -90,6 +90,7 @@ typedef enum {
     GPS_MTK_NMEA,
     GPS_MTK_BINARY,
     GPS_MAG_BINARY,
+    GPS_UBLOX_9600,
 } GPSHardware;
 
 typedef enum {
