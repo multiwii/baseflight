@@ -84,6 +84,7 @@ struct box_t {
     { BOXCALIB, "CALIB;", 17 },
     { BOXGOV, "GOVERNOR;", 18 },
     { BOXOSD, "OSD SW;", 19 },
+    { BOXACRORATE, "ACRO RATE;", 20 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -265,6 +266,7 @@ void serialInit(uint32_t baudrate)
     if (feature(FEATURE_INFLIGHT_ACC_CAL))
         availableBoxes[idx++] = BOXCALIB;
     availableBoxes[idx++] = BOXOSD;
+    availableBoxes[idx++] = BOXACRORATE;
     numberBoxItems = idx;
 }
 
@@ -378,6 +380,7 @@ static void evaluateCommand(void)
                     rcOptions[BOXCALIB] << BOXCALIB |
                     rcOptions[BOXGOV] << BOXGOV |
                     rcOptions[BOXOSD] << BOXOSD |
+                    rcOptions[BOXACRORATE] << BOXACRORATE |
                     f.ARMED << BOXARM;
         for (i = 0; i < numberBoxItems; i++) {
             int flag = (tmp & (1 << availableBoxes[i]));

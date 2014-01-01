@@ -19,9 +19,15 @@ int16_t failsafeEvents = 0;
 int16_t rcData[RC_CHANS];       // interval [1000;2000]
 int16_t rcCommand[4];           // interval [1000;2000] for THROTTLE and [-500;+500] for ROLL/PITCH/YAW
 int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];     // lookup table for expo & RC rate PITCH+ROLL
+int16_t lookupPitchRollRCAcro[PITCH_LOOKUP_LENGTH];// lookup table for acro expo & RC rate PITCH+ROLL
 int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for expo & mid THROTTLE
 uint16_t rssi;                  // range: [0;1023]
 rcReadRawDataPtr rcReadRawFunc = NULL;  // receive data from default (pwm/ppm) or additional (spek/sbus/?? receiver drivers)
+
+// will be set with the first rc read.
+int16_t * current_lookupPitchRollRC; // lookup table for expo & RC rate PITCH+ROLL in use
+uint8_t current_rollPitchRate=0;
+uint8_t current_yawRate=0;
 
 static void pidMultiWii(void);
 static void pidRewrite(void);
@@ -120,8 +126,8 @@ void annexCode(void)
             }
 
             tmp2 = tmp / 100;
-            rcCommand[axis] = lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (lookupPitchRollRC[tmp2 + 1] - lookupPitchRollRC[tmp2]) / 100;
-            prop1 = 100 - (uint16_t) cfg.rollPitchRate * tmp / 500;
+            rcCommand[axis] = current_lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (current_lookupPitchRollRC[tmp2 + 1] - current_lookupPitchRollRC[tmp2]) / 100;
+            prop1 = 100 - (uint16_t) current_rollPitchRate * tmp / 500;
             prop1 = (uint16_t) prop1 *prop2 / 100;
         } else {                // YAW
             if (cfg.yawdeadband) {
@@ -132,7 +138,7 @@ void annexCode(void)
                 }
             }
             rcCommand[axis] = tmp * -mcfg.yaw_control_direction;
-            prop1 = 100 - (uint16_t)cfg.yawRate * abs(tmp) / 500;
+            prop1 = 100 - (uint16_t)current_yawRate * abs(tmp) / 500;
         }
         dynP8[axis] = (uint16_t)cfg.P8[axis] * prop1 / 100;
         dynI8[axis] = (uint16_t)cfg.I8[axis] * prop1 / 100;
@@ -357,10 +363,10 @@ static void pidRewrite(void)
             errorAngle = constrain((rcCommand[axis] << 1) + GPS_angle[axis], -500, +500) - angle[axis] + cfg.angleTrim[axis]; // 16 bits is ok here
         }
         if (axis == 2) { // YAW is always gyro-controlled (MAG correction is applied to rcCommand)
-            AngleRateTmp = (((int32_t)(cfg.yawRate + 27) * rcCommand[2]) >> 5);
+            AngleRateTmp = (((int32_t)(current_yawRate + 27) * rcCommand[2]) >> 5);
          } else {
             if (!f.ANGLE_MODE) { //control is GYRO based (ACRO and HORIZON - direct sticks control is applied to rate PID
-                AngleRateTmp = ((int32_t) (cfg.rollPitchRate + 27) * rcCommand[axis]) >> 4;
+                AngleRateTmp = ((int32_t) (current_rollPitchRate + 27) * rcCommand[axis]) >> 4;
                 if (f.HORIZON_MODE) {
                     // mix up angle error to desired AngleRateTmp to add a little auto-level feel
                     AngleRateTmp += (errorAngle * cfg.I8[PIDLEVEL]) >> 8;
@@ -706,6 +712,16 @@ void loop(void)
             }
         }
 #endif
+
+        if (rcOptions[BOXACRORATE]) {
+        	current_rollPitchRate = cfg.rollPitchRateAcro ;
+        	current_yawRate = cfg.yawRateAcro;
+        	current_lookupPitchRollRC = lookupPitchRollRCAcro ;
+        } else {
+        	current_rollPitchRate = cfg.rollPitchRate ;
+        	current_yawRate = cfg.yawRate;
+        	current_lookupPitchRollRC = lookupPitchRollRC ;
+        }
 
         if (sensors(SENSOR_GPS)) {
             if (f.GPS_FIX && GPS_numSat >= 5) {

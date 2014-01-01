@@ -101,6 +101,7 @@ enum {
     BOXCALIB,
     BOXGOV,
     BOXOSD,
+    BOXACRORATE,
     CHECKBOXITEMS
 };
 
@@ -155,13 +156,18 @@ typedef struct config_t {
     uint8_t I8[PIDITEMS];
     uint8_t D8[PIDITEMS];
 
-    uint8_t rcRate8;
-    uint8_t rcExpo8;
     uint8_t thrMid8;
     uint8_t thrExpo8;
 
+    uint8_t rcRate8;
+    uint8_t rcExpo8;
     uint8_t rollPitchRate;
     uint8_t yawRate;
+
+    uint8_t rcRate8Acro;
+    uint8_t rcExpo8Acro;
+    uint8_t rollPitchRateAcro;
+    uint8_t yawRateAcro;
 
     uint8_t dynThrPID;
     int16_t mag_declination;                // Get your magnetic decliniation from here : http://magnetic-declination.com/
@@ -360,8 +366,9 @@ extern uint8_t toggleBeep;
 
 #define PITCH_LOOKUP_LENGTH 7
 #define THROTTLE_LOOKUP_LENGTH 12
-extern int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];   // lookup table for expo & RC rate PITCH+ROLL
-extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for expo & mid THROTTLE
+extern int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];   	// lookup table for expo & RC rate PITCH+ROLL
+extern int16_t lookupPitchRollRCAcro[PITCH_LOOKUP_LENGTH];	// lookup table for acro expo & RC rate PITCH+ROLL
+extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];	// lookup table for expo & mid THROTTLE
 
 // GPS stuff
 extern int32_t  GPS_coord[2];

@@ -69,8 +69,10 @@ void readEEPROM(void)
         mcfg.current_profile = 0;
     memcpy(&cfg, &mcfg.profile[mcfg.current_profile], sizeof(config_t));
 
-    for (i = 0; i < PITCH_LOOKUP_LENGTH; i++)
+    for (i = 0; i < PITCH_LOOKUP_LENGTH; i++){
         lookupPitchRollRC[i] = (2500 + cfg.rcExpo8 * (i * i - 25)) * i * (int32_t) cfg.rcRate8 / 2500;
+        lookupPitchRollRCAcro[i] = (2500 + cfg.rcExpo8Acro * (i * i - 25)) * i * (int32_t) cfg.rcRate8Acro / 2500;
+    }
 
     for (i = 0; i < THROTTLE_LOOKUP_LENGTH; i++) {
         int16_t tmp = 10 * i - cfg.thrMid8;
@@ -250,6 +252,10 @@ static void resetConf(void)
     cfg.rcExpo8 = 65;
     cfg.rollPitchRate = 0;
     cfg.yawRate = 0;
+    cfg.rcRate8Acro = 90;
+    cfg.rcExpo8Acro = 65;
+    cfg.rollPitchRateAcro = 0;
+    cfg.yawRateAcro = 0;
     cfg.dynThrPID = 0;
     cfg.thrMid8 = 50;
     cfg.thrExpo8 = 0;
