@@ -69,7 +69,7 @@ void readEEPROM(void)
         mcfg.current_profile = 0;
     memcpy(&cfg, &mcfg.profile[mcfg.current_profile], sizeof(config_t));
 
-    for (i = 0; i < PITCH_LOOKUP_LENGTH; i++){
+    for (i = 0; i < PITCH_LOOKUP_LENGTH; i++) {
         lookupPitchRollRC[i] = (2500 + cfg.rcExpo8 * (i * i - 25)) * i * (int32_t) cfg.rcRate8 / 2500;
         lookupPitchRollRCAcro[i] = (2500 + cfg.rcExpo8Acro * (i * i - 25)) * i * (int32_t) cfg.rcRate8Acro / 2500;
     }

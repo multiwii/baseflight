@@ -19,13 +19,13 @@ int16_t failsafeEvents = 0;
 int16_t rcData[RC_CHANS];       // interval [1000;2000]
 int16_t rcCommand[4];           // interval [1000;2000] for THROTTLE and [-500;+500] for ROLL/PITCH/YAW
 int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];     // lookup table for expo & RC rate PITCH+ROLL
-int16_t lookupPitchRollRCAcro[PITCH_LOOKUP_LENGTH];// lookup table for acro expo & RC rate PITCH+ROLL
+int16_t lookupPitchRollRCAcro[PITCH_LOOKUP_LENGTH]; // lookup table for acro expo & RC rate PITCH+ROLL
 int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for expo & mid THROTTLE
 uint16_t rssi;                  // range: [0;1023]
 rcReadRawDataPtr rcReadRawFunc = NULL;  // receive data from default (pwm/ppm) or additional (spek/sbus/?? receiver drivers)
 
-// will be set with the first rc read.
-int16_t * current_lookupPitchRollRC; // lookup table for expo & RC rate PITCH+ROLL in use
+// set with default value, they will be overide with the first rc read in loop()
+int16_t *current_lookupPitchRollRC=lookupPitchRollRC; // lookup table for expo & RC rate PITCH+ROLL in use
 uint8_t current_rollPitchRate=0;
 uint8_t current_yawRate=0;
 
@@ -714,13 +714,13 @@ void loop(void)
 #endif
 
         if (rcOptions[BOXACRORATE]) {
-        	current_rollPitchRate = cfg.rollPitchRateAcro ;
+        	current_rollPitchRate = cfg.rollPitchRateAcro;
         	current_yawRate = cfg.yawRateAcro;
-        	current_lookupPitchRollRC = lookupPitchRollRCAcro ;
+        	current_lookupPitchRollRC = lookupPitchRollRCAcro;
         } else {
-        	current_rollPitchRate = cfg.rollPitchRate ;
+        	current_rollPitchRate = cfg.rollPitchRate;
         	current_yawRate = cfg.yawRate;
-        	current_lookupPitchRollRC = lookupPitchRollRC ;
+        	current_lookupPitchRollRC = lookupPitchRollRC;
         }
 
         if (sensors(SENSOR_GPS)) {
