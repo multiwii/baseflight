@@ -1,7 +1,7 @@
 #include "board.h"
 #include "mw.h"
 
-// June 2013     V2.2-dev
+// Jan 2014     V2.2-dev
 
 flags_t f;
 int16_t debug[4];
@@ -713,6 +713,7 @@ void loop(void)
         }
 #endif
 
+        // sets current rc/rate and expo to the selected values
         if (rcOptions[BOXACRORATE]) {
         	current_rollPitchRate = cfg.rollPitchRateAcro;
         	current_yawRate = cfg.yawRateAcro;
