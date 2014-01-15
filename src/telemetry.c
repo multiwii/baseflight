@@ -228,7 +228,7 @@ void initTelemetry(void)
 
 void updateTelemetryState(void)
 {
-    bool State = mcfg.telemetry_softserial != TELEMETRY_UART ? true : ( f.ARMED || rcOptions[BOXTELEMETRY]);
+    bool State = mcfg.telemetry_softserial != TELEMETRY_UART ? true : (f.ARMED || rcOptions[BOXTELEMETRY]);
 
     if (State != telemetryEnabled) {
         if (mcfg.telemetry_softserial == TELEMETRY_UART) {
