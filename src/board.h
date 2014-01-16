@@ -20,7 +20,7 @@
 #include "printf.h"
 #endif
 
-#define PWM_TIMER_OUTPUT_MHZ 1
+#define PWM_TIMER_OUTPUT_MHZ 8
 #define PWM_TIMER_INPUT_MHZ 1
 #define PULSE_1MS     (PWM_TIMER_OUTPUT_MHZ * 1000) // 1ms pulse width
 

@@ -254,51 +254,51 @@ void writeServos(void)
 
     switch (mcfg.mixerConfiguration) {
         case MULTITYPE_BI:
-            pwmWriteServo(0, servo[4]);
-            pwmWriteServo(1, servo[5]);
+            pwmWriteOutput(0, servo[4]);
+            pwmWriteOutput(1, servo[5]);
             break;
 
         case MULTITYPE_TRI:
             if (cfg.tri_unarmed_servo) {
                 // if unarmed flag set, we always move servo
-                pwmWriteServo(0, servo[5]);
+                pwmWriteOutput(0, servo[5]);
             } else {
                 // otherwise, only move servo when copter is armed
                 if (f.ARMED)
-                    pwmWriteServo(0, servo[5]);
+                    pwmWriteOutput(0, servo[5]);
                 else
-                    pwmWriteServo(0, 0); // kill servo signal completely.
+                    pwmWriteOutput(0, 0); // kill servo signal completely.
             }
             break;
 
         case MULTITYPE_FLYING_WING:
-            pwmWriteServo(0, servo[3]);
-            pwmWriteServo(1, servo[4]);
+            pwmWriteOutput(0, servo[3]);
+            pwmWriteOutput(1, servo[4]);
             break;
 
         case MULTITYPE_GIMBAL:
-            pwmWriteServo(0, servo[0]);
-            pwmWriteServo(1, servo[1]);
+            pwmWriteOutput(0, servo[0]);
+            pwmWriteOutput(1, servo[1]);
             break;
 
         case MULTITYPE_DUALCOPTER:
-            pwmWriteServo(0, servo[4]);
-            pwmWriteServo(1, servo[5]);
+            pwmWriteOutput(0, servo[4]);
+            pwmWriteOutput(1, servo[5]);
             break;
 
         case MULTITYPE_AIRPLANE:
         case MULTITYPE_SINGLECOPTER:
-            pwmWriteServo(0, servo[3]);
-            pwmWriteServo(1, servo[4]);
-            pwmWriteServo(2, servo[5]);
-            pwmWriteServo(3, servo[6]);
+            pwmWriteOutput(0, servo[3]);
+            pwmWriteOutput(1, servo[4]);
+            pwmWriteOutput(2, servo[5]);
+            pwmWriteOutput(3, servo[6]);
             break;
 
         default:
             // Two servos for SERVO_TILT, if enabled
             if (feature(FEATURE_SERVO_TILT)) {
-                pwmWriteServo(0, servo[0]);
-                pwmWriteServo(1, servo[1]);
+                pwmWriteOutput(0, servo[0]);
+                pwmWriteOutput(1, servo[1]);
             }
             break;
     }
@@ -311,7 +311,7 @@ void writeMotors(void)
     uint8_t i;
 
     for (i = 0; i < numberMotor; i++)
-        pwmWriteMotor(i, motor[i]);
+        pwmWriteOutput(i, motor[i]);
 }
 
 void writeAllMotors(int16_t mc)
@@ -474,7 +474,7 @@ void mixTable(void)
         if (feature(FEATURE_SERVO_TILT))
             offset = 2;
         for (i = 0; i < 4; i++)
-            pwmWriteServo(i + offset, rcData[AUX1 + i]);
+            pwmWriteOutput(i + offset, rcData[AUX1 + i]);
     }
 
     maxMotor = motor[0];
