@@ -1,6 +1,5 @@
 #include "board.h"
 
-#define PULSE_1MS       (1000) // 1ms pulse width
 
 /*
     Configuration maps:
@@ -137,8 +136,6 @@ static const uint8_t * const hardwareMaps[] = {
     airPPM,
 };
 
-#define PWM_TIMER_MHZ 1
-
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 {
     TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -198,7 +195,7 @@ static void pwmGPIOConfig(GPIO_TypeDef *gpio, uint32_t pin, GPIO_Mode mode)
 static pwmPortData_t *pwmOutConfig(uint8_t port, uint16_t period, uint16_t value)
 {
     pwmPortData_t *p = &pwmPorts[port];
-    configTimeBase(timerHardware[port].tim, period, PWM_TIMER_MHZ);
+    configTimeBase(timerHardware[port].tim, period, PWM_TIMER_OUTPUT_MHZ);
     pwmGPIOConfig(timerHardware[port].gpio, timerHardware[port].pin, Mode_AF_PP);
     pwmOCConfig(timerHardware[port].tim, timerHardware[port].channel, value);
     // Needed only on TIM1
@@ -233,7 +230,7 @@ static pwmPortData_t *pwmInConfig(uint8_t port, timerCCCallbackPtr callback, uin
     pwmGPIOConfig(timerHardwarePtr->gpio, timerHardwarePtr->pin, Mode_IPD);
     pwmICConfig(timerHardwarePtr->tim, timerHardwarePtr->channel, TIM_ICPolarity_Rising);
 
-    timerInConfig(timerHardwarePtr, 0xFFFF, PWM_TIMER_MHZ);
+    timerInConfig(timerHardwarePtr, 0xFFFF, PWM_TIMER_INPUT_MHZ);
     configureTimerCaptureCompareInterrupt(timerHardwarePtr, port, callback);
 
     return p;
