@@ -317,7 +317,7 @@ static void getEstimatedAttitude(void)
     // If accel magnitude >1.15G or <0.85G and ACC vector outside of the limit range => we neutralize the effect of accelerometers in the angle estimation.
     // To do that, we just skip filter, as EstV already rotated by Gyro
     if (72 < (uint16_t)accMag && (uint16_t)accMag < 133) {
-    	// calculation are valid for a unit circle
+    	// calculations are valid for a unit circle (attitude)
     	// acts as a acc filter as well as everything is calculated with normalised vectors
         float accN[3] = {accSmooth[0], accSmooth[1], accSmooth[2]};
         if (normalise3DVector(accN)) {
