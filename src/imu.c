@@ -249,6 +249,36 @@ static int16_t calculateHeading(t_fp_vector *vec)
     return head;
 }
 
+//---------------------------------------------------------------------------------------------------
+// Fast inverse square-root
+// See: http://en.wikipedia.org/wiki/Fast_inverse_square_root
+
+static float invSqrt(float x)
+{
+        float halfx = 0.5f * x;
+        float y = x;
+        long i = *(long*)&y;
+        i = 0x5f3759df - (i>>1);
+        y = *(float*)&i;
+        y = y * (1.5f - (halfx * y * y));
+        return y;
+}
+
+
+static bool normalise3DVector(float vector[3])
+{
+  static float magnitude;
+  magnitude = invSqrt(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2]);
+  if (0 != magnitude)
+  {
+  	  vector[0] *= magnitude;
+  	  vector[1] *= magnitude;
+  	  vector[2] *= magnitude;
+  	  return true;
+  }
+  return false;
+}
+
 static void getEstimatedAttitude(void)
 {
     uint32_t axis;
@@ -287,13 +317,29 @@ static void getEstimatedAttitude(void)
     // If accel magnitude >1.15G or <0.85G and ACC vector outside of the limit range => we neutralize the effect of accelerometers in the angle estimation.
     // To do that, we just skip filter, as EstV already rotated by Gyro
     if (72 < (uint16_t)accMag && (uint16_t)accMag < 133) {
-        for (axis = 0; axis < 3; axis++)
-            EstG.A[axis] = (EstG.A[axis] * (float)mcfg.gyro_cmpf_factor + accSmooth[axis]) * INV_GYR_CMPF_FACTOR;
-    }
+    	// calculation are valid for a unit circle
+    	// acts as a acc filter as well as everything is calculated with normalised vectors
+        float accN[3] = {accSmooth[0], accSmooth[1], accSmooth[2]};
+        if (normalise3DVector(accN)) {
+            for (axis = 0; axis < 3; axis++) {
+                EstG.A[axis] = (EstG.A[axis] * (float)cfg.gyro_cmpf_factor + accN[axis]) * INV_GYR_CMPF_FACTOR;
+            }
+        }
+   }
+
+    // re-normalise the vector
+    normalise3DVector(EstG.A);
 
     if (sensors(SENSOR_MAG)) {
-        for (axis = 0; axis < 3; axis++)
-            EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + magADC[axis]) * INV_GYR_CMPFM_FACTOR;
+    	// work with a normalised vector to reduce mathematical problems
+        float magN[3] = {magADCfloat[0], magADCfloat[1], magADCfloat[2]};
+        if (normalise3DVector(magN)) {
+            for (axis = 0; axis < 3; axis++) {
+                EstM.A[axis] = (EstM.A[axis] * (float)cfg.gyro_cmpfm_factor + magN[axis]) * INV_GYR_CMPFM_FACTOR; // EstM.A[axis] = (EstM.A[axis] * GYR_CMPFM_FACTOR + magADCfloat[axis]) * INV_GYR_CMPFM_FACTOR;
+            }
+            // re-normalise the vector
+            normalise3DVector(EstM.A);
+        }
     }
 
    if (EstG.A[Z] > accZ_25deg)
