@@ -171,7 +171,7 @@ static void resetConf(void)
 
     // global settings
     mcfg.current_profile = 0;       // default profile
-    mcfg.gyro_cmpf_factor = 600;    // default MWC
+    mcfg.gyro_cmpf_factor = 400;    // default MWC - reduced because of using normalised vectors
     mcfg.gyro_cmpfm_factor = 250;   // default MWC
     mcfg.gyro_lpf = 42;             // supported by all gyro drivers now. In case of ST gyro, will default to 32Hz instead
     mcfg.accZero[0] = 0;
