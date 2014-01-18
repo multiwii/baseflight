@@ -5,8 +5,12 @@
  *      Author: nanoage.co.uk
  */
 
+
+
 #include "errno.h"
 #include "board.h"
+
+#ifdef CODESOURCERY
 
 caddr_t _sbrk(int incr)
 {
@@ -30,3 +34,4 @@ caddr_t _sbrk(int incr)
     heap_end += incr;
     return (caddr_t) prev_heap_end;
 }
+#endif

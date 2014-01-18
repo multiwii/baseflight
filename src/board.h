@@ -1,5 +1,7 @@
 #pragma once
 
+#define CODESOURCERY
+
 // for roundf()
 #define __USE_C99_MATH
 
