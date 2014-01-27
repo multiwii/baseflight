@@ -146,6 +146,7 @@ const mixer_t mixers[] = {
     { 0, 1, NULL },                // * MULTITYPE_PPM_TO_SERVO
     { 2, 1, mixerDualcopter  },    // MULTITYPE_DUALCOPTER
     { 1, 1, NULL },                // MULTITYPE_SINGLECOPTER
+    { 1, 1, NULL },                // * MULTITYPE_VTAILPLANE
     { 0, 0, NULL },                // MULTITYPE_CUSTOM
 };
 
@@ -214,7 +215,8 @@ void mixerInit(void)
 
     // set flag that we're on something with wings
     if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING ||
-        mcfg.mixerConfiguration == MULTITYPE_AIRPLANE)
+        mcfg.mixerConfiguration == MULTITYPE_AIRPLANE ||
+        mcfg.mixerConfiguration == MULTITYPE_VTAILPLANE)
         f.FIXED_WING = 1;
     else
         f.FIXED_WING = 0;
@@ -287,12 +289,15 @@ void writeServos(void)
             break;
 
         case MULTITYPE_AIRPLANE:
+        case MULTITYPE_VTAILPLANE:
         case MULTITYPE_SINGLECOPTER:
             pwmWriteServo(0, servo[3]);
             pwmWriteServo(1, servo[4]);
             pwmWriteServo(2, servo[5]);
             pwmWriteServo(3, servo[6]);
             break;
+            
+            
 
         default:
             // Two servos for SERVO_TILT, if enabled
@@ -359,6 +364,7 @@ static void airplaneMixer(void)
         servo[2] += mcfg.midrc;
     }
 
+if (mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
     if (f.PASSTHRU_MODE) {   // Direct passthru from RX
         servo[3] = rcCommand[ROLL] + flapperons[0];     // Wing 1
         servo[4] = rcCommand[ROLL] + flapperons[1];     // Wing 2
@@ -371,11 +377,27 @@ static void airplaneMixer(void)
         servo[5] = axisPID[YAW];                        // Rudder
         servo[6] = axisPID[PITCH];                      // Elevator
     }
+} else {
+    if (f.PASSTHRU_MODE) {   // Direct passthru from RX, for vtailplane
+        servo[3] = rcCommand[ROLL] + flapperons[0];     // Wing 1
+        servo[4] = rcCommand[ROLL] + flapperons[1];     // Wing 2
+        servo[5] = (servoDirection(5, 1) * rcCommand[PITCH]) + (servoDirection(5, 2) * rcCommand[YAW]);   // Rudder
+        servo[6] = (servoDirection(6, 1) * rcCommand[PITCH]) + (servoDirection(6, 2) * rcCommand[YAW]);   // Elevator
+    } else {
+        // Assisted modes (gyro only or gyro+acc according to AUX configuration in Gui, for vtailplane
+        servo[3] = axisPID[ROLL] + flapperons[0];       // Wing 1
+        servo[4] = axisPID[ROLL] + flapperons[1];       // Wing 2
+        servo[5] = (servoDirection(5, 1) * axisPID[PITCH]) + (servoDirection(5, 2) * axisPID[YAW]);      // Rudder
+        servo[6] = (servoDirection(6, 1) * axisPID[PITCH]) + (servoDirection(6, 2) * axisPID[YAW]);      // Elevator
+    }
+}
     for (i = 3; i < 7; i++) {
         servo[i] = ((int32_t)cfg.servoConf[i].rate * servo[i]) / 100L; // servo rates
         servo[i] += servoMiddle(i);
     }
 }
+
+
 
 void mixTable(void)
 {
@@ -409,9 +431,10 @@ void mixTable(void)
             break;
 
         case MULTITYPE_AIRPLANE:
+        case MULTITYPE_VTAILPLANE:
             airplaneMixer();
             break;
-
+            
         case MULTITYPE_FLYING_WING:
             if (!f.ARMED)
                 servo[7] = mcfg.mincommand;
