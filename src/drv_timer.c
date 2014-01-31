@@ -1,6 +1,5 @@
 #include "board.h"
 
-#define PULSE_1MS       (1000) // 1ms pulse width
 
 /* FreeFlight/Naze32 timer layout
     TIM2_CH1    RC1             PWM1

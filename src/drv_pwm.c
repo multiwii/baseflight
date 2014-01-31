@@ -1,6 +1,5 @@
 #include "board.h"
 
-#define PULSE_1MS       (1000) // 1ms pulse width
 
 /*
     Configuration maps:
@@ -34,6 +33,13 @@
     PWM11.14 used for servos
 */
 
+
+typedef void (*pwm_write_fn)(uint8_t index, uint16_t value);
+
+static void pwmWriteBrushed(uint8_t index, uint16_t value);
+static void pwmWriteMotor(uint8_t index, uint16_t value);
+static void pwmWriteServo(uint8_t index, uint16_t value);
+
 typedef struct {
     volatile uint16_t *ccr;
     uint16_t period;
@@ -44,6 +50,10 @@ typedef struct {
     uint16_t rise;
     uint16_t fall;
     uint16_t capture;
+
+    // dispatching output
+    pwm_write_fn write;
+
 } pwmPortData_t;
 
 enum {
@@ -137,8 +147,6 @@ static const uint8_t * const hardwareMaps[] = {
     airPPM,
 };
 
-#define PWM_TIMER_MHZ 1
-
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 {
     TIM_OCInitTypeDef  TIM_OCInitStructure;
@@ -195,10 +203,12 @@ static void pwmGPIOConfig(GPIO_TypeDef *gpio, uint32_t pin, GPIO_Mode mode)
     gpioInit(gpio, &cfg);
 }
 
-static pwmPortData_t *pwmOutConfig(uint8_t port, uint16_t period, uint16_t value)
+static pwmPortData_t *pwmOutConfig(uint8_t port, uint16_t period, uint16_t value, pwm_write_fn write)
 {
     pwmPortData_t *p = &pwmPorts[port];
-    configTimeBase(timerHardware[port].tim, period, PWM_TIMER_MHZ);
+    p->write = write;
+    p->period = period;
+    configTimeBase(timerHardware[port].tim, period, PWM_TIMER_OUTPUT_MHZ);
     pwmGPIOConfig(timerHardware[port].gpio, timerHardware[port].pin, Mode_AF_PP);
     pwmOCConfig(timerHardware[port].tim, timerHardware[port].channel, value);
     // Needed only on TIM1
@@ -233,7 +243,7 @@ static pwmPortData_t *pwmInConfig(uint8_t port, timerCCCallbackPtr callback, uin
     pwmGPIOConfig(timerHardwarePtr->gpio, timerHardwarePtr->pin, Mode_IPD);
     pwmICConfig(timerHardwarePtr->tim, timerHardwarePtr->channel, TIM_ICPolarity_Rising);
 
-    timerInConfig(timerHardwarePtr, 0xFFFF, PWM_TIMER_MHZ);
+    timerInConfig(timerHardwarePtr, 0xFFFF, PWM_TIMER_INPUT_MHZ);
     configureTimerCaptureCompareInterrupt(timerHardwarePtr, port, callback);
 
     return p;
@@ -354,25 +364,54 @@ bool pwmInit(drv_pwm_config_t *init)
             pwmInConfig(port, pwmCallback, numInputs);
             numInputs++;
         } else if (mask & TYPE_M) {
-            motors[numMotors++] = pwmOutConfig(port, 1000000 / init->motorPwmRate, init->idlePulse > 0 ? init->idlePulse : PULSE_1MS);
+	   if (init->motorPwmRate < 1000) {
+	      // Brushless motor behind ESC
+	      motors[numMotors++] = pwmOutConfig(port,
+						 PWM_TIMER_OUTPUT_MHZ * 1000000 / init->motorPwmRate,
+						 init->idlePulse > 0 ? init->idlePulse * PWM_TIMER_OUTPUT_MHZ : PULSE_1MS,
+						 pwmWriteMotor);
+	   } else {
+	      // Brushed motor directly PWM driven by FET
+	      motors[numMotors++] = pwmOutConfig(port,
+						 PWM_TIMER_OUTPUT_MHZ * 1000000 / init->motorPwmRate,
+						 0,
+						 pwmWriteBrushed);
+	   }
+
         } else if (mask & TYPE_S) {
-            servos[numServos++] = pwmOutConfig(port, 1000000 / init->servoPwmRate, PULSE_1MS);
+            servos[numServos++] = pwmOutConfig(port,
+                                               PWM_TIMER_OUTPUT_MHZ * 1000000 / init->servoPwmRate,
+                                               PULSE_1MS,
+					       pwmWriteServo);
         }
     }
 
     return false;
 }
 
-void pwmWriteMotor(uint8_t index, uint16_t value)
+
+void pwmWriteOutput(uint8_t index, uint16_t value)
 {
-    if (index < numMotors)
-        *motors[index]->ccr = value;
+   if (index < numMotors && motors[index]->write)
+      motors[index]->write(index, value);
 }
 
-void pwmWriteServo(uint8_t index, uint16_t value)
+static void pwmWriteMotor(uint8_t index, uint16_t value)
+{
+   if (index < numMotors)
+      *motors[index]->ccr = value * PWM_TIMER_OUTPUT_MHZ;
+}
+
+static void pwmWriteBrushed(uint8_t index, uint16_t value)
+{
+   if (index < numMotors)
+      *motors[index]->ccr = (value-1000) * motors[index]->period / 1000;
+}
+
+static void pwmWriteServo(uint8_t index, uint16_t value)
 {
     if (index < numServos)
-        *servos[index]->ccr = value;
+      *servos[index]->ccr = value * PWM_TIMER_OUTPUT_MHZ;
 }
 
 uint16_t pwmRead(uint8_t channel)
