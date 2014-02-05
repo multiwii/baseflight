@@ -203,6 +203,7 @@ static void resetConf(void)
     // Motor/ESC/Servo
     mcfg.minthrottle = 1150;
     mcfg.maxthrottle = 1850;
+    mcfg.disable_set_minthrottle = 0;
     mcfg.mincommand = 1000;
     mcfg.deadband3d_low = 1406;
     mcfg.deadband3d_high = 1514;

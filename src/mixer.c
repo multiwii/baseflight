@@ -386,6 +386,9 @@ void mixTable(void)
         // prevent "yaw jump" during yaw correction
         axisPID[YAW] = constrain(axisPID[YAW], -100 - abs(rcCommand[YAW]), +100 + abs(rcCommand[YAW]));
     }
+    
+    if((rcData[THROTTLE] < mcfg.mincheck) && (mcfg.disable_set_minthrottle) && (abs(vario) < 20))
+        axisPID[YAW] = 0;        
 
     // motors for non-servo mixes
     if (numberMotor > 1)
@@ -497,9 +500,9 @@ void mixTable(void)
         } else {
             motor[i] = constrain(motor[i], mcfg.minthrottle, mcfg.maxthrottle);
             if ((rcData[THROTTLE]) < mcfg.mincheck) {
-                if (!feature(FEATURE_MOTOR_STOP))
+                if (!mcfg.disable_set_minthrottle)
                     motor[i] = mcfg.minthrottle;
-                else
+                else if(feature(FEATURE_MOTOR_STOP))
                     motor[i] = mcfg.mincommand;
             }
         }
