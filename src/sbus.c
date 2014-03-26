@@ -103,5 +103,11 @@ bool sbusFrameComplete(void)
 
 static uint16_t sbusReadRawRC(uint8_t chan)
 {
-    return sbusChannelData[mcfg.rcmap[chan]] / 2 + SBUS_OFFSET;
+    /*
+     * From linear regression of 7 PWM samples from
+     * 1100..1940us. R^2 = 0.999999.
+     * See https://gist.github.com/prattmic/8857047
+     * and https://github.com/sebseb7/SbusToPPM/commit/ee57d0ca30986dff90be257f948bf5bd5ba032ff
+     */
+    return 0.624731*sbusChannelData[mcfg.rcmap[chan]] + 880.561511;
 }
