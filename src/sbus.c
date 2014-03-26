@@ -109,5 +109,5 @@ static uint16_t sbusReadRawRC(uint8_t chan)
      * See https://gist.github.com/prattmic/8857047
      * and https://github.com/sebseb7/SbusToPPM/commit/ee57d0ca30986dff90be257f948bf5bd5ba032ff
      */
-    return 0.624731*sbusChannelData[mcfg.rcmap[chan]] + 880.561511;
+    return 0.624731f * sbusChannelData[mcfg.rcmap[chan]] + 880.561511f;
 }
