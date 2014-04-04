@@ -13,7 +13,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 56;
+static const uint8_t EEPROM_CONF_VERSION = 58;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 
@@ -186,15 +186,16 @@ static void resetConf(void)
     mcfg.board_align_pitch = 0;
     mcfg.board_align_yaw = 0;
     mcfg.acc_hardware = ACC_DEFAULT;     // default/autodetect
+    mcfg.max_angle_inclination = 500;    // 50 degrees
     mcfg.yaw_control_direction = 1;
     mcfg.moron_threshold = 32;
-    mcfg.gyro_smoothing_factor = 0x00141403;     // default factors of 20, 20, 3 for R/P/Y
     mcfg.vbatscale = 110;
     mcfg.vbatmaxcellvoltage = 43;
     mcfg.vbatmincellvoltage = 33;
     mcfg.power_adc_channel = 0;
     mcfg.serialrx_type = 0;
     mcfg.telemetry_softserial = 0;
+    mcfg.telemetry_switch = 0;
     mcfg.midrc = 1500;
     mcfg.mincheck = 1100;
     mcfg.maxcheck = 1900;
@@ -231,9 +232,9 @@ static void resetConf(void)
     cfg.P8[YAW] = 85;
     cfg.I8[YAW] = 45;
     cfg.D8[YAW] = 0;
-    cfg.P8[PIDALT] = 40;
-    cfg.I8[PIDALT] = 25;
-    cfg.D8[PIDALT] = 60;
+    cfg.P8[PIDALT] = 50;
+    cfg.I8[PIDALT] = 0;
+    cfg.D8[PIDALT] = 0;
     cfg.P8[PIDPOS] = 11; // POSHOLD_P * 100;
     cfg.I8[PIDPOS] = 0; // POSHOLD_I * 100;
     cfg.D8[PIDPOS] = 0;
@@ -247,9 +248,9 @@ static void resetConf(void)
     cfg.I8[PIDLEVEL] = 10;
     cfg.D8[PIDLEVEL] = 100;
     cfg.P8[PIDMAG] = 40;
-    cfg.P8[PIDVEL] = 0;
-    cfg.I8[PIDVEL] = 0;
-    cfg.D8[PIDVEL] = 0;
+    cfg.P8[PIDVEL] = 120;
+    cfg.I8[PIDVEL] = 45;
+    cfg.D8[PIDVEL] = 1;
     cfg.rcRate8 = 90;
     cfg.rcExpo8 = 65;
     cfg.rollPitchRate = 0;
@@ -271,8 +272,8 @@ static void resetConf(void)
     cfg.accxy_deadband = 40;
     cfg.baro_tab_size = 21;
     cfg.baro_noise_lpf = 0.6f;
-    cfg.baro_cf_vel = 0.995f;
-    cfg.baro_cf_alt = 0.950f;
+    cfg.baro_cf_vel = 0.985f;
+    cfg.baro_cf_alt = 0.965f;
     cfg.acc_unarmedcal = 1;
 
     // Radio

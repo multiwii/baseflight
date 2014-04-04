@@ -102,6 +102,7 @@ enum {
     BOXGOV,
     BOXOSD,
     BOXACRORATE,
+    BOXTELEMETRY,
     CHECKBOXITEMS
 };
 
@@ -252,8 +253,8 @@ typedef struct master_t {
     uint16_t gyro_lpf;                      // gyro LPF setting - values are driver specific, in case of invalid number, a reasonable default ~30-40HZ is chosen.
     uint16_t gyro_cmpf_factor;              // Set the Gyro Weight for Gyro/Acc complementary filter. Increasing this value would reduce and delay Acc influence on the output of the filter.
     uint16_t gyro_cmpfm_factor;             // Set the Gyro Weight for Gyro/Magnetometer complementary filter. Increasing this value would reduce and delay Magnetometer influence on the output of the filter
-    uint32_t gyro_smoothing_factor;         // How much to smoothen with per axis (32bit value with Roll, Pitch, Yaw in bits 24, 16, 8 respectively
     uint8_t moron_threshold;                // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
+    uint16_t max_angle_inclination;         // max inclination allowed in angle (level) mode. default 500 (50 degrees).
     int16_t accZero[3];
     int16_t magZero[3];
 
@@ -282,10 +283,10 @@ typedef struct master_t {
     uint32_t serial_baudrate;
 
     uint32_t softserial_baudrate;
-    uint8_t softserial_inverted;           // use inverted softserial input and output signals
+    uint8_t softserial_inverted;            // use inverted softserial input and output signals
 
-    uint8_t telemetry_softserial;               // Serial to use for Telemetry. 0:USART1, 1:SoftSerial1 (Enable FEATURE_SOFTSERIAL first)
-
+    uint8_t telemetry_softserial;           // Serial to use for Telemetry. 0:USART1, 1:SoftSerial1 (Enable FEATURE_SOFTSERIAL first)
+    uint8_t telemetry_switch;               // Use aux channel to change serial output & baudrate( MSP / Telemetry ). It disables automatic switching to Telemetry when armed.
     config_t profile[3];                    // 3 separate profiles
     uint8_t current_profile;                // currently loaded profile
 
@@ -458,6 +459,10 @@ bool spektrumFrameComplete(void);
 // sbus
 void sbusInit(rcReadRawDataPtr *callback);
 bool sbusFrameComplete(void);
+
+// sumd
+void sumdInit(rcReadRawDataPtr *callback);
+bool sumdFrameComplete(void);
 
 // buzzer
 void buzzer(uint8_t warn_vbat);

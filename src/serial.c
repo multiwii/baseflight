@@ -28,6 +28,8 @@
 #define MSP_WP                   118    //out message         get a WP, WP# is in the payload, returns (WP#, lat, lon, alt, flags) WP#0-home, WP#16-poshold
 #define MSP_BOXIDS               119    //out message         get the permanent IDs associated to BOXes
 #define MSP_SERVO_CONF           120    //out message         Servo settings
+#define MSP_NAV_STATUS           121    //out message         Returns navigation status
+#define MSP_NAV_CONFIG           122    //out message         Returns navigation parameters
 
 #define MSP_SET_RAW_RC           200    //in message          8 rc chan
 #define MSP_SET_RAW_GPS          201    //in message          fix, numsat, lat, lon, alt, speed
@@ -43,6 +45,7 @@
 #define MSP_SET_HEAD             211    //in message          define a new heading hold direction
 #define MSP_SET_SERVO_CONF       212    //in message          Servo settings
 #define MSP_SET_MOTOR            214    //in message          PropBalance function
+#define MSP_SET_NAV_CONFIG       215    //in message          Sets nav config parameters - write to the eeprom
 
 // #define MSP_BIND                 240    //in message          no param
 
@@ -85,6 +88,7 @@ struct box_t {
     { BOXGOV, "GOVERNOR;", 18 },
     { BOXOSD, "OSD SW;", 19 },
     { BOXACRORATE, "ACRO RATE;", 20 },
+    { BOXTELEMETRY, "TELEMETRY;", 20 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -267,6 +271,8 @@ void serialInit(uint32_t baudrate)
         availableBoxes[idx++] = BOXCALIB;
     availableBoxes[idx++] = BOXOSD;
     availableBoxes[idx++] = BOXACRORATE;
+    if (feature(FEATURE_TELEMETRY && mcfg.telemetry_switch))
+        availableBoxes[idx++] = BOXTELEMETRY;
     numberBoxItems = idx;
 }
 
@@ -323,7 +329,8 @@ static void evaluateCommand(void)
     case MSP_SET_MISC:
         read16(); // powerfailmeter
         mcfg.minthrottle = read16();
-        read32(); // mcfg.maxthrottle, mcfg.mincommand
+        mcfg.maxthrottle = read16();
+        mcfg.mincommand = read16();
         cfg.failsafe_throttle = read16();
         read16();
         read32();
@@ -337,6 +344,7 @@ static void evaluateCommand(void)
     case MSP_SET_MOTOR:
         for (i = 0; i < 8; i++)
             motor_disarmed[i] = read16();
+        headSerialReply(0);
         break;
     case MSP_SELECT_SETTING:
         if (!f.ARMED) {
@@ -381,6 +389,7 @@ static void evaluateCommand(void)
                     rcOptions[BOXGOV] << BOXGOV |
                     rcOptions[BOXOSD] << BOXOSD |
                     rcOptions[BOXACRORATE] << BOXACRORATE |
+                    rcOptions[BOXTELEMETRY] << BOXTELEMETRY |
                     f.ARMED << BOXARM;
         for (i = 0; i < numberBoxItems; i++) {
             int flag = (tmp & (1 << availableBoxes[i]));
@@ -451,11 +460,10 @@ static void evaluateCommand(void)
         serialize8(GPS_update & 1);
         break;
     case MSP_ATTITUDE:
-        headSerialReply(8);
+        headSerialReply(6);
         for (i = 0; i < 2; i++)
             serialize16(angle[i]);
         serialize16(heading);
-        serialize16(headFreeModeHold);
         break;
     case MSP_ALTITUDE:
         headSerialReply(6);
@@ -463,10 +471,11 @@ static void evaluateCommand(void)
         serialize16(vario);
         break;
     case MSP_ANALOG:
-        headSerialReply(5);
+        headSerialReply(7);
         serialize8(vbat);
         serialize16(0); // power meter trash
         serialize16(rssi);
+        serialize16(0); // amperage
         break;
     case MSP_RC_TUNING:
         headSerialReply(7);
