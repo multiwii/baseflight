@@ -243,13 +243,9 @@ static void getEstimatedAttitude(void)
     static t_fp_vector EstM;
     static t_fp_vector EstN = { .A = { 1000.0f, 0.0f, 0.0f } };
     static float accLPF[3];
-    static uint32_t previousT;
-    uint32_t currentT = micros();
-    uint32_t deltaT;
+
     float scale, deltaGyroAngle[3];
-    deltaT = currentT - previousT;
-    scale = deltaT * gyro.scale;
-    previousT = currentT;
+    scale = cycleTime * gyro.scale;
 
     // Initialization
     for (axis = 0; axis < 3; axis++) {
@@ -299,7 +295,7 @@ static void getEstimatedAttitude(void)
     else
         heading = calculateHeading(&EstN);
 
-    acc_calc(deltaT); // rotate acc vector into earth frame
+    acc_calc(cycleTime); // rotate acc vector into earth frame
 
     if (cfg.throttle_angle_correction) {
         int cosZ = ((int32_t)(EstG.V.Z * 100.0f)) / acc_1G;
