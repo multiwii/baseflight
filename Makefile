@@ -142,7 +142,6 @@ BASE_CFLAGS	 = $(ARCH_FLAGS) \
 		   $(addprefix -D,$(OPTIONS)) \
 		   $(addprefix -I,$(INCLUDE_DIRS)) \
 		   -Wall \
-		   -Os \
 		   -ffunction-sections \
 		   -fdata-sections \
 		   -DSTM32F10X_MD \
