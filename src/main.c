@@ -86,7 +86,7 @@ int main(void)
             break;
         default:
             pwm_params.adcChannel = 0;
-        break;
+            break;
     }
 
     pwmInit(&pwm_params);

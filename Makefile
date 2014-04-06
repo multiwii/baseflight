@@ -45,6 +45,7 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   buzzer.c \
 		   cli.c \
 		   config.c \
+		   fir_filter.c \
 		   gps.c \
 		   imu.c \
 		   main.c \
@@ -55,6 +56,8 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   sbus.c \
 		   sumd.c \
 		   spektrum.c \
+		   SphereFit.c \
+		   SphereCalibration.c \
 		   telemetry.c \
 		   drv_gpio.c \
 		   drv_i2c.c \
