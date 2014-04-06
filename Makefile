@@ -40,11 +40,18 @@ STDPERIPH_DIR	 = $(ROOT)/lib/STM32F10x_StdPeriph_Driver
 OBJECT_DIR	 = $(ROOT)/obj
 BIN_DIR		 = $(ROOT)/obj
 
+# lib
+LIB_SRC = 
+ifeq ($(NEWLIB),TRUE)
+LIB_SRC = newlib_stubs.c 
+endif
+
 # Source files common to all targets
 COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   buzzer.c \
 		   cli.c \
 		   config.c \
+		   fir_filter.c \
 		   gps.c \
 		   imu.c \
 		   main.c \
@@ -55,6 +62,8 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   sbus.c \
 		   sumd.c \
 		   spektrum.c \
+		   SphereFit.c \
+		   SphereCalibration.c \
 		   telemetry.c \
 		   drv_gpio.c \
 		   drv_i2c.c \
@@ -66,7 +75,8 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   printf.c \
 		   utils.c \
 		   $(CMSIS_SRC) \
-		   $(STDPERIPH_SRC)
+		   $(STDPERIPH_SRC) \
+		   $(LIB_SRC)
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \

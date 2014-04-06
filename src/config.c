@@ -13,7 +13,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 60;
+static const uint8_t EEPROM_CONF_VERSION = 62;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 
@@ -222,6 +222,20 @@ static void resetConf(void)
     mcfg.softserial_2_inverted = 0;
     mcfg.looptime = 3500;
     mcfg.rssi_aux_channel = 0;
+
+    mcfg.magMean[0] = 0.0f;
+    mcfg.magMean[1] = 0.0f;
+    mcfg.magMean[2] = 0.0f;
+
+    mcfg.magZero[0] = 0.0f;
+    mcfg.magZero[1] = 0.0f;
+    mcfg.magZero[2] = 0.0f;
+
+    mcfg.magVariance[0] = 0.0f;
+    mcfg.magVariance[1] = 0.0f;
+    mcfg.magVariance[2] = 0.0f;
+
+    mcfg.ACC_CALIBRATED = 0;
 
     cfg.pidController = 0;
     cfg.P8[ROLL] = 40;

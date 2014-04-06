@@ -147,8 +147,9 @@ enum {
     ALIGN_MAG = 2
 };
 
-#define CALIBRATING_GYRO_CYCLES             1000
-#define CALIBRATING_ACC_CYCLES              400
+#define CALIBRATING_GYRO_CYCLES             700
+#define CALIBRATING_ACC_CYCLES              700
+#define CALIBRATING_MAG_CYCLES				700
 #define CALIBRATING_BARO_CYCLES             200
 
 typedef struct config_t {
@@ -256,7 +257,12 @@ typedef struct master_t {
     uint8_t moron_threshold;                // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
     uint16_t max_angle_inclination;         // max inclination allowed in angle (level) mode. default 500 (50 degrees).
     int16_t accZero[3];
-    int16_t magZero[3];
+    uint8_t ACC_CALIBRATED;
+    float accVariance[3];
+    float accMean[3];
+    float magZero[3];
+    float magMean[3];
+    float magVariance[3];
 
     // Battery/ADC stuff
     uint8_t vbatscale;                      // adjust this to match battery voltage to reported value

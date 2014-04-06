@@ -99,7 +99,7 @@ typedef union {
 t_fp_vector EstG;
 
 // Normalize a vector
-void normalizeV(struct fp_vector *src, struct fp_vector *dest)
+bool normalizeV(struct fp_vector *src, struct fp_vector *dest)
 {
     float length;
 
@@ -108,7 +108,9 @@ void normalizeV(struct fp_vector *src, struct fp_vector *dest)
         dest->X = src->X / length;
         dest->Y = src->Y / length;
         dest->Z = src->Z / length;
+        return 1;
     }
+    return 0;
 }
 
 // Rotate Estimated vector(s) with small angle approximation, according to the gyro data
@@ -274,13 +276,29 @@ static void getEstimatedAttitude(void)
     // If accel magnitude >1.15G or <0.85G and ACC vector outside of the limit range => we neutralize the effect of accelerometers in the angle estimation.
     // To do that, we just skip filter, as EstV already rotated by Gyro
     if (72 < (uint16_t)accMag && (uint16_t)accMag < 133) {
-        for (axis = 0; axis < 3; axis++)
-            EstG.A[axis] = (EstG.A[axis] * (float)mcfg.gyro_cmpf_factor + accSmooth[axis]) * INV_GYR_CMPF_FACTOR;
+    	// calculations are valid for a unit circle (attitude)
+    	// acts as a acc filter as well as everything is calculated with normalised vectors
+    	t_fp_vector accN = { .A = {accSmooth[0], accSmooth[1], accSmooth[2]}};
+        if (normalizeV(&accN.V, &accN.V)) {
+            for (axis = 0; axis < 3; axis++) {
+                EstG.A[axis] = (EstG.A[axis] * (float)mcfg.gyro_cmpf_factor + accN.A[axis]) * INV_GYR_CMPF_FACTOR;
+            }
+        }
     }
 
+    // re-normalise the vector
+    normalizeV(&EstG.V, &EstG.V);
+
     if (sensors(SENSOR_MAG)) {
-        for (axis = 0; axis < 3; axis++)
-            EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + magADC[axis]) * INV_GYR_CMPFM_FACTOR;
+     	// work with a normalised vector to reduce mathematical problems
+    	t_fp_vector magN = { .A = { magADC[0], magADC[1], magADC[2] }};
+        if (normalizeV(&magN.V, &magN.V)) {
+            for (axis = 0; axis < 3; axis++) {
+                EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + magN.A[axis]) * INV_GYR_CMPFM_FACTOR; // EstM.A[axis] = (EstM.A[axis] * GYR_CMPFM_FACTOR + magADCfloat[axis]) * INV_GYR_CMPFM_FACTOR;
+            }
+            // re-normalise the vector
+            normalizeV(&EstM.V, &EstM.V);
+        }
     }
 
    if (EstG.A[Z] > accZ_25deg)
