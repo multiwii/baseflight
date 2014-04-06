@@ -94,7 +94,8 @@ typedef enum {
 
 typedef enum {
     TELEMETRY_UART = 0,
-    TELEMETRY_SOFTSERIAL,
+    TELEMETRY_SOFTSERIAL_1,
+    TELEMETRY_SOFTSERIAL_2,
 } TelemetrySerial;
 
 typedef enum {
