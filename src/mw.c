@@ -1,7 +1,7 @@
 #include "board.h"
 #include "mw.h"
 
-// June 2013     V2.2-dev
+// Jan 2014     V2.2-dev
 
 flags_t f;
 int16_t debug[4];
@@ -48,11 +48,11 @@ uint16_t GPS_ground_course = 0;     // degrees * 10
 int16_t nav[2];
 int16_t nav_rated[2];               // Adding a rate controller to the navigation to make it smoother
 int8_t nav_mode = NAV_MODE_NONE;    // Navigation mode
-uint8_t  GPS_numCh;                 // Number of channels
-uint8_t  GPS_svinfo_chn[16];        // Channel number
-uint8_t  GPS_svinfo_svid[16];       // Satellite ID
-uint8_t  GPS_svinfo_quality[16];    // Bitfield Qualtity
-uint8_t  GPS_svinfo_cno[16];        // Carrier to Noise Ratio (Signal Strength)
+uint8_t GPS_numCh;                 // Number of channels
+uint8_t GPS_svinfo_chn[16];        // Channel number
+uint8_t GPS_svinfo_svid[16];       // Satellite ID
+uint8_t GPS_svinfo_quality[16];    // Bitfield Qualtity
+uint8_t GPS_svinfo_cno[16];        // Carrier to Noise Ratio (Signal Strength)
 
 // Automatic ACC Offset Calibration
 uint16_t InflightcalibratingA = 0;
@@ -102,7 +102,7 @@ void annexCode(void)
         prop2 = 100;
     } else {
         if (rcData[THROTTLE] < 2000) {
-            prop2 = 100 - (uint16_t) cfg.dynThrPID * (rcData[THROTTLE] - BREAKPOINT) / (2000 - BREAKPOINT);
+            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - BREAKPOINT) / (2000 - BREAKPOINT);
         } else {
             prop2 = 100 - cfg.dynThrPID;
         }
@@ -122,7 +122,7 @@ void annexCode(void)
             tmp2 = tmp / 100;
             rcCommand[axis] = lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (lookupPitchRollRC[tmp2 + 1] - lookupPitchRollRC[tmp2]) / 100;
             prop1 = 100 - (uint16_t) cfg.rollPitchRate * tmp / 500;
-            prop1 = (uint16_t) prop1 *prop2 / 100;
+            prop1 = (uint16_t)prop1 * prop2 / 100;
         } else {                // YAW
             if (cfg.yawdeadband) {
                 if (tmp > cfg.yawdeadband) {
@@ -142,7 +142,7 @@ void annexCode(void)
     }
 
     tmp = constrain(rcData[THROTTLE], mcfg.mincheck, 2000);
-    tmp = (uint32_t) (tmp - mcfg.mincheck) * 1000 / (2000 - mcfg.mincheck);       // [MINCHECK;2000] -> [0;1000]
+    tmp = (uint32_t)(tmp - mcfg.mincheck) * 1000 / (2000 - mcfg.mincheck);       // [MINCHECK;2000] -> [0;1000]
     tmp2 = tmp / 100;
     rcCommand[THROTTLE] = lookupThrottleRC[tmp2] + (tmp - tmp2 * 100) * (lookupThrottleRC[tmp2 + 1] - lookupThrottleRC[tmp2]) / 100;    // [0;1000] -> expo -> [MINTHROTTLE;MAXTHROTTLE]
 
@@ -291,7 +291,7 @@ static void pidMultiWii(void)
     prop = max(abs(rcCommand[PITCH]), abs(rcCommand[ROLL])); // range [0;500]
     for (axis = 0; axis < 3; axis++) {
         if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
-            // 50 degrees max inclination
+        	// 50 degrees max inclination
             errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis];
             PTermACC = errorAngle * cfg.P8[PIDLEVEL] / 100; // 32 bits is needed for calculation: errorAngle*P8[PIDLEVEL] could exceed 32768   16 bits is ok for result
             PTermACC = constrain(PTermACC, -cfg.D8[PIDLEVEL] * 5, +cfg.D8[PIDLEVEL] * 5);
@@ -349,15 +349,15 @@ static void pidRewrite(void)
     // ----------PID controller----------
     for (axis = 0; axis < 3; axis++) {
         // -----Get the desired angle rate depending on flight mode
-        if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2 ) { // MODE relying on ACC
-            // calculate error and limit the angle to max configured inclination
+        if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
+        	// calculate error and limit the angle to max configured inclination
             errorAngle = constrain((rcCommand[axis] << 1) + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis]; // 16 bits is ok here
         }
         if (axis == 2) { // YAW is always gyro-controlled (MAG correction is applied to rcCommand)
             AngleRateTmp = (((int32_t)(cfg.yawRate + 27) * rcCommand[2]) >> 5);
-         } else {
+        } else {
             if (!f.ANGLE_MODE) { //control is GYRO based (ACRO and HORIZON - direct sticks control is applied to rate PID
-                AngleRateTmp = ((int32_t) (cfg.rollPitchRate + 27) * rcCommand[axis]) >> 4;
+                AngleRateTmp = ((int32_t)(cfg.rollPitchRate + 27) * rcCommand[axis]) >> 4;
                 if (f.HORIZON_MODE) {
                     // mix up angle error to desired AngleRateTmp to add a little auto-level feel
                     AngleRateTmp += (errorAngle * cfg.I8[PIDLEVEL]) >> 8;
@@ -707,6 +707,7 @@ void loop(void)
         }
 #endif
 
+
         if (sensors(SENSOR_GPS)) {
             if (f.GPS_FIX && GPS_numSat >= 5) {
                 // if both GPS_HOME & GPS_HOLD are checked => GPS_HOME is the priority
@@ -759,43 +760,43 @@ void loop(void)
         if (taskOrder > 4)
             taskOrder -= 5;
         switch (taskOrder) {
-        case 0:
-            taskOrder++;
+            case 0:
+                taskOrder++;
 #ifdef MAG
-            if (sensors(SENSOR_MAG) && Mag_getADC())
-                break;
+                if (sensors(SENSOR_MAG) && Mag_getADC())
+                    break;
 #endif
-        case 1:
-            taskOrder++;
+            case 1:
+                taskOrder++;
 #ifdef BARO
-            if (sensors(SENSOR_BARO) && Baro_update())
-                break;
+                if (sensors(SENSOR_BARO) && Baro_update())
+                    break;
 #endif
-        case 2:
-            taskOrder++;
+            case 2:
+                taskOrder++;
 #ifdef BARO
-            if (sensors(SENSOR_BARO) && getEstimatedAltitude())
-                break;
+                if (sensors(SENSOR_BARO) && getEstimatedAltitude())
+                    break;
 #endif
-        case 3:
-            // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
-            // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
-            // change this based on available hardware
-            taskOrder++;
-            if (feature(FEATURE_GPS)) {
-                gpsThread();
-                break;
-            }
-        case 4:
-            taskOrder++;
+            case 3:
+                // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
+                // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
+                // change this based on available hardware
+                taskOrder++;
+                if (feature(FEATURE_GPS)) {
+                    gpsThread();
+                    break;
+                }
+            case 4:
+                taskOrder++;
 #ifdef SONAR
-            if (sensors(SENSOR_SONAR)) {
-                Sonar_update();
-            }
+                if (sensors(SENSOR_SONAR)) {
+                    Sonar_update();
+                }
 #endif
-            if (feature(FEATURE_VARIO) && f.VARIO_MODE)
-                mwVario();
-            break;
+                if (feature(FEATURE_VARIO) && f.VARIO_MODE)
+                    mwVario();
+                break;
         }
     }
 

@@ -148,7 +148,7 @@ enum {
 
 #define CALIBRATING_GYRO_CYCLES             700
 #define CALIBRATING_ACC_CYCLES              700
-#define CALIBRATING_MAG_CYCLES				700
+#define CALIBRATING_MAG_CYCLES		        700
 #define CALIBRATING_BARO_CYCLES             200
 
 typedef struct config_t {
@@ -310,6 +310,7 @@ typedef struct core_t {
 typedef struct flags_t {
     uint8_t OK_TO_ARM;
     uint8_t ARMED;
+    uint8_t ACC_CALIBRATED;
     uint8_t ANGLE_MODE;
     uint8_t HORIZON_MODE;
     uint8_t MAG_MODE;
@@ -370,8 +371,8 @@ extern uint8_t toggleBeep;
 
 #define PITCH_LOOKUP_LENGTH 7
 #define THROTTLE_LOOKUP_LENGTH 12
-extern int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];   // lookup table for expo & RC rate PITCH+ROLL
-extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for expo & mid THROTTLE
+extern int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];   	// lookup table for expo & RC rate PITCH+ROLL
+extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];	// lookup table for expo & mid THROTTLE
 
 // GPS stuff
 extern int32_t  GPS_coord[2];
