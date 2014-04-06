@@ -133,7 +133,7 @@ const clivalue_t valueTable[] = {
     { "gps_type", VAR_UINT8, &mcfg.gps_type, 0, 3 },
     { "gps_baudrate", VAR_INT8, &mcfg.gps_baudrate, 0, 4 },
     { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, 3 },
-    { "telemetry_softserial", VAR_UINT8, &mcfg.telemetry_softserial, 0, 1 },
+    { "telemetry_softserial", VAR_UINT8, &mcfg.telemetry_softserial, 0, 2 },
     { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
     { "vbatscale", VAR_UINT8, &mcfg.vbatscale, 10, 200 },
     { "vbatmaxcellvoltage", VAR_UINT8, &mcfg.vbatmaxcellvoltage, 10, 50 },

@@ -220,10 +220,10 @@ void initTelemetry(void)
     if (!feature(FEATURE_SOFTSERIAL))
         mcfg.telemetry_softserial = TELEMETRY_UART;
 
-    if (mcfg.telemetry_softserial == TELEMETRY_SOFTSERIAL)
-        core.telemport = &(softSerialPorts[0].port);
-    else
+    if (mcfg.telemetry_softserial == TELEMETRY_UART)
         core.telemport = core.mainport;
+    else
+        core.telemport = &(softSerialPorts[mcfg.telemetry_softserial-1].port); // telemetry_softserial=1 is softserial port 0 and so on
 }
 
 void updateTelemetryState(void)
