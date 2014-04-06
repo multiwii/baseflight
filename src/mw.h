@@ -148,7 +148,7 @@ enum {
 
 #define CALIBRATING_GYRO_CYCLES             700
 #define CALIBRATING_ACC_CYCLES              700
-#define CALIBRATING_MAG_CYCLES		        700
+#define CALIBRATING_MAG_CYCLES              700
 #define CALIBRATING_BARO_CYCLES             200
 
 typedef struct config_t {
