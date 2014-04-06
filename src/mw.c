@@ -173,7 +173,7 @@ void annexCode(void)
     if ((calibratingA > 0 && sensors(SENSOR_ACC)) || (calibratingG > 0)) {      // Calibration phasis
         LED0_TOGGLE;
     } else {
-        if (f.ACC_CALIBRATED)
+        if (mcfg.ACC_CALIBRATED)
             LED0_OFF;
         if (f.ARMED)
             LED0_ON;
@@ -191,16 +191,6 @@ void annexCode(void)
         }
     }
 #endif
-
-    if ((int32_t)(currentTime - calibratedAccTime) >= 0) {
-        if (!f.SMALL_ANGLES_25) {
-            f.ACC_CALIBRATED = 0; // the multi uses ACC and is not calibrated or is too much inclinated
-            LED0_TOGGLE;
-            calibratedAccTime = currentTime + 500000;
-        } else {
-            f.ACC_CALIBRATED = 1;
-        }
-    }
 
     serialCom();
 
@@ -261,7 +251,7 @@ void computeRC(void)
 
 static void mwArm(void)
 {
-    if (calibratingG == 0 && f.ACC_CALIBRATED) {
+    if (calibratingG == 0 && mcfg.ACC_CALIBRATED) {
         // TODO: feature(FEATURE_FAILSAFE) && failsafeCnt < 2
         // TODO: && ( !feature || ( feature && ( failsafecnt > 2) )
         if (!f.ARMED) {         // arm now!

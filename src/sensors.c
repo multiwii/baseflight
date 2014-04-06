@@ -1,9 +1,12 @@
 #include "board.h"
 #include "mw.h"
+#include "SphereCalibration.h"
+#include "fir_filter.h"
 
 uint16_t calibratingA = 0;      // the calibration is done is the main loop. Calibrating decreases at each cycle down to 0, then we enter in a normal mode.
 uint16_t calibratingB = 0;      // baro calibration = get new ground pressure value
 uint16_t calibratingG = 0;
+uint16_t calibratingM = 0;		// calibrate the magneto
 uint16_t acc_1G = 256;          // this is the 1G measured acceleration.
 int16_t heading, magHold;
 
@@ -183,9 +186,15 @@ static void ACC_Common(void)
             mcfg.accZero[YAW] = (a[YAW] + (CALIBRATING_ACC_CYCLES / 2))  / CALIBRATING_ACC_CYCLES - acc_1G;
             cfg.angleTrim[ROLL] = 0;
             cfg.angleTrim[PITCH] = 0;
+            mcfg.ACC_CALIBRATED = 1;
             writeEEPROM(1, true);      // write accZero in EEPROM
         }
         calibratingA--;
+    }
+    else
+    {
+    	// filter acc
+    	accFilterStep(accADC);
     }
 
     if (feature(FEATURE_INFLIGHT_ACC_CAL)) {
@@ -364,6 +373,11 @@ static void GYRO_Common(void)
         }
         calibratingG--;
     }
+    else
+    {
+    	// filter gyro
+    	gyroFilterStep(gyroADC);
+    }
     for (axis = 0; axis < 3; axis++)
         gyroADC[axis] -= gyroZero[axis];
 }
@@ -389,9 +403,7 @@ void Mag_init(void)
 
 int Mag_getADC(void)
 {
-    static uint32_t t, tCal = 0;
-    static int16_t magZeroTempMin[3];
-    static int16_t magZeroTempMax[3];
+    static uint32_t t = 0;
     uint32_t axis;
 
     if ((int32_t)(currentTime - t) < 0)
@@ -402,37 +414,34 @@ int Mag_getADC(void)
     hmc5883lRead(magADC);
 
     if (f.CALIBRATE_MAG) {
-        tCal = t;
+    	calibratingM = CALIBRATING_MAG_CYCLES;
         for (axis = 0; axis < 3; axis++) {
             mcfg.magZero[axis] = 0;
-            magZeroTempMin[axis] = magADC[axis];
-            magZeroTempMax[axis] = magADC[axis];
         }
+
+		// init calibration sequence
+		initCalibration(CALIBRATING_MAG_CYCLES);
         f.CALIBRATE_MAG = 0;
     }
 
-    if (magInit) {              // we apply offset only once mag calibration is done
-        magADC[X] -= mcfg.magZero[X];
-        magADC[Y] -= mcfg.magZero[Y];
-        magADC[Z] -= mcfg.magZero[Z];
+    if (calibratingM > 0) {
+    	addSample(magADC);
+        LED0_TOGGLE;
+        // Calculate offsets
+        if (calibratingM == 1) {
+			spherefitCalibration(mcfg.magZero, mcfg.magVariance, mcfg.magMean);
+            writeEEPROM(1, true);      // write magZero in EEPROM
+        }
+        calibratingM--;
+    }
+    else
+    {
+    	// filter mag
     }
 
-    if (tCal != 0) {
-        if ((t - tCal) < 30000000) {    // 30s: you have 30s to turn the multi in all directions
-            LED0_TOGGLE;
-            for (axis = 0; axis < 3; axis++) {
-                if (magADC[axis] < magZeroTempMin[axis])
-                    magZeroTempMin[axis] = magADC[axis];
-                if (magADC[axis] > magZeroTempMax[axis])
-                    magZeroTempMax[axis] = magADC[axis];
-            }
-        } else {
-            tCal = 0;
-            for (axis = 0; axis < 3; axis++)
-                mcfg.magZero[axis] = (magZeroTempMin[axis] + magZeroTempMax[axis]) / 2; // Calculate offsets
-            writeEEPROM(1, true);
-        }
-    }
+    magADC[X] -= mcfg.magZero[X];
+    magADC[Y] -= mcfg.magZero[Y];
+    magADC[Z] -= mcfg.magZero[Z];
 
     return 1;
 }
