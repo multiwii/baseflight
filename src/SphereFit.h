@@ -8,8 +8,7 @@
 #ifndef MAGCAL_H_
 #define MAGCAL_H_
 
-uint16_t sphereFit(float d[][3], uint16_t N, uint16_t MaxIterations, float Err,
-		uint16_t Population[][3], float SphereOrigin[], float * SphereRadius);
-
+uint16_t sphereFit(float d[][3], uint16_t N, uint16_t MaxIterations, float Err, uint16_t Population[][3],
+        float SphereOrigin[], float * SphereRadius);
 
 #endif /* MAGCAL_H_ */

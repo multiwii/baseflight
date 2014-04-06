@@ -11,6 +11,4 @@
 void accFilterStep(int16_t acc[3]);
 void gyroFilterStep(int16_t gyros[3]);
 
-
-
 #endif /* FIR_FILTER_H_ */

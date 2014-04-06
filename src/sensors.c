@@ -182,19 +182,16 @@ static void ACC_Common(void)
         // Calculate average, shift Z down by acc_1G and store values in EEPROM at end of calibration
         if (calibratingA == 1) {
             mcfg.accZero[ROLL] = (a[ROLL] + (CALIBRATING_ACC_CYCLES / 2)) / CALIBRATING_ACC_CYCLES;
-            mcfg.accZero[PITCH] = (a[PITCH] + (CALIBRATING_ACC_CYCLES / 2))  / CALIBRATING_ACC_CYCLES;
-            mcfg.accZero[YAW] = (a[YAW] + (CALIBRATING_ACC_CYCLES / 2))  / CALIBRATING_ACC_CYCLES - acc_1G;
+            mcfg.accZero[PITCH] = (a[PITCH] + (CALIBRATING_ACC_CYCLES / 2)) / CALIBRATING_ACC_CYCLES;
+            mcfg.accZero[YAW] = (a[YAW] + (CALIBRATING_ACC_CYCLES / 2)) / CALIBRATING_ACC_CYCLES - acc_1G;
             cfg.angleTrim[ROLL] = 0;
             cfg.angleTrim[PITCH] = 0;
             mcfg.ACC_CALIBRATED = 1;
             writeEEPROM(1, true);      // write accZero in EEPROM
         }
         calibratingA--;
-    }
-    else
-    {
-    	// filter acc
-    	accFilterStep(accADC);
+    } else {
+        accFilterStep(accADC);		// filter acc
     }
 
     if (feature(FEATURE_INFLIGHT_ACC_CAL)) {
@@ -272,7 +269,6 @@ void Baro_Common(void)
     baroPressureSum -= baroHistTab[indexplus1];
     baroHistIdx = indexplus1;
 }
-
 
 int Baro_update(void)
 {
@@ -372,11 +368,8 @@ static void GYRO_Common(void)
             }
         }
         calibratingG--;
-    }
-    else
-    {
-    	// filter gyro
-    	gyroFilterStep(gyroADC);
+    } else {
+        gyroFilterStep(gyroADC);	// filter gyro
     }
     for (axis = 0; axis < 3; axis++)
         gyroADC[axis] -= gyroZero[axis];
@@ -414,29 +407,27 @@ int Mag_getADC(void)
     hmc5883lRead(magADC);
 
     if (f.CALIBRATE_MAG) {
-    	calibratingM = CALIBRATING_MAG_CYCLES;
+        calibratingM = CALIBRATING_MAG_CYCLES;
         for (axis = 0; axis < 3; axis++) {
             mcfg.magZero[axis] = 0;
         }
 
-		// init calibration sequence
-		initCalibration(CALIBRATING_MAG_CYCLES);
+        // init calibration sequence
+        initCalibration(CALIBRATING_MAG_CYCLES);
         f.CALIBRATE_MAG = 0;
     }
 
     if (calibratingM > 0) {
-    	addSample(magADC);
+        addSample(magADC);
         LED0_TOGGLE;
         // Calculate offsets
         if (calibratingM == 1) {
-			spherefitCalibration(mcfg.magZero, mcfg.magVariance, mcfg.magMean);
+            spherefitCalibration(mcfg.magZero, mcfg.magVariance, mcfg.magMean);
             writeEEPROM(1, true);      // write magZero in EEPROM
         }
         calibratingM--;
-    }
-    else
-    {
-    	// filter mag
+    } else {
+        // filter mag
     }
 
     magADC[X] -= mcfg.magZero[X];
