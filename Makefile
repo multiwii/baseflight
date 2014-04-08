@@ -64,7 +64,9 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   spektrum.c \
 		   SphereFit.c \
 		   SphereCalibration.c \
-		   telemetry.c \
+		   telemetry_common.c \
+		   telemetry_frsky.c \
+		   telemetry_hott.c \
 		   drv_gpio.c \
 		   drv_i2c.c \
 		   drv_i2c_soft.c \
