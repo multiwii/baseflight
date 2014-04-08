@@ -38,7 +38,6 @@ SRC_DIR		 = $(ROOT)/src
 CMSIS_DIR	 = $(ROOT)/lib/CMSIS
 STDPERIPH_DIR	 = $(ROOT)/lib/STM32F10x_StdPeriph_Driver
 OBJECT_DIR	 = $(ROOT)/obj
-BIN_DIR		 = $(ROOT)/obj
 
 # lib
 LIB_SRC = 
@@ -190,8 +189,8 @@ CFLAGS = $(BASE_CFLAGS) \
 endif
 
 
-TARGET_HEX	 = $(BIN_DIR)/baseflight_$(TARGET).hex
-TARGET_ELF	 = $(BIN_DIR)/baseflight_$(TARGET).elf
+TARGET_HEX	 = $(OBJECT_DIR)/baseflight_$(TARGET).hex
+TARGET_ELF	 = $(OBJECT_DIR)/baseflight_$(TARGET).elf
 TARGET_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/$(TARGET)/,$(basename $($(TARGET)_SRC))))
 TARGET_MAP   = $(OBJECT_DIR)/baseflight_$(TARGET).map
 
@@ -205,7 +204,7 @@ $(TARGET_ELF):  $(TARGET_OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 # Compile
-$(OBJECT_DIR)/$(TARGET)/%.o: %.c
+$(OBJECT_DIR)/$(TARGET)/%.o: %.c $(OBJECT_DIR)
 	@mkdir -p $(dir $@)
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(CFLAGS) $<
@@ -220,8 +219,11 @@ $(OBJECT_DIR)/$(TARGET)/%.o): %.S
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(ASFLAGS) $< 
 
+$(OBJECT_DIR):
+	test -d $(OBJECT_DIR) || mkdir $(OBJECT_DIR)
+	
 clean:
-	rm -f $(TARGET_HEX) $(TARGET_ELF) $(TARGET_OBJS) $(TARGET_MAP)
+	rm -rf $(OBJECT_DIR)
 
 flash_$(TARGET): $(TARGET_HEX)
 	stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
