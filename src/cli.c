@@ -1,5 +1,6 @@
 #include "board.h"
 #include "mw.h"
+#include "cli.h"
 
 // we unset this on 'exit'
 extern uint8_t cliMode;
@@ -93,23 +94,6 @@ const clicmd_t cmdTable[] = {
     { "version", "", cliVersion },
 };
 #define CMD_COUNT (sizeof(cmdTable) / sizeof(clicmd_t))
-
-typedef enum {
-    VAR_UINT8,
-    VAR_INT8,
-    VAR_UINT16,
-    VAR_INT16,
-    VAR_UINT32,
-    VAR_FLOAT
-} vartype_e;
-
-typedef struct {
-    const char *name;
-    const uint8_t type; // vartype_e
-    void *ptr;
-    const int32_t min;
-    const int32_t max;
-} clivalue_t;
 
 const clivalue_t valueTable[] = {
     { "looptime", VAR_UINT16, &mcfg.looptime, 0, 9000 },
@@ -225,13 +209,6 @@ const clivalue_t valueTable[] = {
 
 #define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
 
-
-typedef union {
-    int32_t int_value;
-    float float_value;
-} int_float_value_t;
-
-static void cliSetVar(const clivalue_t *var, const int_float_value_t value);
 static void cliPrintVar(const clivalue_t *var, uint32_t full);
 static void cliPrint(const char *str);
 static void cliWrite(uint8_t ch);
@@ -889,7 +866,7 @@ static void cliPrintVar(const clivalue_t *var, uint32_t full)
         printf(" %d %d", var->min, var->max);
 }
 
-static void cliSetVar(const clivalue_t *var, const int_float_value_t value)
+void cliSetVar(const clivalue_t *var, const int_float_value_t value)
 {
     switch (var->type) {
         case VAR_UINT8:
@@ -1089,4 +1066,8 @@ void cliProcess(void)
             cliWrite(c);
         }
     }
+}
+
+uint8_t getValueCount(void){
+    return VALUE_COUNT;
 }

@@ -4,11 +4,18 @@
 #include "cli.h"
 #include "telemetry_common.h"
 
-// Multiwii Serial Protocol 0
+// Multiwii Serial Protocol
+#define MSP_PRIVATE_VERSION      0
 #define MSP_VERSION              0
 #define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
 #define CAP_DYNBALANCE              ((uint32_t)1 << 2)
 #define CAP_FLAPS                   ((uint32_t)1 << 3)
+
+#define MSP_PRIVATE              1      //in+out message      to be used for a generic framework : MSP + function code (LIST/GET/SET) + data. no code yet
+
+#define MSP_PRIVATE_GET          0      //out message         get the value (uint8)
+#define MSP_PRIVATE_SET          1      //in message          set the value (uint8)
+#define MSP_PRIVATE_INFO         255    //out message         get the msp_private_version (uint8) and the value count (uint8)
 
 #define MSP_IDENT                100    //out message         multitype + multiwii version + protocol version + capability variable
 #define MSP_STATUS               101    //out message         cycletime & errors_count & sensor present & box activation & current setting number
@@ -280,6 +287,7 @@ static void evaluateCommand(void)
     uint32_t i, tmp, junk;
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
+    uint8_t mspPrivateCmd;
 
     switch (cmdMSP) {
     case MSP_SET_RAW_RC:
@@ -623,6 +631,126 @@ static void evaluateCommand(void)
                serialize8(GPS_svinfo_cno[i]);
             }
         break;
+      case MSP_PRIVATE:
+            mspPrivateCmd = read8();
+            uint8_t mspPrivateParam = read8();
+            uint8_t size = 4;
+
+            float newValuef = 0;
+            switch (mspPrivateCmd) {
+
+                case MSP_PRIVATE_INFO:
+                    if (mspPrivateParam == 0) { // return version and param count
+                        // [0][0][version][paramCount]
+                        headSerialReply(size);
+                        serialize8(mspPrivateCmd);
+                        serialize8(mspPrivateParam);
+                        serialize8(MSP_PRIVATE_VERSION);
+                        serialize8(getValueCount());
+                    } else if (mspPrivateParam > 0 && mspPrivateParam <= getValueCount()) {    // return param name
+                            // [0][1][paramId][paramName]
+                        uint8_t nameLen = strlen(valueTable[mspPrivateParam - 1].name);
+                        headSerialReply(2 + nameLen);
+                        serialize8(mspPrivateCmd);
+                        serialize8(mspPrivateParam);
+                        for (i = 0; i < nameLen; i++)
+                            serialize8(valueTable[mspPrivateParam - 1].name[i]);
+                    }
+                    break;
+
+                case MSP_PRIVATE_GET:   // return param value
+                    // [1][id][type][min][max][value]
+                    size = 3;
+                    switch (valueTable[mspPrivateParam - 1].type) {
+                        case VAR_UINT16:
+                        case VAR_INT16:
+                            size = 6;
+                            break;
+                        case VAR_UINT32:
+                        case VAR_FLOAT:
+                            size = 12;
+                            break;
+                        default:
+                            break;
+                    }
+                    headSerialReply(3 + size);
+                    serialize8(mspPrivateCmd);
+                    serialize8(mspPrivateParam);
+                    serialize8(valueTable[mspPrivateParam - 1].type);
+                    switch (valueTable[mspPrivateParam - 1].type) {
+                        case VAR_UINT16:
+                            serialize16(valueTable[mspPrivateParam - 1].min);
+                            serialize16(valueTable[mspPrivateParam - 1].max);
+                            serialize16(*(uint16_t *)valueTable[mspPrivateParam - 1].ptr);
+                            break;
+                        case VAR_INT16:
+                            serialize16(valueTable[mspPrivateParam - 1].min);
+                            serialize16(valueTable[mspPrivateParam - 1].max);
+                            serialize16(*(int16_t *)valueTable[mspPrivateParam - 1].ptr);
+                            break;
+                        case VAR_UINT32:
+                            serialize32(valueTable[mspPrivateParam - 1].min);
+                            serialize32(valueTable[mspPrivateParam - 1].max);
+                            serialize32(*(uint32_t *)valueTable[mspPrivateParam - 1].ptr);
+                            break;
+                        case VAR_FLOAT:
+                            serialize32(valueTable[mspPrivateParam - 1].min);
+                            serialize32(valueTable[mspPrivateParam - 1].max);
+                            serialize32(*(float *)valueTable[mspPrivateParam - 1].ptr);
+                            break;
+                        default:
+                            serialize8(valueTable[mspPrivateParam - 1].min);
+                            serialize8(valueTable[mspPrivateParam - 1].max);
+                            serialize8(*(int8_t *)valueTable[mspPrivateParam - 1].ptr);
+                            break;
+                    }
+                    break;
+
+                case MSP_PRIVATE_SET:   // SET param value
+                    // [2][id][value]
+
+                    switch (valueTable[mspPrivateParam - 1].type) {
+
+                        case VAR_UINT16:
+                            newValuef = read8();
+                            break;
+                        case VAR_INT16:
+                            newValuef = read16();
+                            break;
+                        case VAR_UINT32:
+                            newValuef = read32();
+                            break;
+                        case VAR_FLOAT:
+                            newValuef = read32();
+                            break;
+                        default:
+                            newValuef = read8();
+                            break;
+                    }
+
+                    if (newValuef >= valueTable[mspPrivateParam - 1].min && newValuef <= valueTable[mspPrivateParam - 1].max) { // here we compare the float value since... it should work, RIGHT?
+                        int_float_value_t tmp;
+
+                        if (valueTable[mspPrivateParam - 1].type == VAR_FLOAT)
+                            tmp.float_value = newValuef;
+                        else
+                            tmp.int_value = newValuef;
+
+                        cliSetVar(&valueTable[mspPrivateParam - 1], tmp);
+
+                        headSerialReply(2);
+                        serialize8(mspPrivateCmd);
+                        serialize8(mspPrivateParam);
+                    } else {
+                        headSerialError(0);
+                    }
+
+                    break;
+                default:
+                    break;
+            }
+
+            break;
     default:                   // we do not know how to handle the (valid) message, indicate error MSP $M!
         headSerialError(0);
         break;
