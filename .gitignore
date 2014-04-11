@@ -1,3 +1,12 @@
-.*
+*.o
+*~
+*.uvopt
+*.dep
+*.bak
+*.uvgui.*
+.project
+.settings
+.cproject
 obj/
+patches/
 startup_stm32f10x_md_gcc.s
