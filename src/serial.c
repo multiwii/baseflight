@@ -91,6 +91,7 @@ struct box_t {
     { BOXGOV, "GOVERNOR;", 18 },
     { BOXOSD, "OSD SW;", 19 },
     { BOXTELEMETRY, "TELEMETRY;", 20 },
+    { BOXREMOTEGAINS, "REMOTE GAINS;", 21 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -272,6 +273,8 @@ void serialInit(uint32_t baudrate)
     availableBoxes[idx++] = BOXOSD;
     if (feature(FEATURE_TELEMETRY && mcfg.telemetry_switch))
         availableBoxes[idx++] = BOXTELEMETRY;
+    if (feature(FEATURE_REMOTEGAINS)) 
+        availableBoxes[idx++] = BOXREMOTEGAINS;
     numberBoxItems = idx;
 }
 
@@ -388,6 +391,7 @@ static void evaluateCommand(void)
                     rcOptions[BOXGOV] << BOXGOV |
                     rcOptions[BOXOSD] << BOXOSD |
                     rcOptions[BOXTELEMETRY] << BOXTELEMETRY |
+                    rcOptions[BOXREMOTEGAINS] << BOXREMOTEGAINS |
                     f.ARMED << BOXARM;
         for (i = 0; i < numberBoxItems; i++) {
             int flag = (tmp & (1 << availableBoxes[i]));

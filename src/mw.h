@@ -102,6 +102,7 @@ enum {
     BOXGOV,
     BOXOSD,
     BOXTELEMETRY,
+    BOXREMOTEGAINS,
     CHECKBOXITEMS
 };
 
