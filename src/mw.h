@@ -163,7 +163,7 @@ typedef struct remotegain_t {
     uint8_t mode;                           // Enable remote adjustment (disabled, enabled by AUX channel, enabled when armed, always enabled - see enum above)
     uint8_t min;                            // Value at min PWM
     uint8_t max;                            // Value at max PWM
-    uint8_t source;                         // Which AUX channel to use (0-3)
+    uint8_t source;                         // Which AUX channel to use (1-4)
     uint8_t dest;                           // What to adjust (P * PIDITEMS, I * PIDITEMS, D * PIDITEMS)
 } remotegain_t;
 

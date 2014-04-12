@@ -766,7 +766,45 @@ void loop(void)
         }
         
         if (feature(FEATURE_REMOTEGAINS)) {
-            // TODO kilrah add handling
+            int i;
+            for (i = 0; i < NUM_REMOTE_GAINS; i++) {
+                int workToDo = 0;
+                switch (mcfg.remote_gain_settings[i].mode) {
+                    case REMOTE_GAIN_AUX:
+                        if (rcOptions[BOXREMOTEGAINS]) {
+                            workToDo = 1;
+                        }
+                        break;
+                    case REMOTE_GAIN_ARM:
+                        if (f.ARMED) {
+                            workToDo = 1;
+                        }
+                        break;
+                    case REMOTE_GAIN_ALWAYS:
+                        workToDo = 1;
+                        break;
+                }
+                if (workToDo) {
+                    int val = rcData[AUX1 + mcfg.remote_gain_settings[i].source];
+                    // Constrain input
+                    val = min(val, mcfg.maxcheck);
+                    val = max(val, mcfg.mincheck);
+                    // Scale to defined range
+                    val = (mcfg.remote_gain_settings[i].max - mcfg.remote_gain_settings[i].min) * ((val - mcfg.mincheck) / 10);
+                    val = val / ((mcfg.maxcheck - mcfg.mincheck) / 10);
+                    val = val + mcfg.remote_gain_settings[i].min;
+                    
+                    if (mcfg.remote_gain_settings[i].dest < PIDITEMS) {
+                        cfg.P8[mcfg.remote_gain_settings[i].dest] = val;
+                    }
+                    else if (mcfg.remote_gain_settings[i].dest < (2 * PIDITEMS)) {
+                        cfg.I8[mcfg.remote_gain_settings[i].dest - PIDITEMS] = val;
+                    }
+                    else if (mcfg.remote_gain_settings[i].dest < (3 * PIDITEMS)) {
+                        cfg.D8[mcfg.remote_gain_settings[i].dest - (2 * PIDITEMS)] = val;
+                    }                    
+                }
+            }
         }
 
         if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
