@@ -225,7 +225,7 @@ static void resetConf(void)
         mcfg.remote_gain_settings[i].mode = REMOTE_GAIN_DISABLED;
         mcfg.remote_gain_settings[i].min = 20;       // Don't set to 0 by default just in case user has bad ideas
         mcfg.remote_gain_settings[i].max = 200; 
-        mcfg.remote_gain_settings[i].source = i;
+        mcfg.remote_gain_settings[i].source = i + 1;
         mcfg.remote_gain_settings[i].dest = 0;
     }
     

@@ -785,13 +785,13 @@ void loop(void)
                         break;
                 }
                 if (workToDo) {
-                    int val = rcData[AUX1 + mcfg.remote_gain_settings[i].source];
+                    uint32_t val = rcData[AUX1 + mcfg.remote_gain_settings[i].source - 1];
                     // Constrain input
                     val = min(val, mcfg.maxcheck);
                     val = max(val, mcfg.mincheck);
                     // Scale to defined range
-                    val = (mcfg.remote_gain_settings[i].max - mcfg.remote_gain_settings[i].min) * ((val - mcfg.mincheck) / 10);
-                    val = val / ((mcfg.maxcheck - mcfg.mincheck) / 10);
+                    val = (mcfg.remote_gain_settings[i].max - mcfg.remote_gain_settings[i].min) * ((val - mcfg.mincheck));
+                    val = val / ((mcfg.maxcheck - mcfg.mincheck));
                     val = val + mcfg.remote_gain_settings[i].min;
                     
                     if (mcfg.remote_gain_settings[i].dest < PIDITEMS) {
