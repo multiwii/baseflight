@@ -764,6 +764,10 @@ void loop(void)
         } else {
             f.PASSTHRU_MODE = 0;
         }
+        
+        if (feature(FEATURE_REMOTEGAINS)) {
+            // TODO kilrah add handling
+        }
 
         if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
             f.HEADFREE_MODE = 0;

@@ -13,7 +13,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 62;
+static const uint8_t EEPROM_CONF_VERSION = 63;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 
@@ -221,7 +221,14 @@ static void resetConf(void)
     mcfg.softserial_2_inverted = 0;
     mcfg.looptime = 3500;
     mcfg.rssi_aux_channel = 0;
-
+    for (i = 0; i < NUM_REMOTE_GAINS; i++) {
+        mcfg.remote_gain_settings[i].mode = REMOTE_GAIN_DISABLED;
+        mcfg.remote_gain_settings[i].min = 20;       // Don't set to 0 by default just in case user has bad ideas
+        mcfg.remote_gain_settings[i].max = 200; 
+        mcfg.remote_gain_settings[i].source = i;
+        mcfg.remote_gain_settings[i].dest = 0;
+    }
+    
     cfg.pidController = 0;
     cfg.P8[ROLL] = 40;
     cfg.I8[ROLL] = 30;
