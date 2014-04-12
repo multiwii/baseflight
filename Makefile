@@ -20,8 +20,11 @@ TARGET		?= NAZE
 # Compile-time options
 OPTIONS		?=
 
-# Debugger optons, must be empty or GDB
+# Debugger options, must be empty or GDB
 DEBUG ?=
+
+# you can pass extra source file, ex :
+# OPT_SRC = newlib.c 
 
 # Serial port/Device for flashing
 SERIAL_DEVICE	?= /dev/ttyUSB0
@@ -68,7 +71,8 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   printf.c \
 		   utils.c \
 		   $(CMSIS_SRC) \
-		   $(STDPERIPH_SRC)
+		   $(STDPERIPH_SRC) \
+		   $(OPT_SRC)
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
