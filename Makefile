@@ -20,8 +20,11 @@ TARGET		?= NAZE
 # Compile-time options
 OPTIONS		?=
 
-# Debugger optons, must be empty or GDB
+# Debugger options, must be empty or GDB
 DEBUG ?=
+
+# Build with newlib if not empty
+NEWLIB ?=
 
 # Serial port/Device for flashing
 SERIAL_DEVICE	?= /dev/ttyUSB0
@@ -38,7 +41,13 @@ SRC_DIR		 = $(ROOT)/src
 CMSIS_DIR	 = $(ROOT)/lib/CMSIS
 STDPERIPH_DIR	 = $(ROOT)/lib/STM32F10x_StdPeriph_Driver
 OBJECT_DIR	 = $(ROOT)/obj
-BIN_DIR		 = $(ROOT)/obj
+
+# Lib source files
+ifeq ($(NEWLIB),)
+LIB_SRC =
+else
+LIB_SRC = newlib.c
+endif
 
 # Source files common to all targets
 COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
@@ -68,7 +77,8 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   printf.c \
 		   utils.c \
 		   $(CMSIS_SRC) \
-		   $(STDPERIPH_SRC)
+		   $(STDPERIPH_SRC) \
+		   $(LIB_SRC)
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
@@ -159,6 +169,12 @@ LDFLAGS		 = -lm \
 		   -Wl,-gc-sections,-Map,$(TARGET_MAP) \
 		   -T$(LD_SCRIPT)
 
+ifeq ($(DEBUG),GDB)
+	CFLAGS = $(BASE_CFLAGS) -ggdb 
+else
+	CFLAGS = $(BASE_CFLAGS) -Os
+endif
+
 ###############################################################################
 # No user-serviceable parts below
 ###############################################################################
@@ -170,18 +186,9 @@ ifeq ($(filter $(TARGET),$(VALID_TARGETS)),)
 $(error Target '$(TARGET)' is not valid, must be one of $(VALID_TARGETS))
 endif
 
-ifeq ($(DEBUG),GDB)
-CFLAGS = $(BASE_CFLAGS) \
-	-ggdb \
-	-O0
-else
-CFLAGS = $(BASE_CFLAGS) \
-	-Os
-endif
 
-
-TARGET_HEX	 = $(BIN_DIR)/baseflight_$(TARGET).hex
-TARGET_ELF	 = $(BIN_DIR)/baseflight_$(TARGET).elf
+TARGET_HEX	 = $(OBJECT_DIR)/baseflight_$(TARGET).hex
+TARGET_ELF	 = $(OBJECT_DIR)/baseflight_$(TARGET).elf
 TARGET_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/$(TARGET)/,$(basename $($(TARGET)_SRC))))
 TARGET_MAP   = $(OBJECT_DIR)/baseflight_$(TARGET).map
 
@@ -195,7 +202,7 @@ $(TARGET_ELF):  $(TARGET_OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 # Compile
-$(OBJECT_DIR)/$(TARGET)/%.o: %.c
+$(OBJECT_DIR)/$(TARGET)/%.o: %.c $(OBJECT_DIR)
 	@mkdir -p $(dir $@)
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(CFLAGS) $<
@@ -210,8 +217,11 @@ $(OBJECT_DIR)/$(TARGET)/%.o): %.S
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(ASFLAGS) $< 
 
+$(OBJECT_DIR):
+	test -d $(OBJECT_DIR) || mkdir $(OBJECT_DIR)
+	
 clean:
-	rm -f $(TARGET_HEX) $(TARGET_ELF) $(TARGET_OBJS) $(TARGET_MAP)
+	rm -rf $(OBJECT_DIR)
 
 flash_$(TARGET): $(TARGET_HEX)
 	stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
