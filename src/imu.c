@@ -314,11 +314,7 @@ static void getEstimatedAttitude(void)
                 coef = 900;
             throttleAngleCorrection = (cfg.throttle_correction_value * coef) / 900;
         }
-#if 1
-        debug[0] = cosZ;
-        debug[1] = EstG.V.Z;
-        debug[2] = throttleAngleCorrection;
-#endif
+
     }
 }
 
