@@ -301,19 +301,20 @@ static void getEstimatedAttitude(void)
 
     acc_calc(deltaT); // rotate acc vector into earth frame
 
-    if (cfg.throttle_angle_correction) {
+    if (cfg.throttle_correction_value) {
 
         float cosZ = EstG.V.Z / sqrtf(EstG.V.X * EstG.V.X + EstG.V.Y * EstG.V.Y + EstG.V.Z * EstG.V.Z);
 
         if (cosZ <= 0){
-            throttleAngleCorrection = 0; // we are inverted or vertical
+            throttleAngleCorrection = 0; // we are inverted or vertical , no correction
         }else{
-            float coef = 4.0f * (1.0f - cosZ); // apply gradually from 0 to 40 deg , then apply max
-            if (coef > 1)
-                coef = 1;
-            throttleAngleCorrection = ((float)cfg.throttle_angle_correction) * coef;
+            int coef = acos(cosZ) * (1800.0f / M_PI) * (900.0f / cfg.throttle_correction_angle); 
+            // we could replace the float div with hardcode uint8 value (ex 4 = 22.5 deg, 3 = 30 deg, 2 = 45 , up to the cli) 
+            if (coef > 900)
+                coef = 900;
+            throttleAngleCorrection = (cfg.throttle_correction_value * coef) / 900;
         }
-#if 0
+#if 1
         debug[0] = cosZ;
         debug[1] = EstG.V.Z;
         debug[2] = throttleAngleCorrection;
