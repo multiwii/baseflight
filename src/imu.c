@@ -308,7 +308,7 @@ static void getEstimatedAttitude(void)
         if (cosZ <= 0) {
             throttleAngleCorrection = 0; // we are inverted or vertical , no correction
         } else {
-            int coef = acos(cosZ) * (1800.0f / M_PI) * (900.0f / cfg.throttle_correction_angle);
+            int coef = acosf(cosZ) * (1800.0f / M_PI) * (900.0f / cfg.throttle_correction_angle);
             // we could replace the float div with hardcode uint8 value (ex 4 = 22.5 deg, 3 = 30 deg, 2 = 45 , up to the cli) 
             if (coef > 900)
                 coef = 900;
