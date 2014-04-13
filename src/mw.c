@@ -775,8 +775,8 @@ void loop(void)
                             workToDo = 1;
                         }
                         break;
-                    case REMOTE_GAIN_ARM:
-                        if (f.ARMED) {
+                    case REMOTE_GAIN_DISARM:
+                        if (!f.ARMED) {
                             workToDo = 1;
                         }
                         break;
