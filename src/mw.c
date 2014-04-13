@@ -784,6 +784,12 @@ void loop(void)
                         workToDo = 1;
                         break;
                 }
+                // Inhibit any adjustment if we have no valid signal
+                if (feature(FEATURE_FAILSAFE)) {
+                    if (failsafeCnt > 2) {
+                        workToDo = 0;
+                    }
+                }
                 if (workToDo) {
                     uint32_t val = rcData[AUX1 + mcfg.remote_gain_settings[i].source - 1];
                     // Constrain input
