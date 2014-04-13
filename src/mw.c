@@ -808,7 +808,10 @@ void loop(void)
                     }
                     else if (mcfg.remote_gain_settings[i].dest < (3 * PIDITEMS)) {
                         cfg.D8[mcfg.remote_gain_settings[i].dest - (2 * PIDITEMS)] = val;
-                    }                    
+                    }
+                    else if (mcfg.remote_gain_settings[i].dest == (3 * PIDITEMS)) {
+                        cfg.dynThrPID = val;
+                    }
                 }
             }
         }
