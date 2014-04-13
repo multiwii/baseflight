@@ -62,6 +62,8 @@
 #define MSP_ACC_TRIM             240    //out message         get acc angle trim values
 #define MSP_SET_ACC_TRIM         239    //in message          set acc angle trim values
 #define MSP_GPSSVINFO            164    //out message         get Signal Strength (only U-Blox)
+#define MSP_REMOTEGAINS          170    //out message         4 remotegain_t gain adjustment sets
+#define MSP_SET_REMOTEGAINS      171    //in message          4 remotegain_t gain adjustment sets
 
 #define INBUF_SIZE 64
 
@@ -626,6 +628,26 @@ static void evaluateCommand(void)
                serialize8(GPS_svinfo_quality[i]);
                serialize8(GPS_svinfo_cno[i]);
             }
+        break;
+    case MSP_REMOTEGAINS:
+        headSerialReply(NUM_REMOTE_GAINS * sizeof(remotegain_t));
+        for (i = 0; i < NUM_REMOTE_GAINS; i++) {
+            serialize8(mcfg.remote_gain_settings[i].mode);
+            serialize8(mcfg.remote_gain_settings[i].min);
+            serialize8(mcfg.remote_gain_settings[i].max);
+            serialize8(mcfg.remote_gain_settings[i].source);
+            serialize8(mcfg.remote_gain_settings[i].dest);
+        }
+        break;
+    case MSP_SET_REMOTEGAINS:
+        for (i = 0; i < NUM_REMOTE_GAINS; i++) {
+            mcfg.remote_gain_settings[i].mode = read8();
+            mcfg.remote_gain_settings[i].min = read8();
+            mcfg.remote_gain_settings[i].max = read8();
+            mcfg.remote_gain_settings[i].source = read8();
+            mcfg.remote_gain_settings[i].dest = read8();
+        }
+        headSerialReply(0);
         break;
     default:                   // we do not know how to handle the (valid) message, indicate error MSP $M!
         headSerialError(0);
