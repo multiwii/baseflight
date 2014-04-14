@@ -165,6 +165,7 @@ typedef struct config_t {
     uint8_t yawRate;
 
     uint8_t dynThrPID;
+    uint16_t tpaBreakPoint;                  // Breakpoint where TPA is activated
     int16_t mag_declination;                // Get your magnetic decliniation from here : http://magnetic-declination.com/
     int16_t angleTrim[2];                   // accelerometer trim
 
@@ -185,7 +186,8 @@ typedef struct config_t {
     uint8_t yawdeadband;                    // introduce a deadband around the stick center for yaw axis. Must be greater than zero.
     uint8_t alt_hold_throttle_neutral;      // defines the neutral zone of throttle stick during altitude hold, default setting is +/-40
     uint8_t alt_hold_fast_change;           // when disabled, turn off the althold when throttle stick is out of deadband defined with alt_hold_throttle_neutral; when enabled, altitude changes slowly proportional to stick movement
-    uint8_t throttle_angle_correction;      //
+    uint16_t throttle_correction_angle;     // the angle when the throttle correction is maximal. in 0.1 degres, ex 225 = 22.5 ,30.0, 450 = 45.0 deg
+    uint8_t throttle_correction_value;      // the correction that will be applied at throttle_correction_angle.
 
     // Servo-related stuff
     servoParam_t servoConf[8];              // servo configuration
@@ -271,18 +273,21 @@ typedef struct master_t {
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.
 
     // gps-related stuff
-    uint8_t gps_type;                       // Type of GPS hardware. 0: NMEA 1: UBX 2: MTK NMEA 3: MTK Binary
-    int8_t gps_baudrate;                    // GPS baudrate, -1: autodetect (NMEA only), 0: 115200, 1: 57600, 2: 38400, 3: 19200, 4: 9600
+    uint8_t gps_type;                       // See GPSHardware enum.
+    int8_t gps_baudrate;                    // See GPSBaudRates enum.
 
     uint32_t serial_baudrate;
 
-    uint32_t softserial_baudrate;
-    uint8_t softserial_inverted;            // use inverted softserial input and output signals
+    uint32_t softserial_baudrate;             // shared by both soft serial ports
+    uint8_t softserial_1_inverted;            // use inverted softserial input and output signals on port 1
+    uint8_t softserial_2_inverted;            // use inverted softserial input and output signals on port 2
 
-    uint8_t telemetry_softserial;           // Serial to use for Telemetry. 0:USART1, 1:SoftSerial1 (Enable FEATURE_SOFTSERIAL first)
+    uint8_t telemetry_provider;             // See TelemetryProvider enum.
+    uint8_t telemetry_port;                 // See TelemetryPort enum.
     uint8_t telemetry_switch;               // Use aux channel to change serial output & baudrate( MSP / Telemetry ). It disables automatic switching to Telemetry when armed.
     config_t profile[3];                    // 3 separate profiles
     uint8_t current_profile;                // currently loaded profile
+    uint8_t reboot_character;               // which byte is used to reboot. Default 'R', could be changed carefully to something else.
 
     uint8_t magic_ef;                       // magic number, should be 0xEF
     uint8_t chk;                            // XOR checksum
@@ -474,7 +479,3 @@ void GPS_reset_nav(void);
 void GPS_set_next_wp(int32_t* lat, int32_t* lon);
 int32_t wrap_18000(int32_t error);
 
-// telemetry
-void initTelemetry(void);
-void updateTelemetryState(void);
-void sendTelemetry(void);

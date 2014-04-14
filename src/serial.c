@@ -1,6 +1,9 @@
 #include "board.h"
 #include "mw.h"
 
+#include "cli.h"
+#include "telemetry_common.h"
+
 // Multiwii Serial Protocol 0
 #define MSP_VERSION              0
 #define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
@@ -112,8 +115,6 @@ static const char pidnames[] =
 
 static uint8_t checksum, indRX, inBuf[INBUF_SIZE];
 static uint8_t cmdMSP;
-// signal that we're in cli mode
-uint8_t cliMode = 0;
 
 void serialize32(uint32_t a)
 {
@@ -632,14 +633,10 @@ static void evaluateCommand(void)
 // evaluate all other incoming serial data
 static void evaluateOtherData(uint8_t sr)
 {
-    switch (sr) {
-        case '#':
-            cliProcess();
-            break;
-        case 'R':
-            systemReset(true);      // reboot to bootloader
-            break;
-    }
+    if (sr == '#')
+        cliProcess();
+    else if (sr == mcfg.reboot_character)
+        systemReset(true);      // reboot to bootloader
 }
 
 void serialCom(void)
@@ -667,8 +664,8 @@ void serialCom(void)
 
         if (c_state == IDLE) {
             c_state = (c == '$') ? HEADER_START : IDLE;
-            if (c_state == IDLE)
-                evaluateOtherData(c); // evaluate all other incoming serial data
+            if (c_state == IDLE && !f.ARMED)
+                evaluateOtherData(c); // if not armed evaluate all other incoming serial data
         } else if (c_state == HEADER_START) {
             c_state = (c == 'M') ? HEADER_M : IDLE;
         } else if (c_state == HEADER_M) {
@@ -697,8 +694,5 @@ void serialCom(void)
             }
             c_state = IDLE;
         }
-    }
-    if (!cliMode && feature(FEATURE_TELEMETRY)) { // The first condition should never evaluate to true but I'm putting it here anyway - silpstream
-        sendTelemetry();
     }
 }

@@ -1,6 +1,9 @@
 #include "board.h"
 #include "mw.h"
 
+#include "cli.h"
+#include "telemetry_common.h"
+
 // June 2013     V2.2-dev
 
 flags_t f;
@@ -48,11 +51,11 @@ uint16_t GPS_ground_course = 0;     // degrees * 10
 int16_t nav[2];
 int16_t nav_rated[2];               // Adding a rate controller to the navigation to make it smoother
 int8_t nav_mode = NAV_MODE_NONE;    // Navigation mode
-uint8_t  GPS_numCh;                 // Number of channels
-uint8_t  GPS_svinfo_chn[16];        // Channel number
-uint8_t  GPS_svinfo_svid[16];       // Satellite ID
-uint8_t  GPS_svinfo_quality[16];    // Bitfield Qualtity
-uint8_t  GPS_svinfo_cno[16];        // Carrier to Noise Ratio (Signal Strength)
+uint8_t GPS_numCh;                  // Number of channels
+uint8_t GPS_svinfo_chn[16];         // Channel number
+uint8_t GPS_svinfo_svid[16];        // Satellite ID
+uint8_t GPS_svinfo_quality[16];     // Bitfield Qualtity
+uint8_t GPS_svinfo_cno[16];         // Carrier to Noise Ratio (Signal Strength)
 
 // Automatic ACC Offset Calibration
 uint16_t InflightcalibratingA = 0;
@@ -80,8 +83,6 @@ void blinkLED(uint8_t num, uint8_t wait, uint8_t repeat)
     }
 }
 
-#define BREAKPOINT 1500
-
 void annexCode(void)
 {
     static uint32_t calibratedAccTime;
@@ -98,11 +99,11 @@ void annexCode(void)
     int i;
 
     // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
-    if (rcData[THROTTLE] < BREAKPOINT) {
+    if (rcData[THROTTLE] < cfg.tpaBreakPoint) {
         prop2 = 100;
     } else {
         if (rcData[THROTTLE] < 2000) {
-            prop2 = 100 - (uint16_t) cfg.dynThrPID * (rcData[THROTTLE] - BREAKPOINT) / (2000 - BREAKPOINT);
+            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpaBreakPoint) / (2000 - cfg.tpaBreakPoint);
         } else {
             prop2 = 100 - cfg.dynThrPID;
         }
@@ -142,7 +143,7 @@ void annexCode(void)
     }
 
     tmp = constrain(rcData[THROTTLE], mcfg.mincheck, 2000);
-    tmp = (uint32_t) (tmp - mcfg.mincheck) * 1000 / (2000 - mcfg.mincheck);       // [MINCHECK;2000] -> [0;1000]
+    tmp = (uint32_t)(tmp - mcfg.mincheck) * 1000 / (2000 - mcfg.mincheck);       // [MINCHECK;2000] -> [0;1000]
     tmp2 = tmp / 100;
     rcCommand[THROTTLE] = lookupThrottleRC[tmp2] + (tmp - tmp2 * 100) * (lookupThrottleRC[tmp2 + 1] - lookupThrottleRC[tmp2]) / 100;    // [0;1000] -> expo -> [MINTHROTTLE;MAXTHROTTLE]
 
@@ -177,9 +178,8 @@ void annexCode(void)
             LED0_OFF;
         if (f.ARMED)
             LED0_ON;
-        // This will switch to/from 9600 or 115200 baud depending on state. Of course, it should only do it on changes. With telemetry_softserial>0 telemetry is always enabled, also see updateTelemetryState()
-        if (feature(FEATURE_TELEMETRY))
-            updateTelemetryState();
+
+        checkTelemetryState();
     }
 
 #ifdef LEDRING
@@ -203,6 +203,10 @@ void annexCode(void)
     }
 
     serialCom();
+
+    if (!cliMode && feature(FEATURE_TELEMETRY)) {
+        handleTelemetry();
+    }
 
     if (sensors(SENSOR_GPS)) {
         static uint32_t GPSLEDTime;
@@ -359,7 +363,7 @@ static void pidRewrite(void)
     // ----------PID controller----------
     for (axis = 0; axis < 3; axis++) {
         // -----Get the desired angle rate depending on flight mode
-        if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2 ) { // MODE relying on ACC
+        if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
             // calculate error and limit the angle to max configured inclination
             errorAngle = constrain((rcCommand[axis] << 1) + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis]; // 16 bits is ok here
         }
@@ -766,8 +770,6 @@ void loop(void)
         }
     } else {                    // not in rc loop
         static int taskOrder = 0;    // never call all function in the same loop, to avoid high delay spikes
-        if (taskOrder > 4)
-            taskOrder -= 5;
         switch (taskOrder) {
         case 0:
             taskOrder++;
@@ -797,7 +799,7 @@ void loop(void)
                 break;
             }
         case 4:
-            taskOrder++;
+            taskOrder = 0;
 #ifdef SONAR
             if (sensors(SENSOR_SONAR)) {
                 Sonar_update();
@@ -882,7 +884,7 @@ void loop(void)
         }
 #endif
 
-        if (cfg.throttle_angle_correction && (f.ANGLE_MODE || f.HORIZON_MODE)) {
+        if (cfg.throttle_correction_value && (f.ANGLE_MODE || f.HORIZON_MODE)) {
             rcCommand[THROTTLE] += throttleAngleCorrection;
         }
 
