@@ -8,7 +8,7 @@ uint16_t acc_1G = 256;          // this is the 1G measured acceleration.
 int16_t heading, magHold;
 
 extern uint16_t InflightcalibratingA;
-extern int16_t AccInflightCalibrationArmed;
+extern uint16_t AccInflightCalibrationArmed;
 extern uint16_t AccInflightCalibrationMeasurementDone;
 extern uint16_t AccInflightCalibrationSavetoEEProm;
 extern uint16_t AccInflightCalibrationActive;

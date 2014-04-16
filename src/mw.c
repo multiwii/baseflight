@@ -59,7 +59,7 @@ uint8_t GPS_svinfo_cno[16];         // Carrier to Noise Ratio (Signal Strength)
 
 // Automatic ACC Offset Calibration
 uint16_t InflightcalibratingA = 0;
-int16_t AccInflightCalibrationArmed;
+uint16_t AccInflightCalibrationArmed;
 uint16_t AccInflightCalibrationMeasurementDone = 0;
 uint16_t AccInflightCalibrationSavetoEEProm = 0;
 uint16_t AccInflightCalibrationActive = 0;
@@ -122,8 +122,8 @@ void annexCode(void)
 
             tmp2 = tmp / 100;
             rcCommand[axis] = lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (lookupPitchRollRC[tmp2 + 1] - lookupPitchRollRC[tmp2]) / 100;
-            prop1 = 100 - (uint16_t) cfg.rollPitchRate * tmp / 500;
-            prop1 = (uint16_t) prop1 *prop2 / 100;
+            prop1 = 100 - (uint16_t)cfg.rollPitchRate * tmp / 500;
+            prop1 = (uint16_t)prop1 * prop2 / 100;
         } else {                // YAW
             if (cfg.yawdeadband) {
                 if (tmp > cfg.yawdeadband) {
@@ -193,7 +193,7 @@ void annexCode(void)
 #endif
 
     if ((int32_t)(currentTime - calibratedAccTime) >= 0) {
-        if (!f.SMALL_ANGLES_25) {
+        if (!f.SMALL_ANGLES) {
             f.ACC_CALIBRATED = 0; // the multi uses ACC and is not calibrated or is too much inclinated
             LED0_TOGGLE;
             calibratedAccTime = currentTime + 500000;
@@ -831,7 +831,7 @@ void loop(void)
                 if (dif >= +180)
                     dif -= 360;
                 dif *= -mcfg.yaw_control_direction;
-                if (f.SMALL_ANGLES_25)
+                if (f.SMALL_ANGLES)
                     rcCommand[YAW] -= dif * cfg.P8[PIDMAG] / 30;    // 18 deg
             } else
                 magHold = heading;
