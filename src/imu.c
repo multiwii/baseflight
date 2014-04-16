@@ -20,7 +20,7 @@ int16_t throttleAngleCorrection = 0;    // correction of throttle in lateral win
 float magneticDeclination = 0.0f;       // calculated at startup from config
 float accVelScale;
 float throttleAngleScale;
-
+float gyroScale;
 // **************
 // gyro+acc IMU
 // **************
@@ -36,6 +36,7 @@ void imuInit(void)
     accZ_25deg = acc_1G * cosf(RAD * 25.0f);
     accVelScale = 9.80665f / acc_1G / 10000.0f;
     throttleAngleScale = (1800.0f / M_PI) * (900.0f / cfg.throttle_correction_angle);
+    gyroScale = mcfg.looptime * gyro.scale;
 
 #ifdef MAG
     // if mag sensor is enabled, use it
@@ -167,7 +168,7 @@ int32_t applyDeadband(int32_t value, int32_t deadband)
 static const float fc_acc = 0.5f / (M_PI * F_CUT_ACCZ);
 
 // rotate acc into Earth frame and calculate acceleration in it
-void acc_calc(uint32_t deltaT)
+void acc_calc(void)
 {
     static int32_t accZoffset = 0;
     static float accz_smooth;
@@ -194,7 +195,7 @@ void acc_calc(uint32_t deltaT)
     } else
         accel_ned.V.Z -= acc_1G;
 
-    accz_smooth = accz_smooth + (deltaT / (fc_acc + deltaT)) * (accel_ned.V.Z - accz_smooth); // low pass filter
+    accz_smooth = accz_smooth + (mcfg.looptime / (fc_acc + mcfg.looptime)) * (accel_ned.V.Z - accz_smooth); // low pass filter
 
     // apply Deadband to reduce integration drift and vibration influence
     accel_ned.V.Z = applyDeadband(lrintf(accz_smooth), cfg.accz_deadband);
@@ -202,7 +203,7 @@ void acc_calc(uint32_t deltaT)
     accel_ned.V.Y = applyDeadband(lrintf(accel_ned.V.Y), cfg.accxy_deadband);
 
     // sum up Values for later integration to get velocity and distance
-    accTimeSum += deltaT;
+    accTimeSum += mcfg.looptime;
     accSumCount++;
 
     accSum[X] += lrintf(accel_ned.V.X);
@@ -245,17 +246,11 @@ static void getEstimatedAttitude(void)
     static t_fp_vector EstM;
     static t_fp_vector EstN = { .A = { 1000.0f, 0.0f, 0.0f } };
     static float accLPF[3];
-    static uint32_t previousT;
-    uint32_t currentT = micros();
-    uint32_t deltaT;
-    float scale, deltaGyroAngle[3];
-    deltaT = currentT - previousT;
-    scale = deltaT * gyro.scale;
-    previousT = currentT;
+    float deltaGyroAngle[3];
 
     // Initialization
     for (axis = 0; axis < 3; axis++) {
-        deltaGyroAngle[axis] = gyroADC[axis] * scale;
+        deltaGyroAngle[axis] = gyroADC[axis] * gyroScale;
         if (cfg.acc_lpf_factor > 0) {
             accLPF[axis] = accLPF[axis] * (1.0f - (1.0f / cfg.acc_lpf_factor)) + accADC[axis] * (1.0f / cfg.acc_lpf_factor);
             accSmooth[axis] = accLPF[axis];
@@ -303,7 +298,7 @@ static void getEstimatedAttitude(void)
     else
         heading = calculateHeading(&EstN);
 
-    acc_calc(deltaT); // rotate acc vector into earth frame
+    acc_calc(); // rotate acc vector into earth frame
 
     if (cfg.throttle_correction_value) {
 
