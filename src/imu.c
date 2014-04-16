@@ -110,9 +110,9 @@ bool normalizeV(struct fp_vector *src, struct fp_vector *dest)
         dest->X = src->X / length;
         dest->Y = src->Y / length;
         dest->Z = src->Z / length;
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
 // Rotate Estimated vector(s) with small angle approximation, according to the gyro data
@@ -291,7 +291,7 @@ static void getEstimatedAttitude(void)
         t_fp_vector magN = { .A = { magADC[0], magADC[1], magADC[2] } };
         if (normalizeV(&magN.V, &magN.V)) {
             for (axis = 0; axis < 3; axis++) {
-                EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + magN.A[axis]) * INV_GYR_CMPFM_FACTOR; // EstM.A[axis] = (EstM.A[axis] * GYR_CMPFM_FACTOR + magADCfloat[axis]) * INV_GYR_CMPFM_FACTOR;
+                EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + magN.A[axis]) * INV_GYR_CMPFM_FACTOR;
             }
             normalizeV(&EstM.V, &EstM.V);
         }
