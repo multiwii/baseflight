@@ -278,21 +278,19 @@ static void getEstimatedAttitude(void)
     // If accel magnitude >1.15G or <0.85G and ACC vector outside of the limit range => we neutralize the effect of accelerometers in the angle estimation.
     // To do that, we just skip filter, as EstV already rotated by Gyro
     if (72 < (uint16_t)accMag && (uint16_t)accMag < 133) {
-        t_fp_vector accN = { .A = { accSmooth[0], accSmooth[1], accSmooth[2] } };
-        if (normalizeV(&accN.V, &accN.V)) {
-            for (axis = 0; axis < 3; axis++) {
-                EstG.A[axis] = (EstG.A[axis] * (float)mcfg.gyro_cmpf_factor + accN.A[axis]) * INV_GYR_CMPF_FACTOR;
-            }
+        t_fp_vector tmp = { .A = { accSmooth[0], accSmooth[1], accSmooth[2] } };
+        if (normalizeV(&tmp.V, &tmp.V)) {
+            for (axis = 0; axis < 3; axis++)
+                EstG.A[axis] = (EstG.A[axis] * (float)mcfg.gyro_cmpf_factor + tmp.A[axis]) * INV_GYR_CMPF_FACTOR;
             normalizeV(&EstG.V, &EstG.V);
         }
     }
 
     if (sensors(SENSOR_MAG)) {
-        t_fp_vector magN = { .A = { magADC[0], magADC[1], magADC[2] } };
-        if (normalizeV(&magN.V, &magN.V)) {
-            for (axis = 0; axis < 3; axis++) {
-                EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + magN.A[axis]) * INV_GYR_CMPFM_FACTOR;
-            }
+        t_fp_vector tmp = { .A = { magADC[0], magADC[1], magADC[2] } };
+        if (normalizeV(&tmp.V, &tmp.V)) {
+            for (axis = 0; axis < 3; axis++)
+                EstM.A[axis] = (EstM.A[axis] * (float)mcfg.gyro_cmpfm_factor + tmp.A[axis]) * INV_GYR_CMPFM_FACTOR;
             normalizeV(&EstM.V, &EstM.V);
         }
     }
