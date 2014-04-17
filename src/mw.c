@@ -442,11 +442,111 @@ void loop(void)
 #ifdef BARO
     static int16_t initialThrottleHold;
 #endif
-    static uint32_t loopTime;
+    static uint32_t nextTime;
     uint16_t auxState = 0;
     static uint8_t GPSNavReset = 1;
     bool isThrottleLow = false;
     bool rcReady = false;
+
+    currentTime = micros();
+    if (mcfg.looptime == 0 || (int32_t)(currentTime - nextTime) >= 0) {
+        // Measure real cycleTime
+        cycleTime = (int32_t)(currentTime - previousTime);
+
+        computeIMU();
+        annexCode();
+        nextTime = currentTime + mcfg.looptime;
+        previousTime = currentTime;
+
+
+#ifdef MAG
+        if (sensors(SENSOR_MAG)) {
+            if (abs(rcCommand[YAW]) < 70 && f.MAG_MODE) {
+                int16_t dif = heading - magHold;
+                if (dif <= -180)
+                    dif += 360;
+                if (dif >= +180)
+                    dif -= 360;
+                dif *= -mcfg.yaw_control_direction;
+                if (f.SMALL_ANGLES_25)
+                    rcCommand[YAW] -= dif * cfg.P8[PIDMAG] / 30;    // 18 deg
+            } else
+                magHold = heading;
+        }
+#endif
+
+#ifdef BARO
+        if (sensors(SENSOR_BARO)) {
+            if (f.BARO_MODE) {
+                static uint8_t isAltHoldChanged = 0;
+                static int16_t AltHoldCorr = 0;
+                if (!f.FIXED_WING) {
+                    // multirotor alt hold
+                    if (cfg.alt_hold_fast_change) {
+                        // rapid alt changes
+                        if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
+                            errorAltitudeI = 0;
+                            isAltHoldChanged = 1;
+                            rcCommand[THROTTLE] += (rcCommand[THROTTLE] > initialThrottleHold) ? -cfg.alt_hold_throttle_neutral : cfg.alt_hold_throttle_neutral;
+                        } else {
+                            if (isAltHoldChanged) {
+                                AltHold = EstAlt;
+                                isAltHoldChanged = 0;
+                            }
+                            rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
+                        }
+                    } else {
+                        // slow alt changes for apfags
+                        if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
+                            // Slowly increase/decrease AltHold proportional to stick movement ( +100 throttle gives ~ +50 cm in 1 second with cycle time about 3-4ms)
+                            AltHoldCorr += rcCommand[THROTTLE] - initialThrottleHold;
+                            AltHold += AltHoldCorr / 2000;
+                            AltHoldCorr %= 2000;
+                            isAltHoldChanged = 1;
+                        } else if (isAltHoldChanged) {
+                            AltHold = EstAlt;
+                            AltHoldCorr = 0;
+                            isAltHoldChanged = 0;
+                        }
+                        rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
+                        rcCommand[THROTTLE] = constrain(rcCommand[THROTTLE], mcfg.minthrottle + 150, mcfg.maxthrottle);
+                    }
+                } else {
+                    // handle fixedwing-related althold. UNTESTED! and probably wrong
+                    // most likely need to check changes on pitch channel and 'reset' althold similar to
+                    // how throttle does it on multirotor
+                    rcCommand[PITCH] += BaroPID * mcfg.fixedwing_althold_dir;
+                }
+            }
+        }
+#endif
+
+        if (cfg.throttle_correction_value && (f.ANGLE_MODE || f.HORIZON_MODE)) {
+            rcCommand[THROTTLE] += throttleAngleCorrection;
+        }
+
+        if (sensors(SENSOR_GPS)) {
+            if ((f.GPS_HOME_MODE || f.GPS_HOLD_MODE) && f.GPS_FIX_HOME) {
+                float sin_yaw_y = sinf(heading * 0.0174532925f);
+                float cos_yaw_x = cosf(heading * 0.0174532925f);
+                if (cfg.nav_slew_rate) {
+                    nav_rated[LON] += constrain(wrap_18000(nav[LON] - nav_rated[LON]), -cfg.nav_slew_rate, cfg.nav_slew_rate); // TODO check this on uint8
+                    nav_rated[LAT] += constrain(wrap_18000(nav[LAT] - nav_rated[LAT]), -cfg.nav_slew_rate, cfg.nav_slew_rate);
+                    GPS_angle[ROLL] = (nav_rated[LON] * cos_yaw_x - nav_rated[LAT] * sin_yaw_y) / 10;
+                    GPS_angle[PITCH] = (nav_rated[LON] * sin_yaw_y + nav_rated[LAT] * cos_yaw_x) / 10;
+                } else {
+                    GPS_angle[ROLL] = (nav[LON] * cos_yaw_x - nav[LAT] * sin_yaw_y) / 10;
+                    GPS_angle[PITCH] = (nav[LON] * sin_yaw_y + nav[LAT] * cos_yaw_x) / 10;
+                }
+            }
+        }
+
+        // PID - note this is function pointer set by setPIDController()
+        pid_controller();
+
+        mixTable();
+        writeServos();
+        writeMotors();
 
     // calculate rc stuff from serial-based receivers (spek/sbus)
     if (feature(FEATURE_SERIALRX)) {
@@ -812,104 +912,5 @@ void loop(void)
         }
     }
 
-    currentTime = micros();
-    if (mcfg.looptime == 0 || (int32_t)(currentTime - loopTime) >= 0) {
-        loopTime = currentTime + mcfg.looptime;
-
-        computeIMU();
-        annexCode();
-        // Measure loop rate just afer reading the sensors
-        currentTime = micros();
-        cycleTime = (int32_t)(currentTime - previousTime);
-        previousTime = currentTime;
-
-#ifdef MAG
-        if (sensors(SENSOR_MAG)) {
-            if (abs(rcCommand[YAW]) < 70 && f.MAG_MODE) {
-                int16_t dif = heading - magHold;
-                if (dif <= -180)
-                    dif += 360;
-                if (dif >= +180)
-                    dif -= 360;
-                dif *= -mcfg.yaw_control_direction;
-                if (f.SMALL_ANGLES_25)
-                    rcCommand[YAW] -= dif * cfg.P8[PIDMAG] / 30;    // 18 deg
-            } else
-                magHold = heading;
-        }
-#endif
-
-#ifdef BARO
-        if (sensors(SENSOR_BARO)) {
-            if (f.BARO_MODE) {
-                static uint8_t isAltHoldChanged = 0;
-                static int16_t AltHoldCorr = 0;
-                if (!f.FIXED_WING) {
-                    // multirotor alt hold
-                    if (cfg.alt_hold_fast_change) {
-                        // rapid alt changes
-                        if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
-                            errorAltitudeI = 0;
-                            isAltHoldChanged = 1;
-                            rcCommand[THROTTLE] += (rcCommand[THROTTLE] > initialThrottleHold) ? -cfg.alt_hold_throttle_neutral : cfg.alt_hold_throttle_neutral;
-                        } else {
-                            if (isAltHoldChanged) {
-                                AltHold = EstAlt;
-                                isAltHoldChanged = 0;
-                            }
-                            rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
-                        }
-                    } else {
-                        // slow alt changes for apfags
-                        if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
-                            // Slowly increase/decrease AltHold proportional to stick movement ( +100 throttle gives ~ +50 cm in 1 second with cycle time about 3-4ms)
-                            AltHoldCorr += rcCommand[THROTTLE] - initialThrottleHold;
-                            AltHold += AltHoldCorr / 2000;
-                            AltHoldCorr %= 2000;
-                            isAltHoldChanged = 1;
-                        } else if (isAltHoldChanged) {
-                            AltHold = EstAlt;
-                            AltHoldCorr = 0;
-                            isAltHoldChanged = 0;
-                        }
-                        rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
-                        rcCommand[THROTTLE] = constrain(rcCommand[THROTTLE], mcfg.minthrottle + 150, mcfg.maxthrottle);
-                    }
-                } else {
-                    // handle fixedwing-related althold. UNTESTED! and probably wrong
-                    // most likely need to check changes on pitch channel and 'reset' althold similar to
-                    // how throttle does it on multirotor
-                    rcCommand[PITCH] += BaroPID * mcfg.fixedwing_althold_dir;
-                }
-            }
-        }
-#endif
-
-        if (cfg.throttle_correction_value && (f.ANGLE_MODE || f.HORIZON_MODE)) {
-            rcCommand[THROTTLE] += throttleAngleCorrection;
-        }
-
-        if (sensors(SENSOR_GPS)) {
-            if ((f.GPS_HOME_MODE || f.GPS_HOLD_MODE) && f.GPS_FIX_HOME) {
-                float sin_yaw_y = sinf(heading * 0.0174532925f);
-                float cos_yaw_x = cosf(heading * 0.0174532925f);
-                if (cfg.nav_slew_rate) {
-                    nav_rated[LON] += constrain(wrap_18000(nav[LON] - nav_rated[LON]), -cfg.nav_slew_rate, cfg.nav_slew_rate); // TODO check this on uint8
-                    nav_rated[LAT] += constrain(wrap_18000(nav[LAT] - nav_rated[LAT]), -cfg.nav_slew_rate, cfg.nav_slew_rate);
-                    GPS_angle[ROLL] = (nav_rated[LON] * cos_yaw_x - nav_rated[LAT] * sin_yaw_y) / 10;
-                    GPS_angle[PITCH] = (nav_rated[LON] * sin_yaw_y + nav_rated[LAT] * cos_yaw_x) / 10;
-                } else {
-                    GPS_angle[ROLL] = (nav[LON] * cos_yaw_x - nav[LAT] * sin_yaw_y) / 10;
-                    GPS_angle[PITCH] = (nav[LON] * sin_yaw_y + nav[LAT] * cos_yaw_x) / 10;
-                }
-            }
-        }
-
-        // PID - note this is function pointer set by setPIDController()
-        pid_controller();
-
-        mixTable();
-        writeServos();
-        writeMotors();
     }
 }

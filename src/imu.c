@@ -20,7 +20,7 @@ int16_t throttleAngleCorrection = 0;    // correction of throttle in lateral win
 float magneticDeclination = 0.0f;       // calculated at startup from config
 float accVelScale;
 float throttleAngleScale;
-float gyroScale;
+
 // **************
 // gyro+acc IMU
 // **************
@@ -36,7 +36,6 @@ void imuInit(void)
     accZ_25deg = acc_1G * cosf(RAD * 25.0f);
     accVelScale = 9.80665f / acc_1G / 10000.0f;
     throttleAngleScale = (1800.0f / M_PI) * (900.0f / cfg.throttle_correction_angle);
-    gyroScale = mcfg.looptime * gyro.scale;
 
 #ifdef MAG
     // if mag sensor is enabled, use it
@@ -195,7 +194,7 @@ void acc_calc(void)
     } else
         accel_ned.V.Z -= acc_1G;
 
-    accz_smooth = accz_smooth + (mcfg.looptime / (fc_acc + mcfg.looptime)) * (accel_ned.V.Z - accz_smooth); // low pass filter
+    accz_smooth = accz_smooth + (cycleTime / (fc_acc + cycleTime)) * (accel_ned.V.Z - accz_smooth); // low pass filter
 
     // apply Deadband to reduce integration drift and vibration influence
     accel_ned.V.Z = applyDeadband(lrintf(accz_smooth), cfg.accz_deadband);
@@ -203,7 +202,7 @@ void acc_calc(void)
     accel_ned.V.Y = applyDeadband(lrintf(accel_ned.V.Y), cfg.accxy_deadband);
 
     // sum up Values for later integration to get velocity and distance
-    accTimeSum += mcfg.looptime;
+    accTimeSum += cycleTime;
     accSumCount++;
 
     accSum[X] += lrintf(accel_ned.V.X);
@@ -247,7 +246,7 @@ static void getEstimatedAttitude(void)
     static t_fp_vector EstN = { .A = { 1000.0f, 0.0f, 0.0f } };
     static float accLPF[3];
     float deltaGyroAngle[3];
-
+    float gyroScale = cycleTime * gyro.scale;
     // Initialization
     for (axis = 0; axis < 3; axis++) {
         deltaGyroAngle[axis] = gyroADC[axis] * gyroScale;
