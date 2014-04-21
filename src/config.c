@@ -1,6 +1,36 @@
-#include "board.h"
-#include "mw.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
+
+#include "platform.h"
+
+#include "common/axis.h"
+#include "flight_common.h"
+
+#include "drivers/system_common.h"
+
+#include "statusindicator.h"
+#include "sensors_common.h"
+#include "sensors_acceleration.h"
+#include "telemetry_common.h"
+#include "gps_common.h"
+
+#include "drivers/serial_common.h"
+#include "flight_mixer.h"
+#include "sensors_common.h"
+#include "boardalignment.h"
+#include "battery.h"
+#include "gimbal.h"
+#include "rx_common.h"
+#include "gps_common.h"
+#include "serial_common.h"
+#include "failsafe.h"
+
+#include "runtime_config.h"
+#include "config.h"
+#include "config_storage.h"
+
+void setPIDController(int type); // FIXME PID code needs to be in flight_pid.c/h
 
 #ifndef FLASH_PAGE_COUNT
 #define FLASH_PAGE_COUNT 128
@@ -11,55 +41,46 @@
 
 master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
-const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 62;
-static uint32_t enabledSensors = 0;
+static const uint8_t EEPROM_CONF_VERSION = 64;
 static void resetConf(void);
 
-void parseRcChannels(const char *input)
+static uint8_t calculateChecksum(const uint8_t *data, uint32_t length)
 {
-    const char *c, *s;
+    uint8_t checksum = 0;
+    const uint8_t *byteOffset;
 
-    for (c = input; *c; c++) {
-        s = strchr(rcChannelLetters, *c);
-        if (s)
-            mcfg.rcmap[s - rcChannelLetters] = c - input;
-    }
+    for (byteOffset = data; byteOffset < (data + length); byteOffset++)
+        checksum ^= *byteOffset;
+    return checksum;
 }
 
-static uint8_t validEEPROM(void)
+static bool isEEPROMContentValid(void)
 {
     const master_t *temp = (const master_t *)FLASH_WRITE_ADDR;
-    const uint8_t *p;
-    uint8_t chk = 0;
+    uint8_t checksum = 0;
 
     // check version number
     if (EEPROM_CONF_VERSION != temp->version)
-        return 0;
+        return false;
 
     // check size and magic numbers
     if (temp->size != sizeof(master_t) || temp->magic_be != 0xBE || temp->magic_ef != 0xEF)
-        return 0;
+        return false;
 
     // verify integrity of temporary copy
-    for (p = (const uint8_t *)temp; p < ((const uint8_t *)temp + sizeof(master_t)); p++)
-        chk ^= *p;
-
-    // checksum failed
-    if (chk != 0)
-        return 0;
+    checksum = calculateChecksum((const uint8_t *)temp, sizeof(master_t));
+    if (checksum != 0)
+        return false;
 
     // looks good, let's roll!
-    return 1;
+    return true;
 }
 
 void readEEPROM(void)
 {
-    uint8_t i;
-
     // Sanity check
-    if (!validEEPROM())
+    if (!isEEPROMContentValid())
         failureMode(10);
 
     // Read flash
@@ -69,89 +90,75 @@ void readEEPROM(void)
         mcfg.current_profile = 0;
     memcpy(&cfg, &mcfg.profile[mcfg.current_profile], sizeof(config_t));
 
-    for (i = 0; i < PITCH_LOOKUP_LENGTH; i++)
-        lookupPitchRollRC[i] = (2500 + cfg.rcExpo8 * (i * i - 25)) * i * (int32_t) cfg.rcRate8 / 2500;
-
-    for (i = 0; i < THROTTLE_LOOKUP_LENGTH; i++) {
-        int16_t tmp = 10 * i - cfg.thrMid8;
-        uint8_t y = 1;
-        if (tmp > 0)
-            y = 100 - cfg.thrMid8;
-        if (tmp < 0)
-            y = cfg.thrMid8;
-        lookupThrottleRC[i] = 10 * cfg.thrMid8 + tmp * (100 - cfg.thrExpo8 + (int32_t) cfg.thrExpo8 * (tmp * tmp) / (y * y)) / 10;
-        lookupThrottleRC[i] = mcfg.minthrottle + (int32_t) (mcfg.maxthrottle - mcfg.minthrottle) * lookupThrottleRC[i] / 1000; // [MINTHROTTLE;MAXTHROTTLE]
-    }
+    generatePitchCurve(&cfg.controlRateConfig);
+    generateThrottleCurve(&cfg.controlRateConfig, mcfg.minthrottle, mcfg.maxthrottle);
 
     setPIDController(cfg.pidController);
     gpsSetPIDs();
+    useFailsafeConfig(&cfg.failsafeConfig);
 }
 
-void writeEEPROM(uint8_t b, uint8_t updateProfile)
+void readEEPROMAndNotify(void)
+{
+    // re-read written data
+    readEEPROM();
+    blinkLedAndSoundBeeper(15, 20, 1);
+}
+
+void copyCurrentProfileToProfileSlot(uint8_t profileSlotIndex)
+{
+    // copy current in-memory profile to stored configuration
+    memcpy(&mcfg.profile[profileSlotIndex], &cfg, sizeof(config_t));
+}
+
+void writeEEPROM(void)
 {
     FLASH_Status status;
-    uint32_t i;
-    uint8_t chk = 0;
-    const uint8_t *p;
-    int tries = 0;
+    uint32_t wordOffset;
+    int8_t attemptsRemaining = 3;
 
     // prepare checksum/version constants
     mcfg.version = EEPROM_CONF_VERSION;
     mcfg.size = sizeof(master_t);
     mcfg.magic_be = 0xBE;
     mcfg.magic_ef = 0xEF;
-    mcfg.chk = 0;
-
-    // when updateProfile = true, we copy contents of cfg to global configuration. when false, only profile number is updated, and then that profile is loaded on readEEPROM()
-    if (updateProfile) {
-        // copy current in-memory profile to stored configuration
-        memcpy(&mcfg.profile[mcfg.current_profile], &cfg, sizeof(config_t));
-    }
-
-    // recalculate checksum before writing
-    for (p = (const uint8_t *)&mcfg; p < ((const uint8_t *)&mcfg + sizeof(master_t)); p++)
-        chk ^= *p;
-    mcfg.chk = chk;
+    mcfg.chk = 0; // erase checksum before recalculating
+    mcfg.chk = calculateChecksum((const uint8_t *)&mcfg, sizeof(master_t));
 
     // write it
-retry:
     FLASH_Unlock();
-    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+    while (attemptsRemaining--) {
+        FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
-    if (FLASH_ErasePage(FLASH_WRITE_ADDR) == FLASH_COMPLETE) {
-        for (i = 0; i < sizeof(master_t); i += 4) {
-            status = FLASH_ProgramWord(FLASH_WRITE_ADDR + i, *(uint32_t *) ((char *)&mcfg + i));
-            if (status != FLASH_COMPLETE) {
-                FLASH_Lock();
-                tries++;
-                if (tries < 3)
-                    goto retry;
-                else
-                    break;
-            }
+        status = FLASH_ErasePage(FLASH_WRITE_ADDR);
+        for (wordOffset = 0; wordOffset < sizeof(master_t) && status == FLASH_COMPLETE; wordOffset += 4) {
+            status = FLASH_ProgramWord(FLASH_WRITE_ADDR + wordOffset, *(uint32_t *) ((char *)&mcfg + wordOffset));
+        }
+        if (status == FLASH_COMPLETE) {
+            break;
         }
     }
     FLASH_Lock();
 
     // Flash write failed - just die now
-    if (tries == 3 || !validEEPROM()) {
+    if (status != FLASH_COMPLETE || !isEEPROMContentValid()) {
         failureMode(10);
     }
-
-    // re-read written data
-    readEEPROM();
-    if (b)
-        blinkLED(15, 20, 1);
 }
 
-void checkFirstTime(bool reset)
+void ensureEEPROMContainsValidData(void)
 {
-    // check the EEPROM integrity before resetting values
-    if (!validEEPROM() || reset) {
-        resetConf();
-        // no need to memcpy profile again, we just did it in resetConf() above
-        writeEEPROM(0, false);
+    if (isEEPROMContentValid()) {
+        return;
     }
+
+    resetEEPROM();
+}
+
+void resetEEPROM(void)
+{
+    resetConf();
+    writeEEPROM();
 }
 
 // Default settings
@@ -180,24 +187,24 @@ static void resetConf(void)
     mcfg.gyro_align = ALIGN_DEFAULT;
     mcfg.acc_align = ALIGN_DEFAULT;
     mcfg.mag_align = ALIGN_DEFAULT;
-    mcfg.board_align_roll = 0;
-    mcfg.board_align_pitch = 0;
-    mcfg.board_align_yaw = 0;
+    mcfg.boardAlignment.rollDegrees = 0;
+    mcfg.boardAlignment.pitchDegrees = 0;
+    mcfg.boardAlignment.yawDegrees = 0;
     mcfg.acc_hardware = ACC_DEFAULT;     // default/autodetect
     mcfg.max_angle_inclination = 500;    // 50 degrees
     mcfg.yaw_control_direction = 1;
     mcfg.moron_threshold = 32;
-    mcfg.vbatscale = 110;
-    mcfg.vbatmaxcellvoltage = 43;
-    mcfg.vbatmincellvoltage = 33;
+    mcfg.batteryConfig.vbatscale = 110;
+    mcfg.batteryConfig.vbatmaxcellvoltage = 43;
+    mcfg.batteryConfig.vbatmincellvoltage = 33;
     mcfg.power_adc_channel = 0;
-    mcfg.serialrx_type = 0;
     mcfg.telemetry_provider = TELEMETRY_PROVIDER_FRSKY;
     mcfg.telemetry_port = TELEMETRY_PORT_UART;
     mcfg.telemetry_switch = 0;
-    mcfg.midrc = 1500;
-    mcfg.mincheck = 1100;
-    mcfg.maxcheck = 1900;
+    mcfg.rxConfig.serialrx_type = 0;
+    mcfg.rxConfig.midrc = 1500;
+    mcfg.rxConfig.mincheck = 1100;
+    mcfg.rxConfig.maxcheck = 1900;
     mcfg.retarded_arm = 0;       // disable arm/disarm on roll left/right
     mcfg.flaps_speed = 0;
     mcfg.fixedwing_althold_dir = 1;
@@ -214,11 +221,14 @@ static void resetConf(void)
     // gps/nav stuff
     mcfg.gps_type = GPS_NMEA;
     mcfg.gps_baudrate = GPS_BAUD_115200;
+
     // serial (USART1) baudrate
-    mcfg.serial_baudrate = 115200;
-    mcfg.softserial_baudrate = 9600;
-    mcfg.softserial_1_inverted = 0;
-    mcfg.softserial_2_inverted = 0;
+    mcfg.serialConfig.port1_baudrate = 115200;
+    mcfg.serialConfig.softserial_baudrate = 9600;
+    mcfg.serialConfig.softserial_1_inverted = 0;
+    mcfg.serialConfig.softserial_2_inverted = 0;
+    mcfg.serialConfig.reboot_character = 'R';
+
     mcfg.looptime = 3500;
     mcfg.rssi_aux_channel = 0;
 
@@ -251,14 +261,14 @@ static void resetConf(void)
     cfg.P8[PIDVEL] = 120;
     cfg.I8[PIDVEL] = 45;
     cfg.D8[PIDVEL] = 1;
-    cfg.rcRate8 = 90;
-    cfg.rcExpo8 = 65;
-    cfg.rollPitchRate = 0;
-    cfg.yawRate = 0;
+    cfg.controlRateConfig.rcRate8 = 90;
+    cfg.controlRateConfig.rcExpo8 = 65;
+    cfg.controlRateConfig.rollPitchRate = 0;
+    cfg.controlRateConfig.yawRate = 0;
     cfg.dynThrPID = 0;
     cfg.tpaBreakPoint = 1500;
-    cfg.thrMid8 = 50;
-    cfg.thrExpo8 = 0;
+    cfg.controlRateConfig.thrMid8 = 50;
+    cfg.controlRateConfig.thrExpo8 = 0;
     // for (i = 0; i < CHECKBOXITEMS; i++)
     //     cfg.activate[i] = 0;
     cfg.angleTrim[0] = 0;
@@ -274,7 +284,7 @@ static void resetConf(void)
     cfg.acc_unarmedcal = 1;
 
     // Radio
-    parseRcChannels("AETR1234");
+    parseRcChannels("AETR1234", &mcfg.rxConfig);
     cfg.deadband = 0;
     cfg.yawdeadband = 0;
     cfg.alt_hold_throttle_neutral = 40;
@@ -283,17 +293,18 @@ static void resetConf(void)
     cfg.throttle_correction_angle = 800;    // could be 80.0 deg with atlhold or 45.0 for fpv
 
     // Failsafe Variables
-    cfg.failsafe_delay = 10;                // 1sec
-    cfg.failsafe_off_delay = 200;           // 20sec
-    cfg.failsafe_throttle = 1200;           // decent default which should always be below hover throttle for people.
-    cfg.failsafe_detect_threshold = 985;    // any of first 4 channels below this value will trigger failsafe
+    cfg.failsafeConfig.failsafe_delay = 10;                // 1sec
+    cfg.failsafeConfig.failsafe_off_delay = 200;           // 20sec
+    cfg.failsafeConfig.failsafe_throttle = 1200;           // decent default which should always be below hover throttle for people.
+    cfg.failsafeConfig.failsafe_detect_threshold = 985;    // any of first 4 channels below this value will trigger failsafe
 
     // servos
     for (i = 0; i < 8; i++) {
-        cfg.servoConf[i].min = 1020;
-        cfg.servoConf[i].max = 2000;
-        cfg.servoConf[i].middle = 1500;
+        cfg.servoConf[i].min = DEFAULT_SERVO_MIN;
+        cfg.servoConf[i].max = DEFAULT_SERVO_MAX;
+        cfg.servoConf[i].middle = DEFAULT_SERVO_MIDDLE;
         cfg.servoConf[i].rate = servoRates[i];
+        cfg.servoConf[i].forwardFromChannel = CHANNEL_FORWARDING_DISABLED;
     }
 
     cfg.yaw_direction = 1;
@@ -311,11 +322,8 @@ static void resetConf(void)
     cfg.nav_speed_max = 300;
     cfg.ap_mode = 40;
 
-    // control stuff
-    mcfg.reboot_character = 'R';
-
     // custom mixer. clear by defaults.
-    for (i = 0; i < MAX_MOTORS; i++)
+    for (i = 0; i < MAX_SUPPORTED_MOTORS; i++)
         mcfg.customMixer[i].throttle = 0.0f;
 
     // copy default config into all 3 profiles
@@ -323,25 +331,6 @@ static void resetConf(void)
         memcpy(&mcfg.profile[i], &cfg, sizeof(config_t));
 }
 
-bool sensors(uint32_t mask)
-{
-    return enabledSensors & mask;
-}
-
-void sensorsSet(uint32_t mask)
-{
-    enabledSensors |= mask;
-}
-
-void sensorsClear(uint32_t mask)
-{
-    enabledSensors &= ~(mask);
-}
-
-uint32_t sensorsMask(void)
-{
-    return enabledSensors;
-}
 
 bool feature(uint32_t mask)
 {
@@ -367,3 +356,4 @@ uint32_t featureMask(void)
 {
     return mcfg.enabledFeatures;
 }
+

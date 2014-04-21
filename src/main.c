@@ -1,31 +1,30 @@
 #include "board.h"
+#include "flight_common.h"
+#include "flight_mixer.h"
+#include "serial_common.h"
+#include "failsafe.h"
 #include "mw.h"
 
+#include "gps_common.h"
+#include "rx_common.h"
+#include "drivers/serial_common.h"
 #include "telemetry_common.h"
+#include "boardalignment.h"
+#include "config.h"
+#include "config_storage.h"
 
-core_t core;
+#include "build_config.h"
 
 extern rcReadRawDataPtr rcReadRawFunc;
 
-// receiver read function
-extern uint16_t pwmReadRawRC(uint8_t chan);
+failsafe_t *failsafe;
 
-#ifdef USE_LAME_PRINTF
-// gcc/GNU version
-static void _putc(void *p, char c)
-{
-    serialWrite(core.mainport, c);
-}
-#else
-// keil/armcc version
-int fputc(int c, FILE *f)
-{
-    // let DMA catch up a bit when using set or dump, we're too fast.
-    while (!isSerialTransmitBufferEmpty(core.mainport));
-    serialWrite(core.mainport, c);
-    return c;
-}
-#endif
+void initTelemetry(serialPorts_t *serialPorts);
+void serialInit(serialConfig_t *initialSerialConfig);
+failsafe_t* failsafeInit(failsafeConfig_t *initialFailsafeConfig, rxConfig_t *intialRxConfig);
+void pwmInit(drv_pwm_config_t *init, failsafe_t *initialFailsafe);
+void rxInit(rxConfig_t *rxConfig, failsafe_t *failsafe);
+void buzzerInit(failsafe_t *initialFailsafe);
 
 int main(void)
 {
@@ -37,11 +36,9 @@ int main(void)
     serialPort_t* loopbackPort2 = NULL;
 #endif
     systemInit();
-#ifdef USE_LAME_PRINTF
-    init_printf(NULL, _putc);
-#endif
+    initPrintfSupport();
 
-    checkFirstTime(false);
+    ensureEEPROMContainsValidData();
     readEEPROM();
 
     // configure power ADC
@@ -53,22 +50,22 @@ int main(void)
     }
 
     adcInit(&adc_params);
-    initBoardAlignment();
+    initBoardAlignment(&mcfg.boardAlignment);
 
     // We have these sensors; SENSORS_SET defined in board.h depending on hardware platform
     sensorsSet(SENSORS_SET);
 
-    mixerInit(); // this will set core.useServo var depending on mixer type
+    mixerInit();
     // when using airplane/wing mixer, servo/motor outputs are remapped
     if (mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_FLYING_WING)
         pwm_params.airplane = true;
     else
         pwm_params.airplane = false;
-    pwm_params.useUART = feature(FEATURE_GPS) || feature(FEATURE_SERIALRX); // spektrum/sbus support uses UART too
+    pwm_params.useUART = feature(FEATURE_GPS) || feature(FEATURE_SERIALRX); // serial rx support uses UART too
     pwm_params.useSoftSerial = feature(FEATURE_SOFTSERIAL);
     pwm_params.usePPM = feature(FEATURE_PPM);
     pwm_params.enableInput = !feature(FEATURE_SERIALRX); // disable inputs if using spektrum
-    pwm_params.useServos = core.useServo;
+    pwm_params.useServos = isMixerUsingServos();
     pwm_params.extraServos = cfg.gimbal_flags & GIMBAL_FORWARDAUX;
     pwm_params.motorPwmRate = mcfg.motor_pwm_rate;
     pwm_params.servoPwmRate = mcfg.servo_pwm_rate;
@@ -77,8 +74,9 @@ int main(void)
         pwm_params.idlePulse = mcfg.neutral3d;
     if (pwm_params.motorPwmRate > 500)
         pwm_params.idlePulse = 0; // brushed motors
-    pwm_params.servoCenterPulse = mcfg.midrc;
-    pwm_params.failsafeThreshold = cfg.failsafe_detect_threshold;
+    pwm_params.servoCenterPulse = mcfg.rxConfig.midrc;
+    pwm_params.failsafeThreshold = cfg.failsafeConfig.failsafe_detect_threshold;
+
     switch (mcfg.power_adc_channel) {
         case 1:
             pwm_params.adcChannel = PWM2;
@@ -91,32 +89,16 @@ int main(void)
             break;
     }
 
-    pwmInit(&pwm_params);
+    failsafe = failsafeInit(&cfg.failsafeConfig, &mcfg.rxConfig);
+    buzzerInit(failsafe);
+    pwmInit(&pwm_params, failsafe);
 
-    // configure PWM/CPPM read function and max number of channels. spektrum or sbus below will override both of these, if enabled
-    for (i = 0; i < RC_CHANS; i++)
-        rcData[i] = 1502;
-    rcReadRawFunc = pwmReadRawRC;
-    core.numRCChannels = MAX_INPUTS;
+    rxInit(&mcfg.rxConfig, failsafe);
 
-    if (feature(FEATURE_SERIALRX)) {
-        switch (mcfg.serialrx_type) {
-            case SERIALRX_SPEKTRUM1024:
-            case SERIALRX_SPEKTRUM2048:
-                spektrumInit(&rcReadRawFunc);
-                break;
-            case SERIALRX_SBUS:
-                sbusInit(&rcReadRawFunc);
-                break;
-            case SERIALRX_SUMD:
-                sumdInit(&rcReadRawFunc);
-                break;
-        }
-    } else { // spektrum and GPS are mutually exclusive
-        // Optional GPS - available in both PPM and PWM input mode, in PWM input, reduces number of available channels by 2.
-        // gpsInit will return if FEATURE_GPS is not enabled.
+    if (feature(FEATURE_GPS) && !feature(FEATURE_SERIALRX)) {
         gpsInit(mcfg.gps_baudrate);
     }
+
 #ifdef SONAR
     // sonar stuff only works with PPM
     if (feature(FEATURE_PPM)) {
@@ -144,15 +126,16 @@ int main(void)
 
     // Check battery type/voltage
     if (feature(FEATURE_VBAT))
-        batteryInit();
+        batteryInit(&mcfg.batteryConfig);
 
-    serialInit(mcfg.serial_baudrate);
+    serialInit(&mcfg.serialConfig);
 
+#ifndef FY90Q
     if (feature(FEATURE_SOFTSERIAL)) {
         //mcfg.softserial_baudrate = 19200; // Uncomment to override config value
 
-        setupSoftSerialPrimary(mcfg.softserial_baudrate, mcfg.softserial_1_inverted);
-        setupSoftSerialSecondary(mcfg.softserial_2_inverted);
+        setupSoftSerialPrimary(mcfg.serialConfig.softserial_baudrate, mcfg.serialConfig.softserial_1_inverted);
+        setupSoftSerialSecondary(mcfg.serialConfig.softserial_2_inverted);
 
 #ifdef SOFTSERIAL_LOOPBACK
         loopbackPort1 = (serialPort_t*)&(softSerialPorts[0]);
@@ -163,9 +146,10 @@ int main(void)
 #endif
         //core.mainport = (serialPort_t*)&(softSerialPorts[0]); // Uncomment to switch the main port to use softserial.
     }
+#endif
 
     if (feature(FEATURE_TELEMETRY))
-        initTelemetry();
+        initTelemetry(&serialPorts);
 
     previousTime = micros();
     if (mcfg.mixerConfiguration == MULTITYPE_GIMBAL)

@@ -42,66 +42,86 @@ BIN_DIR		 = $(ROOT)/obj
 
 # Source files common to all targets
 COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
+		   build_config.c \
+		   battery.c \
+		   boardalignment.c \
 		   buzzer.c \
-		   cli.c \
 		   config.c \
-		   gps.c \
-		   imu.c \
+		   common/maths.c \
+		   common/printf.c \
+		   common/typeconversion.c \
+		   failsafe.c \
 		   main.c \
-		   mixer.c \
 		   mw.c \
-		   sensors.c \
-		   serial.c \
-		   sbus.c \
-		   sumd.c \
-		   spektrum.c \
+		   sensors_acceleration.c \
+		   sensors_barometer.c \
+		   sensors_compass.c \
+		   sensors_gyro.c \
+		   sensors_initialisation.c \
+		   sensors_sonar.c \
+		   drivers/bus_i2c.c \
+		   drivers/bus_i2c_soft.c \
+		   drivers/gpio_common.c \
+		   drivers/serial_common.c \
+		   drivers/serial_uart.c \
+		   drivers/sound_beeper.c \
+		   drivers/system_common.c \
+		   flight_common.c \
+		   flight_imu.c \
+		   flight_mixer.c \
+		   gps_common.c \
+		   runtime_config.c \
+		   rx_common.c \
+		   rx_pwm.c \
+		   rx_sbus.c \
+		   rx_sumd.c \
+		   rx_spektrum.c \
 		   telemetry_common.c \
 		   telemetry_frsky.c \
 		   telemetry_hott.c \
-		   drv_gpio.c \
-		   drv_i2c.c \
-		   drv_i2c_soft.c \
-		   drv_system.c \
-		   drv_serial.c \
-		   drv_softserial.c \
-		   drv_uart.c \
-		   printf.c \
-		   utils.c \
+		   serial_common.c \
+		   serial_cli.c \
+		   serial_msp.c \
+		   statusindicator.c \
 		   $(CMSIS_SRC) \
 		   $(STDPERIPH_SRC)
 
 # Source files for the NAZE target
-NAZE_SRC	 = drv_adc.c \
-		   drv_adxl345.c \
-		   drv_bma280.c \
-		   drv_bmp085.c \
-		   drv_ms5611.c \
-		   drv_hcsr04.c \
-		   drv_hmc5883l.c \
-		   drv_ledring.c \
-		   drv_mma845x.c \
-		   drv_mpu3050.c \
-		   drv_mpu6050.c \
-		   drv_l3g4200d.c \
-		   drv_pwm.c \
-		   drv_spi.c \
-		   drv_timer.c \
+NAZE_SRC	 = drivers/accgyro_adxl345.c \
+		   drivers/accgyro_bma280.c \
+		   drivers/accgyro_l3g4200d.c \
+		   drivers/accgyro_mma845x.c \
+		   drivers/accgyro_mpu3050.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/adc_common.c \
+		   drivers/barometer_bmp085.c \
+		   drivers/barometer_ms5611.c \
+		   drivers/bus_spi.c \
+		   drivers/compass_hmc5883l.c \
+		   drivers/light_ledring.c \
+		   drivers/sonar_hcsr04.c \
+		   drivers/pwm_common.c \
+		   drivers/serial_softserial.c \
+		   drivers/timer_common.c \
 		   $(COMMON_SRC)
 
 # Source files for the FY90Q target
-FY90Q_SRC	 = drv_adc_fy90q.c \
-		   drv_pwm_fy90q.c \
+FY90Q_SRC	 = drivers/accgyro_fy90q.c \
+		   drivers/adc_fy90q.c \
+		   drivers/pwm_fy90q.c \
+		   drivers/bus_spi.c \
 		   $(COMMON_SRC)
 
 # Source files for the OLIMEXINO target
-OLIMEXINO_SRC	 = drv_spi.c \
-		   drv_adc.c \
-		   drv_adxl345.c \
-		   drv_mpu3050.c \
-		   drv_mpu6050.c \
-		   drv_l3g4200d.c \
-		   drv_pwm.c \
-		   drv_timer.c \
+OLIMEXINO_SRC	 = drivers/accgyro_adxl345.c \
+		   drivers/accgyro_mpu3050.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/accgyro_l3g4200d.c \
+		   drivers/adc_common.c \
+		   drivers/bus_spi.c \
+		   drivers/pwm_common.c \
+		   drivers/serial_softserial.c \
+		   drivers/timer_common.c \
 		   $(COMMON_SRC)
 		   
 # In some cases, %.s regarded as intermediate file, which is actually not.
@@ -212,6 +232,7 @@ $(OBJECT_DIR)/$(TARGET)/%.o): %.S
 
 clean:
 	rm -f $(TARGET_HEX) $(TARGET_ELF) $(TARGET_OBJS) $(TARGET_MAP)
+	rm -rf $(OBJECT_DIR)/$(TARGET)
 
 flash_$(TARGET): $(TARGET_HEX)
 	stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
