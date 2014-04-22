@@ -54,20 +54,6 @@ static uint8_t validEEPROM(void)
     return 1;
 }
 
-void readEEPROM(void)
-{
-    // Sanity check
-    if (!validEEPROM())
-        failureMode(10);
-
-    // Read flash
-    memcpy(&mcfg, (char *)FLASH_WRITE_ADDR, sizeof(master_t));
-    // Copy current profile
-    if (mcfg.current_profile > 2) // sanity check
-        mcfg.current_profile = 0;
-    memcpy(&cfg, &mcfg.profile[mcfg.current_profile], sizeof(config_t)); 
-}
-
 void activateConfig(void)
 {
     uint8_t i;
@@ -89,13 +75,35 @@ void activateConfig(void)
     gpsSetPIDs();
 }
 
-void loadAndActivateConfig(void)
+void readEEPROM(void)
 {
-    readEEPROM();
-    activateConfig();
+    // Sanity check
+    if (!validEEPROM())
+        failureMode(10);
+
+    // Read flash
+    memcpy(&mcfg, (char *)FLASH_WRITE_ADDR, sizeof(master_t));
+    // Copy current profile
+    if (mcfg.current_profile > 2) // sanity check
+        mcfg.current_profile = 0;
+    memcpy(&cfg, &mcfg.profile[mcfg.current_profile], sizeof(config_t)); 
+	activateConfig();
 }
 
-void writeEEPROM(uint8_t b, uint8_t updateProfile)
+void readEEPROMAndNotify(void)
+{
+    // re-read written data
+    readEEPROM();
+    blinkLED(15, 20, 1);
+}
+
+void copyCurrentProfileToProfileSlot(uint8_t profileSlotIndex)
+{
+    // copy current in-memory profile to stored configuration
+    memcpy(&mcfg.profile[profileSlotIndex], &cfg, sizeof(config_t));
+}
+
+void writeEEPROM(void)
 {
     FLASH_Status status;
     uint32_t i;
@@ -109,12 +117,6 @@ void writeEEPROM(uint8_t b, uint8_t updateProfile)
     mcfg.magic_be = 0xBE;
     mcfg.magic_ef = 0xEF;
     mcfg.chk = 0;
-
-    // when updateProfile = true, we copy contents of cfg to global configuration. when false, only profile number is updated, and then that profile is loaded on readEEPROM()
-    if (updateProfile) {
-        // copy current in-memory profile to stored configuration
-        memcpy(&mcfg.profile[mcfg.current_profile], &cfg, sizeof(config_t));
-    }
 
     // recalculate checksum before writing
     for (p = (const uint8_t *)&mcfg; p < ((const uint8_t *)&mcfg + sizeof(master_t)); p++)
@@ -145,11 +147,6 @@ retry:
     if (tries == 3 || !validEEPROM()) {
         failureMode(10);
     }
-
-    // re-read written data
-    loadAndActivateConfig();
-    if (b)
-        blinkLED(15, 20, 1);
 }
 
 void checkFirstTime(bool reset)
@@ -157,8 +154,8 @@ void checkFirstTime(bool reset)
     // check the EEPROM integrity before resetting values
     if (!validEEPROM() || reset) {
         resetConf();
-        // no need to memcpy profile again, we just did it in resetConf() above
-        writeEEPROM(0, false);
+        writeEEPROM();
+        readEEPROM();
     }
 }
 
