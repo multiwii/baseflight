@@ -49,7 +49,7 @@ void computeIMU(void)
     uint32_t axis;
     static int16_t gyroYawSmooth = 0;
 
-    Gyro_getADC();
+    gyroGetADC(mcfg.moron_threshold);
     if (sensors(SENSOR_ACC)) {
         ACC_getADC();
         getEstimatedAttitude();
