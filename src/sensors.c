@@ -7,6 +7,8 @@ uint16_t calibratingG = 0;
 uint16_t acc_1G = 256;          // this is the 1G measured acceleration.
 int16_t heading, magHold;
 
+static gyroConfig_t *gyroConfig;
+
 extern uint16_t InflightcalibratingA;
 extern bool AccInflightCalibrationMeasurementDone;
 extern bool AccInflightCalibrationSavetoEEProm;
@@ -391,13 +393,19 @@ static void applyGyroZero(void)
     }
 }
 
-void gyroGetADC(uint8_t gyroMovementCalibrationThreshold)
+void useGyroConfig(gyroConfig_t *gyroConfigToUse)
+{
+    gyroConfig = gyroConfigToUse;
+}
+
+void gyroGetADC(void)
 {
     // range: +/- 8192; +/- 2000 deg/sec
     gyro.read(gyroADC);
 
     if (!isGyroCalibrationComplete()) {
-        performGyroCalibration(gyroMovementCalibrationThreshold);
+
+        performGyroCalibration(gyroConfig->gyroMovementCalibrationThreshold);
     }
 
     applyGyroZero();
