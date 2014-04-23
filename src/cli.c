@@ -153,7 +153,7 @@ const clivalue_t valueTable[] = {
     { "yaw_control_direction", VAR_INT8, &mcfg.yaw_control_direction, -1, 1 },
     { "acc_hardware", VAR_UINT8, &mcfg.acc_hardware, 0, 5 },
     { "max_angle_inclination", VAR_UINT16, &mcfg.max_angle_inclination, 100, 900 },
-    { "moron_threshold", VAR_UINT8, &mcfg.gyroConfig.gyro_movement_calibration_threshold, 0, 128 },
+    { "gyro_movement_calibration_threshold", VAR_UINT8, &mcfg.gyroConfig.gyro_movement_calibration_threshold, 0, 128 },
     { "gyro_lpf", VAR_UINT16, &mcfg.gyro_lpf, 0, 256 },
     { "gyro_cmpf_factor", VAR_UINT16, &mcfg.gyro_cmpf_factor, 100, 1000 },
     { "gyro_cmpfm_factor", VAR_UINT16, &mcfg.gyro_cmpfm_factor, 100, 1000 },
