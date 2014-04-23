@@ -151,7 +151,7 @@ enum {
 #define CALIBRATING_BARO_CYCLES             200
 
 typedef struct gyroConfig_s {
-    uint8_t gyroMovementCalibrationThreshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
+    uint8_t gyro_movement_calibration_threshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
 } gyroConfig_t;
 
 typedef struct config_t {

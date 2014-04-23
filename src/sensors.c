@@ -405,7 +405,7 @@ void gyroGetADC(void)
 
     if (!isGyroCalibrationComplete()) {
 
-        performGyroCalibration(gyroConfig->gyroMovementCalibrationThreshold);
+        performGyroCalibration(gyroConfig->gyro_movement_calibration_threshold);
     }
 
     applyGyroZero();
