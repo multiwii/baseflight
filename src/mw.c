@@ -58,11 +58,11 @@ uint8_t GPS_svinfo_quality[16];     // Bitfield Qualtity
 uint8_t GPS_svinfo_cno[16];         // Carrier to Noise Ratio (Signal Strength)
 
 // Automatic ACC Offset Calibration
+bool AccInflightCalibrationArmed = false;
+bool AccInflightCalibrationMeasurementDone = false;
+bool AccInflightCalibrationSavetoEEProm = false;
+bool AccInflightCalibrationActive = false;
 uint16_t InflightcalibratingA = 0;
-int16_t AccInflightCalibrationArmed;
-uint16_t AccInflightCalibrationMeasurementDone = 0;
-uint16_t AccInflightCalibrationSavetoEEProm = 0;
-uint16_t AccInflightCalibrationActive = 0;
 
 // Battery monitoring stuff
 uint8_t batteryCellCount = 3;       // cell count
@@ -99,11 +99,11 @@ void annexCode(void)
     int i;
 
     // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
-    if (rcData[THROTTLE] < cfg.tpaBreakPoint) {
+    if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
         prop2 = 100;
     } else {
         if (rcData[THROTTLE] < 2000) {
-            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpaBreakPoint) / (2000 - cfg.tpaBreakPoint);
+            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
         } else {
             prop2 = 100 - cfg.dynThrPID;
         }
@@ -122,8 +122,8 @@ void annexCode(void)
 
             tmp2 = tmp / 100;
             rcCommand[axis] = lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (lookupPitchRollRC[tmp2 + 1] - lookupPitchRollRC[tmp2]) / 100;
-            prop1 = 100 - (uint16_t) cfg.rollPitchRate * tmp / 500;
-            prop1 = (uint16_t) prop1 *prop2 / 100;
+            prop1 = 100 - (uint16_t)cfg.rollPitchRate * tmp / 500;
+            prop1 = (uint16_t)prop1 * prop2 / 100;
         } else {                // YAW
             if (cfg.yawdeadband) {
                 if (tmp > cfg.yawdeadband) {
@@ -193,7 +193,7 @@ void annexCode(void)
 #endif
 
     if ((int32_t)(currentTime - calibratedAccTime) >= 0) {
-        if (!f.SMALL_ANGLES_25) {
+        if (!f.SMALL_ANGLE) {
             f.ACC_CALIBRATED = 0; // the multi uses ACC and is not calibrated or is too much inclinated
             LED0_TOGGLE;
             calibratedAccTime = currentTime + 500000;
@@ -560,8 +560,8 @@ void loop(void)
                 // Inflight ACC Calibration
                 } else if (feature(FEATURE_INFLIGHT_ACC_CAL) && (rcSticks == THR_LO + YAW_LO + PIT_HI + ROL_HI)) {
                     if (AccInflightCalibrationMeasurementDone) {        // trigger saving into eeprom after landing
-                        AccInflightCalibrationMeasurementDone = 0;
-                        AccInflightCalibrationSavetoEEProm = 1;
+                        AccInflightCalibrationMeasurementDone = false;
+                        AccInflightCalibrationSavetoEEProm = true;
                     } else {
                         AccInflightCalibrationArmed = !AccInflightCalibrationArmed;
                         if (AccInflightCalibrationArmed) {
@@ -623,14 +623,15 @@ void loop(void)
         if (feature(FEATURE_INFLIGHT_ACC_CAL)) {
             if (AccInflightCalibrationArmed && f.ARMED && rcData[THROTTLE] > mcfg.mincheck && !rcOptions[BOXARM]) {   // Copter is airborne and you are turning it off via boxarm : start measurement
                 InflightcalibratingA = 50;
-                AccInflightCalibrationArmed = 0;
+                AccInflightCalibrationArmed = false;
             }
             if (rcOptions[BOXCALIB]) {      // Use the Calib Option to activate : Calib = TRUE Meausrement started, Land and Calib = 0 measurement stored
                 if (!AccInflightCalibrationActive && !AccInflightCalibrationMeasurementDone)
                     InflightcalibratingA = 50;
+                    AccInflightCalibrationActive = true;
             } else if (AccInflightCalibrationMeasurementDone && !f.ARMED) {
-                AccInflightCalibrationMeasurementDone = 0;
-                AccInflightCalibrationSavetoEEProm = 1;
+                AccInflightCalibrationMeasurementDone = false;
+                AccInflightCalibrationSavetoEEProm = true;
             }
         }
 
@@ -882,7 +883,7 @@ void loop(void)
                 if (dif >= +180)
                     dif -= 360;
                 dif *= -mcfg.yaw_control_direction;
-                if (f.SMALL_ANGLES_25)
+                if (f.SMALL_ANGLE)
                     rcCommand[YAW] -= dif * cfg.P8[PIDMAG] / 30;    // 18 deg
             } else
                 magHold = heading;

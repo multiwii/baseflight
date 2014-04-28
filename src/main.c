@@ -39,13 +39,14 @@ int main(void)
     serialPort_t* loopbackPort1 = NULL;
     serialPort_t* loopbackPort2 = NULL;
 #endif
-    systemInit();
+    checkFirstTime(false);
+    readEEPROM();
+    systemInit(mcfg.emf_avoidance);
 #ifdef USE_LAME_PRINTF
     init_printf(NULL, _putc);
 #endif
 
-    checkFirstTime(false);
-    readEEPROM();
+    activateConfig();
 
     // configure power ADC
     if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9))
@@ -178,7 +179,7 @@ int main(void)
         calibratingA = CALIBRATING_ACC_CYCLES;
     calibratingG = CALIBRATING_GYRO_CYCLES;
     calibratingB = CALIBRATING_BARO_CYCLES;             // 10 seconds init_delay + 200 * 25 ms = 15 seconds before ground pressure settles
-    f.SMALL_ANGLES_25 = 1;
+    f.SMALL_ANGLE = 1;
 
     // loopy
     while (1) {
