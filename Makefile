@@ -67,6 +67,7 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   drv_uart.c \
 		   printf.c \
 		   utils.c \
+		   fw_nav.c \
 		   $(CMSIS_SRC) \
 		   $(STDPERIPH_SRC)
 

@@ -320,6 +320,18 @@ static void resetConf(void)
     cfg.nav_speed_max = 300;
     cfg.ap_mode = 40;
 
+    // fw stuff
+    cfg.fixedwing_rollrate = 0.5f;
+    cfg.fixedwing_pitchrate = 0.5f;
+    cfg.gps_maxcorr = 20;
+    cfg.gps_rudder = 15;
+    cfg.gps_maxclimb = 15;
+    cfg.gps_maxdive = 15;
+    cfg.climb_throttle = 1900;
+    cfg.cruice_throttle = 1500;
+    cfg.idle_throttle = 1300;
+    cfg.scaler_throttle = 8;
+
     // control stuff
     mcfg.reboot_character = 'R';
 

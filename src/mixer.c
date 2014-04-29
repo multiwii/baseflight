@@ -418,12 +418,12 @@ void mixTable(void)
             motor[0] = servo[7];
             if (f.PASSTHRU_MODE) {
                 // do not use sensors for correction, simple 2 channel mixing
-                servo[3] = (servoDirection(3, 1) * rcCommand[PITCH]) + (servoDirection(3, 2) * rcCommand[ROLL]);
-                servo[4] = (servoDirection(4, 1) * rcCommand[PITCH]) + (servoDirection(4, 2) * rcCommand[ROLL]);
+                servo[3] = (servoDirection(3, 1) * rcCommand[PITCH])*cfg.fixedwing_pitchrate + (servoDirection(3, 2) * rcCommand[ROLL])*cfg.fixedwing_rollrate;
+                servo[4] = (servoDirection(4, 1) * rcCommand[PITCH])*cfg.fixedwing_pitchrate + (servoDirection(4, 2) * rcCommand[ROLL])*cfg.fixedwing_rollrate;
             } else {
                 // use sensors to correct (gyro only or gyro + acc)
-                servo[3] = (servoDirection(3, 1) * axisPID[PITCH]) + (servoDirection(3, 2) * axisPID[ROLL]);
-                servo[4] = (servoDirection(4, 1) * axisPID[PITCH]) + (servoDirection(4, 2) * axisPID[ROLL]);
+                servo[3] = (servoDirection(3, 1) * axisPID[PITCH])*cfg.fixedwing_pitchrate + (servoDirection(3, 2) * axisPID[ROLL])*cfg.fixedwing_rollrate;
+                servo[4] = (servoDirection(4, 1) * axisPID[PITCH])*cfg.fixedwing_pitchrate + (servoDirection(4, 2) * axisPID[ROLL])*cfg.fixedwing_rollrate;
             }
             servo[3] += servoMiddle(3);
             servo[4] += servoMiddle(4);
@@ -499,6 +499,10 @@ void mixTable(void)
                     motor[i] = mcfg.minthrottle;
                 else
                     motor[i] = mcfg.mincommand;
+                    f.MOTORS_STOPPED=1;
+            }
+            else{
+            	f.MOTORS_STOPPED=0;
             }
         }
         if (!f.ARMED) {

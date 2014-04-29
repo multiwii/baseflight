@@ -1,6 +1,8 @@
 #include "board.h"
 #include "mw.h"
 
+extern void fw_nav_reset();
+
 #ifndef sq
 #define sq(x) ((x)*(x))
 #endif
@@ -267,16 +269,10 @@ int32_t leadFilter_getPosition(LeadFilter_PARAM *param, int32_t pos, int16_t vel
 LeadFilter_PARAM xLeadFilter;
 LeadFilter_PARAM yLeadFilter;
 
-typedef struct {
-    float kP;
-    float kI;
-    float kD;
-    float Imax;
-} PID_PARAM;
-
 static PID_PARAM posholdPID_PARAM;
 static PID_PARAM poshold_ratePID_PARAM;
-static PID_PARAM navPID_PARAM;
+/*static*/ PID_PARAM navPID_PARAM;
+/*static*/ PID_PARAM altPID_PARAM;
 
 typedef struct {
     float integrator;          // integrator value
@@ -367,7 +363,7 @@ static int16_t crosstrack_error;
 // distance between plane and home in cm
 //static int32_t home_distance;
 // distance between plane and next_WP in cm
-static uint32_t wp_distance;
+/*static*/ uint32_t wp_distance;
 
 // used for slow speed wind up when start navigation;
 static int16_t waypoint_speed_gov;
@@ -387,7 +383,7 @@ static uint16_t fraction3[2];
 
 // This is the angle from the copter to the "next_WP" location
 // with the addition of Crosstrack error in degrees * 100
-static int32_t nav_bearing;
+/*static*/ int32_t nav_bearing;
 // saves the bearing at takeof (1deg = 1) used to rotate to takeoff direction when arrives at home
 static int16_t nav_takeoff_bearing;
 
@@ -409,7 +405,7 @@ static void gpsNewData(uint16_t c)
         else
             GPS_update = 1;
         if (f.GPS_FIX && GPS_numSat >= 5) {
-            if (!f.ARMED)
+            if (!f.ARMED && !f.FIXED_WING)
                 f.GPS_FIX_HOME = 0;
             if (!f.GPS_FIX_HOME && f.ARMED)
                 GPS_reset_home_position();
@@ -459,6 +455,9 @@ static void gpsNewData(uint16_t c)
                 GPS_distance_cm_bearing(&GPS_coord[LAT], &GPS_coord[LON], &GPS_WP[LAT], &GPS_WP[LON], &wp_distance, &target_bearing);
                 GPS_calc_location_error(&GPS_WP[LAT], &GPS_WP[LON], &GPS_coord[LAT], &GPS_coord[LON]);
 
+                if(f.FIXED_WING)
+                	nav_mode = NAV_MODE_WP; // Planes always navigate in Wp mode.
+
                 switch (nav_mode) {
                 case NAV_MODE_POSHOLD:
                     // Desired output is in nav_lat and nav_lon where 1deg inclination is 100
@@ -501,6 +500,7 @@ void GPS_reset_home_position(void)
         GPS_calc_longitude_scaling(GPS_coord[LAT]); // need an initial value for distance and bearing calc
         nav_takeoff_bearing = heading;              // save takeoff heading
         // Set ground altitude
+        GPS_home[ALT] = GPS_altitude;  //Set ground altitude
         f.GPS_FIX_HOME = 1;
     }
 }
@@ -517,6 +517,10 @@ void GPS_reset_nav(void)
         reset_PID(&posholdPID[i]);
         reset_PID(&poshold_ratePID[i]);
         reset_PID(&navPID[i]);
+    }
+
+	if(f.FIXED_WING) {
+    	fw_nav_reset();
     }
 }
 
@@ -536,6 +540,12 @@ void gpsSetPIDs(void)
     navPID_PARAM.kI = (float)cfg.I8[PIDNAVR] / 100.0f;
     navPID_PARAM.kD = (float)cfg.D8[PIDNAVR] / 1000.0f;
     navPID_PARAM.Imax = POSHOLD_RATE_IMAX * 100;
+
+    if(f.FIXED_WING) {
+      altPID_PARAM.kP   = (float)cfg.P8[PIDALT]/10.0f;
+      altPID_PARAM.kI   = (float)cfg.I8[PIDALT]/100.0f;
+      altPID_PARAM.kD   = (float)cfg.D8[PIDALT]/1000.0f;
+    }
 }
 
 int8_t gpsSetPassthrough(void)

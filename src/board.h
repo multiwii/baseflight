@@ -14,7 +14,7 @@
 #include "stm32f10x_conf.h"
 #include "core_cm3.h"
 
-#ifndef __CC_ARM
+#if !defined(__CC_ARM) && !defined(HAVE_PRINTF_FUNCTION)
 // only need this garbage on gcc
 #define USE_LAME_PRINTF
 #include "printf.h"
@@ -75,6 +75,7 @@ typedef enum {
     FEATURE_POWERMETER = 1 << 12,
     FEATURE_VARIO = 1 << 13,
     FEATURE_3D = 1 << 14,
+    FEATURE_FAILSAFE_RTH = 1 <<15,
 } AvailableFeatures;
 
 typedef enum {
