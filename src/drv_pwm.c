@@ -270,7 +270,6 @@ static void ppmCallback(uint8_t port, uint16_t capture)
             }
         }
         chan++;
-        failsafeCnt = 0;
     }
 }
 
