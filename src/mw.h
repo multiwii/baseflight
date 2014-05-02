@@ -165,7 +165,7 @@ typedef struct config_t {
     uint8_t yawRate;
 
     uint8_t dynThrPID;
-    uint16_t tpaBreakPoint;                  // Breakpoint where TPA is activated
+    uint16_t tpa_breakpoint;                // Breakpoint where TPA is activated
     int16_t mag_declination;                // Get your magnetic decliniation from here : http://magnetic-declination.com/
     int16_t angleTrim[2];                   // accelerometer trim
 
@@ -224,6 +224,7 @@ typedef struct master_t {
     uint8_t mixerConfiguration;
     uint32_t enabledFeatures;
     uint16_t looptime;                      // imu loop time in us
+    uint8_t emf_avoidance;                  // change pll settings to avoid noise in the uhf band
     motorMixer_t customMixer[MAX_MOTORS];   // custom mixtable
 
     // motor/esc/servo related stuff
@@ -318,7 +319,7 @@ typedef struct flags_t {
     uint8_t PASSTHRU_MODE;
     uint8_t GPS_FIX;
     uint8_t GPS_FIX_HOME;
-    uint8_t SMALL_ANGLES_25;
+    uint8_t SMALL_ANGLE;
     uint8_t CALIBRATE_MAG;
     uint8_t VARIO_MODE;
     uint8_t FIXED_WING;                     // set when in flying_wing or airplane mode. currently used by althold selection code
@@ -437,6 +438,8 @@ void serialCom(void);
 
 // Config
 void parseRcChannels(const char *input);
+void activateConfig(void);
+void loadAndActivateConfig(void);
 void readEEPROM(void);
 void writeEEPROM(uint8_t b, uint8_t updateProfile);
 void checkFirstTime(bool reset);
@@ -461,6 +464,11 @@ bool sbusFrameComplete(void);
 // sumd
 void sumdInit(rcReadRawDataPtr *callback);
 bool sumdFrameComplete(void);
+
+// rxmsp
+void mspInit(rcReadRawDataPtr *callback);
+bool mspFrameComplete(void);
+void mspFrameRecieve(void);
 
 // buzzer
 void buzzer(uint8_t warn_vbat);

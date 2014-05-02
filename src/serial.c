@@ -286,6 +286,7 @@ static void evaluateCommand(void)
         for (i = 0; i < 8; i++)
             rcData[i] = read16();
         headSerialReply(0);
+        mspFrameRecieve();
         break;
     case MSP_SET_ACC_TRIM:
         cfg.angleTrim[PITCH] = read16();
@@ -590,8 +591,12 @@ static void evaluateCommand(void)
         headSerialReply(0);
         break;
     case MSP_EEPROM_WRITE:
-        writeEEPROM(0, true);
-        headSerialReply(0);
+        if (f.ARMED) {
+            headSerialError(0);
+        } else {
+            writeEEPROM(0, true);
+            headSerialReply(0);
+        }
         break;
     case MSP_DEBUG:
         headSerialReply(8);

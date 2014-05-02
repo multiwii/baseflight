@@ -36,13 +36,15 @@ int main(void)
     serialPort_t* loopbackPort1 = NULL;
     serialPort_t* loopbackPort2 = NULL;
 #endif
-    systemInit();
+
+    checkFirstTime(false);
+    readEEPROM();
+    systemInit(mcfg.emf_avoidance);
 #ifdef USE_LAME_PRINTF
     init_printf(NULL, _putc);
 #endif
 
-    checkFirstTime(false);
-    readEEPROM();
+    activateConfig();
 
     // configure power ADC
     if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9))
@@ -53,12 +55,25 @@ int main(void)
     }
 
     adcInit(&adc_params);
+    // Check battery type/voltage
+    if (feature(FEATURE_VBAT))
+        batteryInit();
     initBoardAlignment();
 
     // We have these sensors; SENSORS_SET defined in board.h depending on hardware platform
     sensorsSet(SENSORS_SET);
-
+    // drop out any sensors that don't seem to work, init all the others. halt if gyro is dead.
+    sensorsAutodetect();
+    imuInit(); // Mag is initialized inside imuInit
     mixerInit(); // this will set core.useServo var depending on mixer type
+
+    // production debug output
+#ifdef PROD_DEBUG
+    productionDebug();
+#endif
+
+    serialInit(mcfg.serial_baudrate);
+
     // when using airplane/wing mixer, servo/motor outputs are remapped
     if (mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_FLYING_WING)
         pwm_params.airplane = true;
@@ -111,6 +126,9 @@ int main(void)
             case SERIALRX_SUMD:
                 sumdInit(&rcReadRawFunc);
                 break;
+            case SERIALRX_MSP:
+                mspInit(&rcReadRawFunc);
+                break;
         }
     } else { // spektrum and GPS are mutually exclusive
         // Optional GPS - available in both PPM and PWM input mode, in PWM input, reduces number of available channels by 2.
@@ -124,29 +142,6 @@ int main(void)
             Sonar_init();
     }
 #endif
-
-    LED1_ON;
-    LED0_OFF;
-    for (i = 0; i < 10; i++) {
-        LED1_TOGGLE;
-        LED0_TOGGLE;
-        delay(25);
-        BEEP_ON;
-        delay(25);
-        BEEP_OFF;
-    }
-    LED0_OFF;
-    LED1_OFF;
-
-    // drop out any sensors that don't seem to work, init all the others. halt if gyro is dead.
-    sensorsAutodetect();
-    imuInit(); // Mag is initialized inside imuInit
-
-    // Check battery type/voltage
-    if (feature(FEATURE_VBAT))
-        batteryInit();
-
-    serialInit(mcfg.serial_baudrate);
 
     if (feature(FEATURE_SOFTSERIAL)) {
         //mcfg.softserial_baudrate = 19200; // Uncomment to override config value
@@ -172,7 +167,20 @@ int main(void)
         calibratingA = CALIBRATING_ACC_CYCLES;
     calibratingG = CALIBRATING_GYRO_CYCLES;
     calibratingB = CALIBRATING_BARO_CYCLES;             // 10 seconds init_delay + 200 * 25 ms = 15 seconds before ground pressure settles
-    f.SMALL_ANGLES_25 = 1;
+    f.SMALL_ANGLE = 1;
+
+    LED1_ON;
+    LED0_OFF;
+    for (i = 0; i < 10; i++) {
+        LED1_TOGGLE;
+        LED0_TOGGLE;
+        delay(25);
+        BEEP_ON;
+        delay(25);
+        BEEP_OFF;
+    }
+    LED0_OFF;
+    LED1_OFF;
 
     // loopy
     while (1) {
