@@ -185,7 +185,9 @@ static void ACC_Common(void)
             mcfg.accZero[YAW] = (a[YAW] + (CALIBRATING_ACC_CYCLES / 2)) / CALIBRATING_ACC_CYCLES - acc_1G;
             cfg.angleTrim[ROLL] = 0;
             cfg.angleTrim[PITCH] = 0;
-            writeEEPROM(1, true);      // write accZero in EEPROM
+            copyCurrentProfileToProfileSlot(mcfg.current_profile);
+            writeEEPROM();      // write accZero in EEPROM
+            readEEPROMAndNotify();
         }
         calibratingA--;
     }
@@ -235,7 +237,9 @@ static void ACC_Common(void)
             mcfg.accZero[YAW] = b[YAW] / 50 - acc_1G;    // for nunchuk 200=1G
             cfg.angleTrim[ROLL] = 0;
             cfg.angleTrim[PITCH] = 0;
-            writeEEPROM(1, true);          // write accZero in EEPROM
+            copyCurrentProfileToProfileSlot(mcfg.current_profile);
+            writeEEPROM();      // write accZero in EEPROM
+            readEEPROMAndNotify();
         }
     }
 
@@ -431,7 +435,10 @@ int Mag_getADC(void)
             tCal = 0;
             for (axis = 0; axis < 3; axis++)
                 mcfg.magZero[axis] = (magZeroTempMin[axis] + magZeroTempMax[axis]) / 2; // Calculate offsets
-            writeEEPROM(1, true);
+
+            copyCurrentProfileToProfileSlot(mcfg.current_profile);
+            writeEEPROM();
+            readEEPROMAndNotify();
         }
     }
 

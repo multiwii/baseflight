@@ -578,7 +578,8 @@ void loop(void)
                     i = 3;
                 if (i) {
                     mcfg.current_profile = i - 1;
-                    writeEEPROM(0, false);
+                    writeEEPROM();
+                    readEEPROM();
                     blinkLED(2, 40, i);
                     // TODO alarmArray[0] = i;
                 }
@@ -611,7 +612,9 @@ void loop(void)
                     i = 1;
                 }
                 if (i) {
-                    writeEEPROM(1, true);
+                    copyCurrentProfileToProfileSlot(mcfg.current_profile);
+                    writeEEPROM();
+                    readEEPROMAndNotify();
                     rcDelayCommand = 0; // allow autorepetition
                 }
             }

@@ -439,9 +439,10 @@ void serialCom(void);
 // Config
 void parseRcChannels(const char *input);
 void activateConfig(void);
-void loadAndActivateConfig(void);
+void copyCurrentProfileToProfileSlot(uint8_t profileSlotIndex);
 void readEEPROM(void);
-void writeEEPROM(uint8_t b, uint8_t updateProfile);
+void readEEPROMAndNotify(void);
+void writeEEPROM();
 void checkFirstTime(bool reset);
 bool sensors(uint32_t mask);
 void sensorsSet(uint32_t mask);
