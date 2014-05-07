@@ -285,7 +285,7 @@ typedef struct master_t {
     uint8_t gps_port;                       // See SerialPort enum.
     uint8_t msp_port;						// See SerialPort enum.
     uint8_t telemetry_port;                 // See SerialPort enum.
-    
+
     // telemetry
     uint8_t telemetry_provider;             // See TelemetryProvider enum.
     uint8_t telemetry_switch;               // Use aux channel to change serial output & baudrate( MSP / Telemetry ). It disables automatic switching to Telemetry when armed.
