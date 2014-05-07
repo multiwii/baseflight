@@ -283,7 +283,7 @@ typedef struct master_t {
     uint8_t softserial_1_inverted;          // use inverted softserial input and output signals on port 1
     uint8_t softserial_2_inverted;          // use inverted softserial input and output signals on port 2
     uint8_t gps_port;                       // See SerialPort enum.
-    uint8_t msp_port;						// See SerialPort enum.
+    uint8_t msp_port;                       // See SerialPort enum.
     uint8_t telemetry_port;                 // See SerialPort enum.
 
     // telemetry
