@@ -239,7 +239,7 @@ void serialInit(uint32_t baudrate)
     USART_TypeDef* serial = USART1;
     
     // Open msp UART
-    if (mcfg.msp_port == SERIALPORT_UART_2 && !feature(FEATURE_SERIALRX)){
+    if (mcfg.msp_port == SERIALPORT_UART_2 && !feature(FEATURE_SERIALRX)) {
         serial = USART2;
     }
     core.mainport = uartOpen(serial, NULL, baudrate, MODE_RXTX);

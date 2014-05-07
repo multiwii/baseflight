@@ -7,7 +7,7 @@
 // June 2013     V2.2-dev
 
 flags_t f;
-int serialPortMap[SERIALPORT_MAX+1];
+int serialPortMap[SERIALPORT_MAX + 1];
 int16_t debug[4];
 uint8_t toggleBeep = 0;
 uint32_t currentTime = 0;

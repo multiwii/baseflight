@@ -282,7 +282,7 @@ typedef struct master_t {
     uint32_t softserial_baudrate;           // shared by both soft serial ports
     uint8_t softserial_1_inverted;          // use inverted softserial input and output signals on port 1
     uint8_t softserial_2_inverted;          // use inverted softserial input and output signals on port 2
-	uint8_t gps_port;                       // See SerialPort enum.
+    uint8_t gps_port;                       // See SerialPort enum.
     uint8_t msp_port;						// See SerialPort enum.
     uint8_t telemetry_port;                 // See SerialPort enum.
     
@@ -338,7 +338,7 @@ extern int16_t rcCommand[4];
 extern uint8_t rcOptions[CHECKBOXITEMS];
 extern int16_t failsafeCnt;
 
-extern int serialPortMap[SERIALPORT_MAX+1];
+extern int serialPortMap[SERIALPORT_MAX + 1];
 extern int16_t debug[4];
 extern int16_t gyroADC[3], accADC[3], accSmooth[3], magADC[3];
 extern int32_t accSum[3];
