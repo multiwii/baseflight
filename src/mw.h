@@ -338,7 +338,7 @@ extern int16_t rcCommand[4];
 extern uint8_t rcOptions[CHECKBOXITEMS];
 extern int16_t failsafeCnt;
 
-extern int serialPortMap[SERIALPORT_MAX + 1];
+extern int serialPortMap[SERIALPORT_COUNT];
 extern int16_t debug[4];
 extern int16_t gyroADC[3], accADC[3], accSmooth[3], magADC[3];
 extern int32_t accSum[3];

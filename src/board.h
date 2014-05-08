@@ -117,6 +117,7 @@ typedef enum {
     SERIALPORT_UART_2,
     SERIALPORT_MAX = SERIALPORT_UART_2
 } SerialPort;
+#define SERIALPORT_COUNT 4
 
 typedef enum {
     X = 0,
