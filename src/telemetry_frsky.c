@@ -1,11 +1,36 @@
 /*
  * FrSky Telemetry implementation by silpstream @ rcgroups
  */
-#include "board.h"
-#include "mw.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "platform.h"
+
+#include "common/maths.h"
+#include "common/axis.h"
+
+#include "drivers/system_common.h"
+#include "drivers/accgyro_common.h"
+#include "drivers/gpio_common.h"
+#include "drivers/timer_common.h"
+#include "drivers/serial_common.h"
+#include "serial_common.h"
+
+#include "runtime_config.h"
+#include "config.h"
+
+#include "sensors_common.h"
+#include "sensors_gyro.h"
+#include "sensors_barometer.h"
+#include "flight_common.h"
+#include "gps_common.h"
+#include "battery.h"
 
 #include "telemetry_common.h"
 #include "telemetry_frsky.h"
+
+extern telemetryConfig_t *telemetryConfig;
+int16_t telemTemperature1; // FIXME dependency on mw.c
 
 #define CYCLETIME             125
 
@@ -50,31 +75,28 @@
 
 #define ID_VERT_SPEED         0x30 //opentx vario
 
-// from sensors.c
-extern uint8_t batteryCellCount;
-
 static void sendDataHead(uint8_t id)
 {
-    serialWrite(core.telemport, PROTOCOL_HEADER);
-    serialWrite(core.telemport, id);
+    serialWrite(serialPorts.telemport, PROTOCOL_HEADER);
+    serialWrite(serialPorts.telemport, id);
 }
 
 static void sendTelemetryTail(void)
 {
-    serialWrite(core.telemport, PROTOCOL_TAIL);
+    serialWrite(serialPorts.telemport, PROTOCOL_TAIL);
 }
 
 static void serializeFrsky(uint8_t data)
 {
     // take care of byte stuffing
     if (data == 0x5e) {
-        serialWrite(core.telemport, 0x5d);
-        serialWrite(core.telemport, 0x3e);
+        serialWrite(serialPorts.telemport, 0x5d);
+        serialWrite(serialPorts.telemport, 0x3e);
     } else if (data == 0x5d) {
-        serialWrite(core.telemport, 0x5d);
-        serialWrite(core.telemport, 0x3d);
+        serialWrite(serialPorts.telemport, 0x5d);
+        serialWrite(serialPorts.telemport, 0x3d);
     } else
-        serialWrite(core.telemport, data);
+        serialWrite(serialPorts.telemport, data);
 }
 
 static void serialize16(int16_t a)
@@ -217,15 +239,15 @@ static void sendHeading(void)
 
 void freeFrSkyTelemetryPort(void)
 {
-    if (mcfg.telemetry_port == TELEMETRY_PORT_UART) {
-        serialInit(mcfg.serial_baudrate);
+    if (telemetryConfig->telemetry_port == TELEMETRY_PORT_UART) {
+        resetMainSerialPort();
     }
 }
 
 void configureFrSkyTelemetryPort(void)
 {
-    if (mcfg.telemetry_port == TELEMETRY_PORT_UART) {
-        serialInit(9600);
+    if (telemetryConfig->telemetry_port == TELEMETRY_PORT_UART) {
+        openMainSerialPort(9600);
     }
 }
 
@@ -234,7 +256,7 @@ static uint8_t cycleNum = 0;
 
 bool canSendFrSkyTelemetry(void)
 {
-    return serialTotalBytesWaiting(core.telemport) == 0;
+    return serialTotalBytesWaiting(serialPorts.telemport) == 0;
 }
 
 bool hasEnoughTimeLapsedSinceLastTelemetryTransmission(uint32_t currentMillis)

@@ -40,11 +40,31 @@
  * There is a technical discussion (in German) about HoTT here
  * http://www.rc-network.de/forum/showthread.php/281496-Graupner-HoTT-Telemetrie-Sensoren-Eigenbau-DIY-Telemetrie-Protokoll-entschl%C3%BCsselt/page21
  */
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
-#include "board.h"
-#include "mw.h"
+#include "platform.h"
 
+#include "common/axis.h"
+
+#include "drivers/system_common.h"
+
+#include "drivers/serial_common.h"
+#include "serial_common.h"
+
+#include "runtime_config.h"
+
+#include "sensors_common.h"
+
+#include "flight_common.h"
+#include "gps_common.h"
+#include "battery.h"
+
+#include "telemetry_common.h"
 #include "telemetry_hott.h"
+
+extern telemetryConfig_t *telemetryConfig;
 
 
 const uint8_t kHoTTv4BinaryPacketSize = 45;
@@ -217,7 +237,7 @@ void hottV4FormatAndSendEAMResponse(void)
 
 static void hottV4Respond(uint8_t *data, uint8_t size)
 {
-    serialSetMode(core.telemport, MODE_TX);
+    serialSetMode(serialPorts.telemport, MODE_TX);
 
     uint16_t crc = 0;
     uint8_t i;
@@ -234,31 +254,31 @@ static void hottV4Respond(uint8_t *data, uint8_t size)
 
     delayMicroseconds(HOTTV4_TX_DELAY);
 
-    serialSetMode(core.telemport, MODE_RX);
+    serialSetMode(serialPorts.telemport, MODE_RX);
 }
 
 static void hottV4SerialWrite(uint8_t c)
 {
-    serialWrite(core.telemport, c);
+    serialWrite(serialPorts.telemport, c);
 }
 
 void configureHoTTTelemetryPort(void)
 {
     // TODO set speed here to 19200?
-    serialSetMode(core.telemport, MODE_RX);
+    serialSetMode(serialPorts.telemport, MODE_RX);
 }
 
 void freeHoTTTelemetryPort(void)
 {
-    serialSetMode(core.telemport, MODE_RXTX);
+    serialSetMode(serialPorts.telemport, MODE_RXTX);
 }
 
 void handleHoTTTelemetry(void)
 {
     uint8_t c;
 
-    while (serialTotalBytesWaiting(core.telemport) > 0) {
-        c = serialRead(core.telemport);
+    while (serialTotalBytesWaiting(serialPorts.telemport) > 0) {
+        c = serialRead(serialPorts.telemport);
 
         // Protocol specific waiting time to avoid collisions
         delay(5);

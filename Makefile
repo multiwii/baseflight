@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return
 ###############################################################################
 #
-# Makefile for building the baseflight firmware.
+# Makefile for building the cleanflight firmware.
 #
 # Invoke this with 'make help' to see the list of supported targets.
 # 
@@ -14,7 +14,7 @@
 # Things that the user might override on the commandline
 #
 
-# The target to build, must be one of NAZE, FY90Q OR OLIMEXINO
+# The target to build, must be one of NAZE, FY90Q, OLIMEXINO or STM32F3DISCOVERY
 TARGET		?= NAZE
 
 # Compile-time options
@@ -30,92 +30,191 @@ SERIAL_DEVICE	?= /dev/ttyUSB0
 # Things that need to be maintained as the source changes
 #
 
-VALID_TARGETS	 = NAZE FY90Q OLIMEXINO
+FORKNAME			 = cleanflight
+
+VALID_TARGETS	 = NAZE FY90Q OLIMEXINO STM32F3DISCOVERY CHEBUZZF3
 
 # Working directories
 ROOT		 = $(dir $(lastword $(MAKEFILE_LIST)))
 SRC_DIR		 = $(ROOT)/src
-CMSIS_DIR	 = $(ROOT)/lib/CMSIS
-STDPERIPH_DIR	 = $(ROOT)/lib/STM32F10x_StdPeriph_Driver
 OBJECT_DIR	 = $(ROOT)/obj
 BIN_DIR		 = $(ROOT)/obj
+CMSIS_DIR	 = $(ROOT)/lib/CMSIS
+INCLUDE_DIRS = $(SRC_DIR)
 
-# Source files common to all targets
-COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
-		   buzzer.c \
-		   cli.c \
-		   config.c \
-		   gps.c \
-		   imu.c \
-		   main.c \
-		   mixer.c \
-		   mw.c \
-		   sensors.c \
-		   serial.c \
-		   sbus.c \
-		   sumd.c \
-		   spektrum.c \
-		   rxmsp.c \
-		   telemetry_common.c \
-		   telemetry_frsky.c \
-		   telemetry_hott.c \
-		   drv_gpio.c \
-		   drv_i2c.c \
-		   drv_i2c_soft.c \
-		   drv_system.c \
-		   drv_serial.c \
-		   drv_softserial.c \
-		   drv_uart.c \
-		   printf.c \
-		   utils.c \
-		   $(CMSIS_SRC) \
-		   $(STDPERIPH_SRC)
+# Search path for sources
+VPATH		:= $(SRC_DIR):$(SRC_DIR)/startup
 
-# Source files for the NAZE target
-NAZE_SRC	 = drv_adc.c \
-		   drv_adxl345.c \
-		   drv_bma280.c \
-		   drv_bmp085.c \
-		   drv_ms5611.c \
-		   drv_hcsr04.c \
-		   drv_hmc5883l.c \
-		   drv_ledring.c \
-		   drv_mma845x.c \
-		   drv_mpu3050.c \
-		   drv_mpu6050.c \
-		   drv_l3g4200d.c \
-		   drv_pwm.c \
-		   drv_spi.c \
-		   drv_timer.c \
-		   $(COMMON_SRC)
+ifeq ($(TARGET),$(filter $(TARGET),STM32F3DISCOVERY CHEBUZZF3))
 
-# Source files for the FY90Q target
-FY90Q_SRC	 = drv_adc_fy90q.c \
-		   drv_pwm_fy90q.c \
-		   $(COMMON_SRC)
+STDPERIPH_DIR	 = $(ROOT)/lib/STM32F30x_StdPeriph_Driver
 
-# Source files for the OLIMEXINO target
-OLIMEXINO_SRC	 = drv_spi.c \
-		   drv_adc.c \
-		   drv_adxl345.c \
-		   drv_mpu3050.c \
-		   drv_mpu6050.c \
-		   drv_l3g4200d.c \
-		   drv_pwm.c \
-		   drv_timer.c \
-		   $(COMMON_SRC)
-		   
-# In some cases, %.s regarded as intermediate file, which is actually not.
-# This will prevent accidental deletion of startup code.
-.PRECIOUS: %.s
+VPATH		:= $(VPATH):$(CMSIS_DIR)/CM1/CoreSupport:$(CMSIS_DIR)/CM1/DeviceSupport/ST/STM32F30x
+CMSIS_SRC	 = $(notdir $(wildcard $(CMSIS_DIR)/CM1/CoreSupport/*.c \
+			   $(CMSIS_DIR)/CM1/DeviceSupport/ST/STM32F30x/*.c))
 
-# Search path for baseflight sources
-VPATH		:= $(SRC_DIR):$(SRC_DIR)/baseflight_startups
+INCLUDE_DIRS := $(INCLUDE_DIRS) \
+		   $(STDPERIPH_DIR)/inc \
+		   $(CMSIS_DIR)/CM1/CoreSupport \
+		   $(CMSIS_DIR)/CM1/DeviceSupport/ST/STM32F30x \
+
+ARCH_FLAGS	 = -mthumb -mcpu=cortex-m4
+DEVICE_FLAGS = -DSTM32F303xC
+TARGET_FLAGS = -D$(TARGET)
+ifeq ($(TARGET),CHEBUZZF3)
+# CHEBUZZ is a VARIANT of STM32F3DISCOVERY
+TARGET_FLAGS := $(TARGET_FLAGS) -DSTM32F3DISCOVERY
+endif
+
+
+else
+
+STDPERIPH_DIR	 = $(ROOT)/lib/STM32F10x_StdPeriph_Driver
 
 # Search path and source files for the CMSIS sources
 VPATH		:= $(VPATH):$(CMSIS_DIR)/CM3/CoreSupport:$(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x
 CMSIS_SRC	 = $(notdir $(wildcard $(CMSIS_DIR)/CM3/CoreSupport/*.c \
-			               $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x/*.c))
+			   $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x/*.c))
+
+INCLUDE_DIRS := $(INCLUDE_DIRS) \
+		   $(STDPERIPH_DIR)/inc \
+		   $(CMSIS_DIR)/CM3/CoreSupport \
+		   $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x \
+
+ARCH_FLAGS	 = -mthumb -mcpu=cortex-m3
+TARGET_FLAGS = -D$(TARGET)
+DEVICE_FLAGS = -DSTM32F10X_MD
+
+endif
+
+COMMON_SRC	 = build_config.c \
+		   battery.c \
+		   boardalignment.c \
+		   buzzer.c \
+		   config.c \
+		   common/maths.c \
+		   common/printf.c \
+		   common/typeconversion.c \
+		   failsafe.c \
+		   main.c \
+		   mw.c \
+		   sensors_acceleration.c \
+		   sensors_barometer.c \
+		   sensors_compass.c \
+		   sensors_gyro.c \
+		   sensors_initialisation.c \
+		   sensors_sonar.c \
+		   drivers/bus_i2c_soft.c \
+		   drivers/serial_common.c \
+		   drivers/sound_beeper.c \
+		   drivers/system_common.c \
+		   flight_common.c \
+		   flight_imu.c \
+		   flight_mixer.c \
+		   gps_common.c \
+		   runtime_config.c \
+		   rc_controls.c \
+		   rc_curves.c \
+		   rx_common.c \
+		   rx_msp.c \
+		   rx_pwm.c \
+		   rx_sbus.c \
+		   rx_sumd.c \
+		   rx_spektrum.c \
+		   telemetry_common.c \
+		   telemetry_frsky.c \
+		   telemetry_hott.c \
+		   serial_common.c \
+		   serial_cli.c \
+		   serial_msp.c \
+		   statusindicator.c \
+		   $(CMSIS_SRC) \
+		   $(STDPERIPH_SRC)
+
+NAZE_SRC	 = startup_stm32f10x_md_gcc.S \
+		   drivers/accgyro_adxl345.c \
+		   drivers/accgyro_bma280.c \
+		   drivers/accgyro_l3g4200d.c \
+		   drivers/accgyro_mma845x.c \
+		   drivers/accgyro_mpu3050.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/adc_common.c \
+		   drivers/barometer_bmp085.c \
+		   drivers/barometer_ms5611.c \
+		   drivers/bus_spi.c \
+		   drivers/bus_i2c_stm32f10x.c \
+		   drivers/compass_hmc5883l.c \
+		   drivers/gpio_stm32f10x.c \
+		   drivers/light_ledring.c \
+		   drivers/sonar_hcsr04.c \
+		   drivers/pwm_mapping.c \
+		   drivers/pwm_output.c \
+		   drivers/pwm_rx.c \
+		   drivers/serial_softserial.c \
+		   drivers/serial_uart_common.c \
+		   drivers/serial_uart_stm32f10x.c \
+		   drivers/timer_common.c \
+		   $(COMMON_SRC)
+
+FY90Q_SRC	 = startup_stm32f10x_md_gcc.S \
+		   drivers/accgyro_fy90q.c \
+		   drivers/adc_fy90q.c \
+		   drivers/gpio_stm32f10x.c \
+		   drivers/pwm_fy90q.c \
+		   drivers/bus_i2c_stm32f10x.c \
+		   drivers/bus_spi.c \
+		   drivers/serial_uart_common.c \
+		   drivers/serial_uart_stm32f10x.c \
+		   $(COMMON_SRC)
+
+OLIMEXINO_SRC	 = startup_stm32f10x_md_gcc.S \
+		   drivers/accgyro_adxl345.c \
+		   drivers/accgyro_mpu3050.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/accgyro_l3g4200d.c \
+		   drivers/adc_common.c \
+		   drivers/bus_i2c_stm32f10x.c \
+		   drivers/bus_spi.c \
+		   drivers/gpio_stm32f10x.c \
+		   drivers/pwm_mapping.c \
+		   drivers/pwm_output.c \
+		   drivers/pwm_rx.c \
+		   drivers/serial_softserial.c \
+		   drivers/serial_uart_common.c \
+		   drivers/serial_uart_stm32f10x.c \
+		   drivers/timer_common.c \
+		   $(COMMON_SRC)
+
+STM32F3DISCOVERY_COMMON_SRC	 = startup_stm32f30x_md_gcc.S \
+		   drivers/accgyro_l3gd20.c \
+		   drivers/accgyro_lsm303dlhc.c \
+		   drivers/adc_common.c \
+		   drivers/bus_i2c_stm32f30x.c \
+		   drivers/bus_spi.c \
+		   drivers/gpio_stm32f30x.c \
+		   drivers/pwm_mapping.c \
+		   drivers/pwm_output.c \
+		   drivers/pwm_rx.c \
+		   drivers/serial_uart_common.c \
+		   drivers/serial_uart_stm32f30x.c \
+		   drivers/serial_softserial.c \
+		   drivers/timer_common.c
+
+STM32F3DISCOVERY_SRC	 = $(STM32F3DISCOVERY_COMMON_SRC) \
+		   drivers/accgyro_adxl345.c \
+		   drivers/accgyro_bma280.c \
+		   drivers/accgyro_mma845x.c \
+		   drivers/accgyro_mpu3050.c \
+		   drivers/accgyro_mpu6050.c \
+		   drivers/accgyro_l3g4200d.c \
+		   $(COMMON_SRC)
+
+CHEBUZZF3_SRC	 = $(STM32F3DISCOVERY_COMMON_SRC) \
+		   $(COMMON_SRC)
+
+# In some cases, %.s regarded as intermediate file, which is actually not.
+# This will prevent accidental deletion of startup code.
+.PRECIOUS: %.s
 
 # Search path and source files for the ST stdperiph library
 VPATH		:= $(VPATH):$(STDPERIPH_DIR)/src
@@ -132,10 +231,6 @@ OBJCOPY		 = arm-none-eabi-objcopy
 #
 # Tool options.
 #
-INCLUDE_DIRS	 = $(SRC_DIR) \
-		   $(STDPERIPH_DIR)/inc \
-		   $(CMSIS_DIR)/CM3/CoreSupport \
-		   $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x \
 
 ARCH_FLAGS	 = -mthumb -mcpu=cortex-m3
 BASE_CFLAGS	 = $(ARCH_FLAGS) \
@@ -144,9 +239,10 @@ BASE_CFLAGS	 = $(ARCH_FLAGS) \
 		   -Wall \
 		   -ffunction-sections \
 		   -fdata-sections \
-		   -DSTM32F10X_MD \
+		   $(DEVICE_FLAGS) \
 		   -DUSE_STDPERIPH_DRIVER \
-		   -D$(TARGET)
+		   $(TARGET_FLAGS) \
+		   -D'__FORKNAME__="$(FORKNAME)"'
 
 ASFLAGS		 = $(ARCH_FLAGS) \
 		   -x assembler-with-cpp \
@@ -181,10 +277,10 @@ CFLAGS = $(BASE_CFLAGS) \
 endif
 
 
-TARGET_HEX	 = $(BIN_DIR)/baseflight_$(TARGET).hex
-TARGET_ELF	 = $(BIN_DIR)/baseflight_$(TARGET).elf
+TARGET_HEX	 = $(BIN_DIR)/$(FORKNAME)_$(TARGET).hex
+TARGET_ELF	 = $(BIN_DIR)/$(FORKNAME)_$(TARGET).elf
 TARGET_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/$(TARGET)/,$(basename $($(TARGET)_SRC))))
-TARGET_MAP   = $(OBJECT_DIR)/baseflight_$(TARGET).map
+TARGET_MAP   = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET).map
 
 # List of buildable ELF files and their object dependencies.
 # It would be nice to compute these lists, but that seems to be just beyond make.
@@ -213,6 +309,7 @@ $(OBJECT_DIR)/$(TARGET)/%.o): %.S
 
 clean:
 	rm -f $(TARGET_HEX) $(TARGET_ELF) $(TARGET_OBJS) $(TARGET_MAP)
+	rm -rf $(OBJECT_DIR)/$(TARGET)
 
 flash_$(TARGET): $(TARGET_HEX)
 	stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
@@ -230,7 +327,7 @@ unbrick: unbrick_$(TARGET)
 
 help:
 	@echo ""
-	@echo "Makefile for the baseflight firmware"
+	@echo "Makefile for the $(FORKNAME) firmware"
 	@echo ""
 	@echo "Usage:"
 	@echo "        make [TARGET=<target>] [OPTIONS=\"<options>\"]"

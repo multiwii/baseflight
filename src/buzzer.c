@@ -1,16 +1,44 @@
-#include "board.h"
-#include "mw.h"
+#include "stdbool.h"
+#include "stdint.h"
+
+#include "platform.h"
+#include "drivers/sound_beeper.h"
+#include "drivers/system_common.h"
+#include "failsafe.h"
+#include "sensors_common.h"
+#include "runtime_config.h"
+#include "config.h"
+
+#include "buzzer.h"
+
+#define LONG_PAUSE_DURATION_MILLIS 50
+#define SHORT_CONFIRMATION_BEEP_DURATION_MILLIS 50
 
 static uint8_t buzzerIsOn = 0, beepDone = 0;
 static uint32_t buzzerLastToggleTime;
-static void beep(uint16_t pulse);
+static void beep(uint16_t pulseMillis);
 static void beep_code(char first, char second, char third, char pause);
 
-void buzzer(uint8_t warn_vbat)
+static uint8_t toggleBeep = 0;
+
+typedef enum {
+    FAILSAFE_IDLE = 0,
+    FAILSAFE_LANDING,
+    FAILSAFE_FIND_ME
+} failsafeBuzzerWarnings_e;
+
+failsafe_t* failsafe;
+
+void buzzerInit(failsafe_t *initialFailsafe)
+{
+    failsafe = initialFailsafe;
+}
+
+void buzzer(bool warn_vbat)
 {
     static uint8_t beeperOnBox;
     static uint8_t warn_noGPSfix = 0;
-    static uint8_t warn_failsafe = 0;
+    static failsafeBuzzerWarnings_e warn_failsafe = FAILSAFE_IDLE;
     static uint8_t warn_runtime = 0;
 
     //=====================  BeeperOn via rcOptions =====================
@@ -21,15 +49,21 @@ void buzzer(uint8_t warn_vbat)
     }
     //===================== Beeps for failsafe =====================
     if (feature(FEATURE_FAILSAFE)) {
-        if (failsafeCnt > (5 * cfg.failsafe_delay) && f.ARMED) {
-            warn_failsafe = 1;      //set failsafe warning level to 1 while landing
-            if (failsafeCnt > 5 * (cfg.failsafe_delay + cfg.failsafe_off_delay))
-                warn_failsafe = 2;  //start "find me" signal after landing
+        if (failsafe->vTable->shouldForceLanding(f.ARMED)) {
+            warn_failsafe = FAILSAFE_LANDING;
+
+            if (failsafe->vTable->shouldHaveCausedLandingByNow()) {
+                warn_failsafe = FAILSAFE_FIND_ME;
+            }
         }
-        if (failsafeCnt > (5 * cfg.failsafe_delay) && !f.ARMED)
-            warn_failsafe = 2;      // tx turned off while motors are off: start "find me" signal
-        if (failsafeCnt == 0)
-            warn_failsafe = 0;      // turn off alarm if TX is okay
+
+        if (failsafe->vTable->hasTimerElapsed() && !f.ARMED) {
+            warn_failsafe = FAILSAFE_FIND_ME;
+        }
+
+        if (failsafe->vTable->isIdle()) {
+            warn_failsafe = FAILSAFE_IDLE;      // turn off alarm if TX is okay
+        }
     }
 
     //===================== GPS fix notification handling =====================
@@ -52,12 +86,8 @@ void buzzer(uint8_t warn_vbat)
         beep_code('S','S','N','M');
     else if (beeperOnBox == 1)
         beep_code('S','S','S','M');                 // beeperon
-    else if (warn_vbat == 4)
+    else if (warn_vbat)
         beep_code('S','M','M','D');
-    else if (warn_vbat == 2)
-        beep_code('S','S','M','D');
-    else if (warn_vbat == 1)
-        beep_code('S','M','N','D');
     else if (warn_runtime == 1 && f.ARMED)
         beep_code('S','S','M','N');                 // Runtime warning
     else if (toggleBeep > 0)
@@ -66,6 +96,11 @@ void buzzer(uint8_t warn_vbat)
         buzzerIsOn = 0;
         BEEP_OFF;
     }
+}
+
+// duration is specified in multiples of SHORT_CONFIRMATION_BEEP_DURATION_MILLIS
+void queueConfirmationBeep(uint8_t duration) {
+    toggleBeep = duration;
 }
 
 void beep_code(char first, char second, char third, char pause)
@@ -92,7 +127,7 @@ void beep_code(char first, char second, char third, char pause)
             Duration = 0;
             break;
         default:
-            Duration = 50;
+            Duration = LONG_PAUSE_DURATION_MILLIS;
             break;
     }
 
@@ -111,18 +146,23 @@ void beep_code(char first, char second, char third, char pause)
     }
 }
 
-static void beep(uint16_t pulse)
+static void beep(uint16_t pulseMillis)
 {
-    if (!buzzerIsOn && (millis() >= (buzzerLastToggleTime + 50))) {         // Buzzer is off and long pause time is up -> turn it on
+    if (buzzerIsOn) {
+        if (millis() >= buzzerLastToggleTime + pulseMillis) {
+            buzzerIsOn = 0;
+            BEEP_OFF;
+            buzzerLastToggleTime = millis();
+            if (toggleBeep >0)
+                toggleBeep--;
+            beepDone = 1;
+        }
+        return;
+    }
+
+    if (millis() >= (buzzerLastToggleTime + LONG_PAUSE_DURATION_MILLIS)) {         // Buzzer is off and long pause time is up -> turn it on
         buzzerIsOn = 1;
         BEEP_ON;
         buzzerLastToggleTime = millis();      // save the time the buzer turned on
-    } else if (buzzerIsOn && (millis() >= buzzerLastToggleTime + pulse)) {         // Buzzer is on and time is up -> turn it off
-        buzzerIsOn = 0;
-        BEEP_OFF;
-        buzzerLastToggleTime = millis();
-        if (toggleBeep >0)
-            toggleBeep--;
-        beepDone = 1;
     }
 }
