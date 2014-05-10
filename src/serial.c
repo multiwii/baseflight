@@ -236,8 +236,14 @@ reset:
 void serialInit(uint32_t baudrate)
 {
     int idx;
-
-    core.mainport = uartOpen(USART1, NULL, baudrate, MODE_RXTX);
+    USART_TypeDef* serial = USART1;
+    
+    // Open msp UART
+    if (mcfg.msp_port == SERIALPORT_UART_2 && !feature(FEATURE_SERIALRX)) {
+        serial = USART2;
+    }
+    core.mainport = uartOpen(serial, NULL, baudrate, MODE_RXTX);
+    serialPortMap[mcfg.msp_port] = serialPortMap[mcfg.msp_port] + 1;
 
     // calculate used boxes based on features and fill availableBoxes[] array
     memset(availableBoxes, 0xFF, sizeof(availableBoxes));
@@ -600,7 +606,7 @@ static void evaluateCommand(void)
         break;
     case MSP_DEBUG:
         headSerialReply(8);
-        // make use of this crap, output some useful QA statistics
+        // output some useful QA statistics
         debug[3] = ((hse_value / 1000000) * 1000) + (SystemCoreClock / 1000000);         // XX0YY [crystal clock : core clock]
         for (i = 0; i < 4; i++)
             serialize16(debug[i]);      // 4 variables are here for general monitoring purpose

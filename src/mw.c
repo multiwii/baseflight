@@ -5,6 +5,7 @@
 #include "telemetry_common.h"
 
 flags_t f;
+int serialPortMap[SERIALPORT_COUNT];
 int16_t debug[4];
 uint8_t toggleBeep = 0;
 uint32_t currentTime = 0;
