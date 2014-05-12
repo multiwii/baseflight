@@ -150,6 +150,10 @@ enum {
 #define CALIBRATING_ACC_CYCLES              400
 #define CALIBRATING_BARO_CYCLES             200
 
+typedef struct gyroConfig_s {
+    uint8_t gyro_movement_calibration_threshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
+} gyroConfig_t;
+
 typedef struct config_t {
     uint8_t pidController;                  // 0 = multiwii original, 1 = rewrite from http://www.multiwii.com/forum/viewtopic.php?f=8&t=3671
     uint8_t P8[PIDITEMS];
@@ -250,7 +254,9 @@ typedef struct master_t {
     uint16_t gyro_lpf;                      // gyro LPF setting - values are driver specific, in case of invalid number, a reasonable default ~30-40HZ is chosen.
     uint16_t gyro_cmpf_factor;              // Set the Gyro Weight for Gyro/Acc complementary filter. Increasing this value would reduce and delay Acc influence on the output of the filter.
     uint16_t gyro_cmpfm_factor;             // Set the Gyro Weight for Gyro/Magnetometer complementary filter. Increasing this value would reduce and delay Magnetometer influence on the output of the filter
-    uint8_t moron_threshold;                // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
+
+    gyroConfig_t gyroConfig;
+
     uint16_t max_angle_inclination;         // max inclination allowed in angle (level) mode. default 500 (50 degrees).
     int16_t accZero[3];
     int16_t magZero[3];
@@ -417,7 +423,9 @@ void batteryInit(void);
 uint16_t batteryAdcToVoltage(uint16_t src);
 void ACC_getADC(void);
 int Baro_update(void);
-void Gyro_getADC(void);
+void useGyroConfig(gyroConfig_t *gyroConfigToUse);
+void gyroSetCalibrationCycles(uint16_t calibrationCyclesRequired);
+void gyroGetADC(void);
 void Mag_init(void);
 int Mag_getADC(void);
 void Sonar_init(void);

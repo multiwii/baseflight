@@ -85,6 +85,7 @@ void activateConfig(void)
         lookupThrottleRC[i] = mcfg.minthrottle + (int32_t)(mcfg.maxthrottle - mcfg.minthrottle) * lookupThrottleRC[i] / 1000; // [MINTHROTTLE;MAXTHROTTLE]
     }
 
+    useGyroConfig(&mcfg.gyroConfig);
     setPIDController(cfg.pidController);
     gpsSetPIDs();
 }
@@ -194,7 +195,7 @@ static void resetConf(void)
     mcfg.acc_hardware = ACC_DEFAULT;     // default/autodetect
     mcfg.max_angle_inclination = 500;    // 50 degrees
     mcfg.yaw_control_direction = 1;
-    mcfg.moron_threshold = 32;
+    mcfg.gyroConfig.gyro_movement_calibration_threshold = 32;
     mcfg.vbatscale = 110;
     mcfg.vbatmaxcellvoltage = 43;
     mcfg.vbatmincellvoltage = 33;

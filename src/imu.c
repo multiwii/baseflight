@@ -49,7 +49,8 @@ void computeIMU(void)
     uint32_t axis;
     static int16_t gyroYawSmooth = 0;
 
-    Gyro_getADC();
+    gyroGetADC();
+
     if (sensors(SENSOR_ACC)) {
         ACC_getADC();
         getEstimatedAttitude();

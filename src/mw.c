@@ -552,7 +552,7 @@ void loop(void)
                 i = 0;
                 // GYRO calibration
                 if (rcSticks == THR_LO + YAW_LO + PIT_LO + ROL_CE) {
-                    calibratingG = CALIBRATING_GYRO_CYCLES;
+                    gyroSetCalibrationCycles(CALIBRATING_GYRO_CYCLES);
                     if (feature(FEATURE_GPS))
                         GPS_reset_home_position();
                     if (sensors(SENSOR_BARO))
