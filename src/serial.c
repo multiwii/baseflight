@@ -10,6 +10,10 @@
 #define CAP_DYNBALANCE              ((uint32_t)1 << 2)
 #define CAP_FLAPS                   ((uint32_t)1 << 3)
 
+#define MSP_MCFG_INFO            50     //out message         mcfg version and length
+#define MSP_MCFG_READ            51     //out message         up to 128 bytes of memory
+#define MSP_MCFG_WRITE           52     //in message          offset, length (64 bytes max, limited by INBUF_SIZE)
+#define MSP_BF_REBOOT            53     //in message          1 byte, determinates if we go into bootloader or not
 #define MSP_IDENT                100    //out message         multitype + multiwii version + protocol version + capability variable
 #define MSP_STATUS               101    //out message         cycletime & errors_count & sensor present & box activation & current setting number
 #define MSP_RAW_IMU              102    //out message         9 DOF
@@ -280,6 +284,8 @@ static void evaluateCommand(void)
     uint32_t i, tmp, junk;
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
+    uint16_t offset;
+    uint8_t length;
 
     switch (cmdMSP) {
     case MSP_SET_RAW_RC:
@@ -359,6 +365,47 @@ static void evaluateCommand(void)
     case MSP_SET_HEAD:
         magHold = read16();
         headSerialReply(0);
+        break;
+    case MSP_MCFG_INFO:
+        headSerialReply(3);
+        serialize8(mcfg.version);
+        serialize16(sizeof(mcfg));
+        break;
+    case MSP_MCFG_READ:
+        offset = read16();
+        length = read8();
+
+        if (offset + length < sizeof(mcfg)) {
+            headSerialReply(length);
+            for (i = offset; i < offset + length; i++) {
+                serialize8(((uint8_t*)&mcfg)[i]);
+            }
+        } else {
+            headSerialReply(1);
+            serialize8(0);
+        }
+        break;
+    case MSP_MCFG_WRITE:
+        offset = read16();
+        length = read8();
+
+        if (offset + length < sizeof(mcfg)) {
+            headSerialReply(1);
+            for (i = offset; i < offset + length; i++) {
+                ((uint8_t*)&mcfg)[i] = read8();
+            }
+            serialize8(1);
+        } else {
+            headSerialReply(1);
+            serialize8(0);
+        }
+        break;
+    case MSP_BF_REBOOT:
+        headSerialReply(1);
+        serialize8(1);
+        tailSerialReply();
+        delay(100);
+        systemReset(read8());
         break;
     case MSP_IDENT:
         headSerialReply(7);
