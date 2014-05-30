@@ -401,6 +401,10 @@ static void evaluateCommand(void)
         }
         break;
     case MSP_BF_REBOOT:
+        headSerialReply(1);
+        serialize8(1);
+        tailSerialReply();
+        delay(100);
         systemReset(read8());
         break;
     case MSP_IDENT:
