@@ -149,11 +149,11 @@ int main(void)
                 mspInit(&rcReadRawFunc);
                 break;
         }
-    } else { // spektrum and GPS are mutually exclusive
-        // Optional GPS - available in both PPM and PWM input mode, in PWM input, reduces number of available channels by 2.
-        // gpsInit will return if FEATURE_GPS is not enabled.
-        gpsInit(mcfg.gps_baudrate);
     }
+
+    // Optional GPS - it will will only work if the serial port is free , any port can work see SerialPort enum.
+    gpsInit(mcfg.gps_baudrate);
+
 #ifdef SONAR
     // sonar stuff only works with PPM
     if (feature(FEATURE_PPM)) {
@@ -169,13 +169,13 @@ int main(void)
         setupSoftSerialSecondary(mcfg.softserial_2_inverted);
 
 #ifdef SOFTSERIAL_LOOPBACK
-        loopbackPort1 = (serialPort_t*)&(softSerialPorts[0]);
+        loopbackPort1 = (serialPort_t*)&(softSerialPorts[SERIALPORT_SOFT_1]);
         serialPrint(loopbackPort1, "SOFTSERIAL 1 - LOOPBACK ENABLED\r\n");
 
-        loopbackPort2 = (serialPort_t*)&(softSerialPorts[1]);
+        loopbackPort2 = (serialPort_t*)&(softSerialPorts[SERIALPORT_SOFT_2]);
         serialPrint(loopbackPort2, "SOFTSERIAL 2 - LOOPBACK ENABLED\r\n");
 #endif
-        //core.mainport = (serialPort_t*)&(softSerialPorts[0]); // Uncomment to switch the main port to use softserial.
+        //core.mainport = (serialPort_t*)&(softSerialPorts[SERIALPORT_SOFT_1]); // Uncomment to switch the main port to use softserial.
     }
 
     if (feature(FEATURE_TELEMETRY))

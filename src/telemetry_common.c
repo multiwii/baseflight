@@ -24,14 +24,14 @@ bool canUseTelemetryWithCurrentConfiguration(void)
     }
 
     if (!feature(FEATURE_SOFTSERIAL)) {
-        if (mcfg.telemetry_port == TELEMETRY_PORT_SOFTSERIAL_1 || mcfg.telemetry_port == TELEMETRY_PORT_SOFTSERIAL_2) {
+        if (mcfg.telemetry_port == SERIALPORT_SOFT_1 || mcfg.telemetry_port == SERIALPORT_SOFT_2) {
             // softserial feature must be enabled to use telemetry on softserial ports
             return false;
         }
     }
 
     if (isTelemetryProviderHoTT()) {
-        if (mcfg.telemetry_port == TELEMETRY_PORT_UART) {
+        if (mcfg.telemetry_port == SERIALPORT_UART_1) {
             // HoTT requires a serial port that supports RX/TX mode swapping
             return false;
         }
@@ -42,18 +42,24 @@ bool canUseTelemetryWithCurrentConfiguration(void)
 
 void initTelemetry(void)
 {
-    // Force telemetry to uart when softserial disabled
+    // Force telemetry to the uart when softserial disabled
     if (!feature(FEATURE_SOFTSERIAL))
-        mcfg.telemetry_port = TELEMETRY_PORT_UART;
+        mcfg.telemetry_port = SERIALPORT_UART_1;
 
     isTelemetryConfigurationValid = canUseTelemetryWithCurrentConfiguration();
 
-    if (mcfg.telemetry_port == TELEMETRY_PORT_SOFTSERIAL_1)
-        core.telemport = &(softSerialPorts[0].port);
-    else if (mcfg.telemetry_port == TELEMETRY_PORT_SOFTSERIAL_2)
-        core.telemport = &(softSerialPorts[1].port);
-    else
-        core.telemport = core.mainport;
+    switch (mcfg.telemetry_port) {
+        case SERIALPORT_SOFT_1:
+        case SERIALPORT_SOFT_2:
+            core.telemport = &(softSerialPorts[mcfg.telemetry_port].port);
+            break;
+        case SERIALPORT_UART_1:
+        case SERIALPORT_UART_2:
+            core.telemport = core.mainport; // use the msp_port
+            break;
+        default:
+            break;
+    }
 
     checkTelemetryState();
 }
@@ -64,7 +70,7 @@ bool determineNewTelemetryEnabledState(void)
 {
     bool enabled = true;
 
-    if (mcfg.telemetry_port == TELEMETRY_PORT_UART) {
+    if (mcfg.telemetry_port == SERIALPORT_UART_1) {
         if (!mcfg.telemetry_switch)
             enabled = f.ARMED;
         else
