@@ -102,6 +102,7 @@ enum {
     BOXGOV,
     BOXOSD,
     BOXTELEMETRY,
+    BOXREMOTEGAINS,
     CHECKBOXITEMS
 };
 
@@ -149,6 +150,22 @@ enum {
 #define CALIBRATING_GYRO_CYCLES             1000
 #define CALIBRATING_ACC_CYCLES              400
 #define CALIBRATING_BARO_CYCLES             200
+
+#define NUM_REMOTE_GAINS  4                 // 4 sets allow for one of each AUX channel
+enum {
+    REMOTE_GAIN_DISABLED = 0,
+    REMOTE_GAIN_AUX,
+    REMOTE_GAIN_DISARM,
+    REMOTE_GAIN_ALWAYS
+};
+
+typedef struct remotegain_t {
+    uint8_t mode;                           // Enable remote adjustment (disabled, enabled by AUX channel, enabled when armed, always enabled - see enum above)
+    uint8_t min;                            // Value at min PWM
+    uint8_t max;                            // Value at max PWM
+    uint8_t source;                         // Which AUX channel to use (1-4)
+    uint8_t dest;                           // What to adjust (P * PIDITEMS, I * PIDITEMS, D * PIDITEMS)
+} remotegain_t;
 
 typedef struct config_t {
     uint8_t pidController;                  // 0 = multiwii original, 1 = rewrite from http://www.multiwii.com/forum/viewtopic.php?f=8&t=3671
@@ -285,6 +302,8 @@ typedef struct master_t {
     uint32_t softserial_baudrate;             // shared by both soft serial ports
     uint8_t softserial_1_inverted;            // use inverted softserial input and output signals on port 1
     uint8_t softserial_2_inverted;            // use inverted softserial input and output signals on port 2
+    
+    remotegain_t remote_gain_settings[NUM_REMOTE_GAINS];        // Settings for remote gain adjustments
 
     uint8_t telemetry_provider;             // See TelemetryProvider enum.
     uint8_t telemetry_port;                 // See TelemetryPort enum.
