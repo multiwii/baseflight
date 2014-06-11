@@ -126,8 +126,14 @@ void writeEEPROM(uint8_t b, uint8_t updateProfile)
         FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
         status = FLASH_ErasePage(FLASH_WRITE_ADDR);
-        for (i = 0; i < sizeof(master_t) && status == FLASH_COMPLETE; i += 4)
+        for (i = 0; i < sizeof(master_t) && status == FLASH_COMPLETE; i += 4) {
+            if (i % FLASH_PAGE_SIZE == 0)
+                status = FLASH_ErasePage(FLASH_WRITE_ADDR + i);
+            if(status != FLASH_COMPLETE)
+                break;
+            
             status = FLASH_ProgramWord(FLASH_WRITE_ADDR + i, *(uint32_t *)((char *)&mcfg + i));
+        }
         if (status == FLASH_COMPLETE)
             break;
     }
