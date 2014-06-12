@@ -542,7 +542,7 @@ void loop(void)
             if (cfg.activate[BOXARM] > 0) { // Arming/Disarming via ARM BOX
                 if (rcOptions[BOXARM] && f.OK_TO_ARM)
                     mwArm();
-                else if (f.ARMED)
+                else
                     mwDisarm();
             }
         }
