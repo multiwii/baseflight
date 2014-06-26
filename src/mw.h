@@ -488,6 +488,7 @@ void systemBeep(bool onoff);
 
 // cli
 void cliProcess(void);
+uint8_t getValueCount(void);
 
 // gps
 void gpsInit(uint8_t baudrate);
