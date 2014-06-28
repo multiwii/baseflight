@@ -30,7 +30,7 @@ typedef struct {
     int16_t md;
 } bmp085_smd500_calibration_param_t;
 
-typedef struct  {
+typedef struct {
     bmp085_smd500_calibration_param_t cal_param;
     uint8_t mode;
     uint8_t chip_id, ml_version, al_version;
@@ -47,7 +47,7 @@ typedef struct  {
 #define E_SENSOR_NOT_DETECTED   (char) 0
 #define BMP085_PROM_START__ADDR 0xaa
 #define BMP085_PROM_DATA__LEN   22
-#define BMP085_T_MEASURE        0x2E                // temperature measurent 
+#define BMP085_T_MEASURE        0x2E                // temperature measurent
 #define BMP085_P_MEASURE        0x34                // pressure measurement
 #define BMP085_CTRL_MEAS_REG    0xF4
 #define BMP085_ADC_OUT_MSB_REG  0xF6
@@ -110,10 +110,12 @@ bool bmp085Detect(baro_t *baro)
     gpio.pin = Pin_14;
     gpio.mode = Mode_IN_FLOATING;
     gpioInit(GPIOC, &gpio);
+#ifdef BARO
     BARO_ON;
+#endif
 
     // EXTI interrupt for barometer EOC
-    GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource14);
+    gpioExtiLineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource14);
     EXTI_InitStructure.EXTI_Line = EXTI_Line14;
     EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
     EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
@@ -148,7 +150,9 @@ bool bmp085Detect(baro_t *baro)
         baro->calculate = bmp085_calculate;
         return true;
     }
+#ifdef BARO
     BARO_OFF;
+#endif
     return false;
 }
 
@@ -185,14 +189,14 @@ static int32_t bmp085_get_pressure(uint32_t up)
 
     // *****calculate B4************
     x1 = (bmp085.cal_param.ac3 * b6) >> 13;
-    x2 = (bmp085.cal_param.b1 * ((b6 * b6) >> 12) ) >> 16;
+    x2 = (bmp085.cal_param.b1 * ((b6 * b6) >> 12)) >> 16;
     x3 = ((x1 + x2) + 2) >> 2;
-    b4 = (bmp085.cal_param.ac4 * (uint32_t) (x3 + 32768)) >> 15;
-     
+    b4 = (bmp085.cal_param.ac4 * (uint32_t)(x3 + 32768)) >> 15;
+
     b7 = ((uint32_t)(up - b3) * (50000 >> bmp085.oversampling_setting));
     if (b7 < 0x80000000) {
         pressure = (b7 << 1) / b4;
-    } else { 
+    } else {
         pressure = (b7 / b4) << 1;
     }
 
@@ -213,17 +217,12 @@ static void bmp085_start_ut(void)
 
 static void bmp085_get_ut(void)
 {
-    uint8_t data[2];    
-    uint16_t timeout = 10000;
+    uint8_t data[2];
 
     // wait in case of cockup
     if (!convDone)
         convOverrun++;
-#if 0
-    while (!convDone && timeout-- > 0) {
-        __NOP();
-    }
-#endif
+
     i2cRead(BMP085_I2C_ADDR, BMP085_ADC_OUT_MSB_REG, 2, data);
     bmp085_ut = (data[0] << 8) | data[1];
 }
@@ -244,18 +243,13 @@ static void bmp085_start_up(void)
 static void bmp085_get_up(void)
 {
     uint8_t data[3];
-    uint16_t timeout = 10000;
-    
+
     // wait in case of cockup
     if (!convDone)
         convOverrun++;
-#if 0
-    while (!convDone && timeout-- > 0) {
-        __NOP();
-    }
-#endif
+
     i2cRead(BMP085_I2C_ADDR, BMP085_ADC_OUT_MSB_REG, 3, data);
-    bmp085_up = (((uint32_t) data[0] << 16) | ((uint32_t) data[1] << 8) | (uint32_t) data[2]) >> (8 - bmp085.oversampling_setting);
+    bmp085_up = (((uint32_t)data[0] << 16) | ((uint32_t)data[1] << 8) | (uint32_t)data[2]) >> (8 - bmp085.oversampling_setting);
 }
 
 static void bmp085_calculate(int32_t *pressure, int32_t *temperature)

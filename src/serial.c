@@ -1,9 +1,19 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
-// Multiwii Serial Protocol 0 
+#include "cli.h"
+#include "telemetry_common.h"
+
+// Multiwii Serial Protocol 0
 #define MSP_VERSION              0
-#define PLATFORM_32BIT           ((uint32_t)1 << 31)
+#define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
+#define CAP_DYNBALANCE              ((uint32_t)1 << 2)
+#define CAP_FLAPS                   ((uint32_t)1 << 3)
 
 #define MSP_IDENT                100    //out message         multitype + multiwii version + protocol version + capability variable
 #define MSP_STATUS               101    //out message         cycletime & errors_count & sensor present & box activation & current setting number
@@ -26,6 +36,8 @@
 #define MSP_WP                   118    //out message         get a WP, WP# is in the payload, returns (WP#, lat, lon, alt, flags) WP#0-home, WP#16-poshold
 #define MSP_BOXIDS               119    //out message         get the permanent IDs associated to BOXes
 #define MSP_SERVO_CONF           120    //out message         Servo settings
+#define MSP_NAV_STATUS           121    //out message         Returns navigation status
+#define MSP_NAV_CONFIG           122    //out message         Returns navigation parameters
 
 #define MSP_SET_RAW_RC           200    //in message          8 rc chan
 #define MSP_SET_RAW_GPS          201    //in message          fix, numsat, lat, lon, alt, speed
@@ -41,6 +53,7 @@
 #define MSP_SET_HEAD             211    //in message          define a new heading hold direction
 #define MSP_SET_SERVO_CONF       212    //in message          Servo settings
 #define MSP_SET_MOTOR            214    //in message          PropBalance function
+#define MSP_SET_NAV_CONFIG       215    //in message          Sets nav config parameters - write to the eeprom
 
 // #define MSP_BIND                 240    //in message          no param
 
@@ -60,7 +73,7 @@
 struct box_t {
     const uint8_t boxIndex;         // this is from boxnames enum
     const char *boxName;            // GUI-readable box name
-    const uint8_t permanentId;      // 
+    const uint8_t permanentId;      //
 } boxes[] = {
     { BOXARM, "ARM;", 0 },
     { BOXANGLE, "ANGLE;", 1 },
@@ -82,6 +95,7 @@ struct box_t {
     { BOXCALIB, "CALIB;", 17 },
     { BOXGOV, "GOVERNOR;", 18 },
     { BOXOSD, "OSD SW;", 19 },
+    { BOXTELEMETRY, "TELEMETRY;", 20 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -89,51 +103,8 @@ struct box_t {
 static uint8_t availableBoxes[CHECKBOXITEMS];
 // this is the number of filled indexes in above array
 static uint8_t numberBoxItems = 0;
-
-static const char boxnames[] =
-    "ARM;"
-    "ANGLE;"
-    "HORIZON;"
-    "BARO;"
-    "VARIO;"
-    "MAG;"
-    "HEADFREE;"
-    "HEADADJ;"
-    "CAMSTAB;"
-    "CAMTRIG;"
-    "GPS HOME;"
-    "GPS HOLD;"
-    "PASSTHRU;"
-    "BEEPER;"
-    "LEDMAX;"
-    "LEDLOW;"
-    "LLIGHTS;"
-    "CALIB;"
-    "GOVERNOR;"
-    "OSD SW;";
-
-const uint8_t boxids[] = {      // permanent IDs associated to boxes. This way, you can rely on an ID number to identify a BOX function.
-    0,                          // "ARM;"
-    1,                          // "ANGLE;"
-    2,                          // "HORIZON;"
-    3,                          // "BARO;"
-    4,                          // "VARIO;"
-    5,                          // "MAG;"
-    6,                          // "HEADFREE;"
-    7,                          // "HEADADJ;"  
-    8,                          // "CAMSTAB;"
-    9,                          // "CAMTRIG;"
-    10,                         // "GPS HOME;"
-    11,                         // "GPS HOLD;"
-    12,                         // "PASSTHRU;"
-    13,                         // "BEEPER;"
-    14,                         // "LEDMAX;"
-    15,                         // "LEDLOW;"
-    16,                         // "LLIGHTS;"
-    17,                         // "CALIB;"
-    18,                         // "GOVERNOR;"
-    19,                         // "OSD_SWITCH;"
-};
+// from mixer.c
+extern int16_t motor_disarmed[MAX_MOTORS];
 
 static const char pidnames[] =
     "ROLL;"
@@ -149,24 +120,21 @@ static const char pidnames[] =
 
 static uint8_t checksum, indRX, inBuf[INBUF_SIZE];
 static uint8_t cmdMSP;
-static bool guiConnected = false;
-// signal that we're in cli mode
-uint8_t cliMode = 0;
 
 void serialize32(uint32_t a)
 {
     static uint8_t t;
     t = a;
-    uartWrite(t);
+    serialWrite(core.mainport, t);
     checksum ^= t;
     t = a >> 8;
-    uartWrite(t);
+    serialWrite(core.mainport, t);
     checksum ^= t;
     t = a >> 16;
-    uartWrite(t);
+    serialWrite(core.mainport, t);
     checksum ^= t;
     t = a >> 24;
-    uartWrite(t);
+    serialWrite(core.mainport, t);
     checksum ^= t;
 }
 
@@ -174,16 +142,16 @@ void serialize16(int16_t a)
 {
     static uint8_t t;
     t = a;
-    uartWrite(t);
+    serialWrite(core.mainport, t);
     checksum ^= t;
     t = a >> 8 & 0xff;
-    uartWrite(t);
+    serialWrite(core.mainport, t);
     checksum ^= t;
 }
 
 void serialize8(uint8_t a)
 {
-    uartWrite(a);
+    serialWrite(core.mainport, a);
     checksum ^= a;
 }
 
@@ -195,14 +163,14 @@ uint8_t read8(void)
 uint16_t read16(void)
 {
     uint16_t t = read8();
-    t += (uint16_t) read8() << 8;
+    t += (uint16_t)read8() << 8;
     return t;
 }
 
 uint32_t read32(void)
 {
     uint32_t t = read16();
-    t += (uint32_t) read16() << 16;
+    t += (uint32_t)read16() << 16;
     return t;
 }
 
@@ -231,6 +199,13 @@ void tailSerialReply(void)
     serialize8(checksum);
 }
 
+void s_struct(uint8_t *cb, uint8_t siz)
+{
+    headSerialReply(siz);
+    while (siz--)
+        serialize8(*cb++);
+}
+
 void serializeNames(const char *s)
 {
     const char *c;
@@ -240,28 +215,35 @@ void serializeNames(const char *s)
 
 void serializeBoxNamesReply(void)
 {
-    char buf[256]; // no fucking idea
-    char *c;
-    int i, j;
+    int i, idx, j, flag = 1, count = 0, len;
 
-    memset(buf, 0, sizeof(buf));
-    for (i = 0; i < CHECKBOXITEMS; i++) {
-        for (j = 0; j < numberBoxItems; j++) {
-            if (boxes[i].boxIndex == availableBoxes[j])
-                strcat(buf, boxes[i].boxName);
+reset:
+    // in first run of the loop, we grab total size of junk to be sent
+    // then come back and actually send it
+    for (i = 0; i < numberBoxItems; i++) {
+        idx = availableBoxes[i];
+        len = strlen(boxes[idx].boxName);
+        if (flag) {
+            count += len;
+        } else {
+            for (j = 0; j < len; j++)
+                serialize8(boxes[idx].boxName[j]);
         }
     }
-    
-    headSerialReply(strlen(buf));
-    for (c = buf; *c; c++)
-        serialize8(*c);
+
+    if (flag) {
+        headSerialReply(count);
+        flag = 0;
+        goto reset;
+    }
 }
 
 void serialInit(uint32_t baudrate)
 {
     int idx;
 
-    uartInit(baudrate);
+    core.mainport = uartOpen(USART1, NULL, baudrate, MODE_RXTX);
+
     // calculate used boxes based on features and fill availableBoxes[] array
     memset(availableBoxes, 0xFF, sizeof(availableBoxes));
 
@@ -276,36 +258,42 @@ void serialInit(uint32_t baudrate)
         if (feature(FEATURE_VARIO))
             availableBoxes[idx++] = BOXVARIO;
     }
-    if (sensors(SENSOR_MAG)) {
+    if (sensors(SENSOR_ACC) || sensors(SENSOR_MAG)) {
         availableBoxes[idx++] = BOXMAG;
         availableBoxes[idx++] = BOXHEADFREE;
         availableBoxes[idx++] = BOXHEADADJ;
     }
     if (feature(FEATURE_SERVO_TILT))
         availableBoxes[idx++] = BOXCAMSTAB;
-    if (feature(FEATURE_GPS) && sensors(SENSOR_GPS)) {
+    if (feature(FEATURE_GPS)) {
         availableBoxes[idx++] = BOXGPSHOME;
         availableBoxes[idx++] = BOXGPSHOLD;
     }
-    if (mcfg.mixerConfiguration ==  MULTITYPE_FLYING_WING || mcfg.mixerConfiguration ==  MULTITYPE_AIRPLANE)
+    if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE)
         availableBoxes[idx++] = BOXPASSTHRU;
     availableBoxes[idx++] = BOXBEEPERON;
     if (feature(FEATURE_INFLIGHT_ACC_CAL))
         availableBoxes[idx++] = BOXCALIB;
+    availableBoxes[idx++] = BOXOSD;
+    if (feature(FEATURE_TELEMETRY && mcfg.telemetry_switch))
+        availableBoxes[idx++] = BOXTELEMETRY;
     numberBoxItems = idx;
 }
 
 static void evaluateCommand(void)
 {
-    uint32_t i, tmp;
+    uint32_t i, tmp, junk;
+#ifdef GPS
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
+#endif
 
     switch (cmdMSP) {
     case MSP_SET_RAW_RC:
         for (i = 0; i < 8; i++)
             rcData[i] = read16();
         headSerialReply(0);
+        mspFrameRecieve();
         break;
     case MSP_SET_ACC_TRIM:
         cfg.angleTrim[PITCH] = read16();
@@ -346,6 +334,23 @@ static void evaluateCommand(void)
         headSerialReply(0);
         break;
     case MSP_SET_MISC:
+        read16(); // powerfailmeter
+        mcfg.minthrottle = read16();
+        mcfg.maxthrottle = read16();
+        mcfg.mincommand = read16();
+        cfg.failsafe_throttle = read16();
+        read16();
+        read32();
+        cfg.mag_declination = read16() * 10;
+        mcfg.vbatscale = read8();           // actual vbatscale as intended
+        mcfg.vbatmincellvoltage = read8();  // vbatlevel_warn1 in MWC2.3 GUI
+        mcfg.vbatmaxcellvoltage = read8();  // vbatlevel_warn2 in MWC2.3 GUI
+        read8();                            // vbatlevel_crit (unused)
+        headSerialReply(0);
+        break;
+    case MSP_SET_MOTOR:
+        for (i = 0; i < 8; i++)
+            motor_disarmed[i] = read16();
         headSerialReply(0);
         break;
     case MSP_SELECT_SETTING:
@@ -367,17 +372,18 @@ static void evaluateCommand(void)
         serialize8(VERSION);                // multiwii version
         serialize8(mcfg.mixerConfiguration); // type of multicopter
         serialize8(MSP_VERSION);            // MultiWii Serial Protocol Version
-        serialize32(PLATFORM_32BIT);        // "capability"
+        serialize32(CAP_PLATFORM_32BIT | CAP_DYNBALANCE | (mcfg.flaps_speed ? CAP_FLAPS : 0));        // "capability"
         break;
     case MSP_STATUS:
         headSerialReply(11);
         serialize16(cycleTime);
         serialize16(i2cGetErrorCounter());
         serialize16(sensors(SENSOR_ACC) | sensors(SENSOR_BARO) << 1 | sensors(SENSOR_MAG) << 2 | sensors(SENSOR_GPS) << 3 | sensors(SENSOR_SONAR) << 4);
-#if FUCK_MULTIWII
         // OK, so you waste all the fucking time to have BOXNAMES and BOXINDEXES etc, and then you go ahead and serialize enabled shit simply by stuffing all
         // the bits in order, instead of setting the enabled bits based on BOXINDEX. WHERE IS THE FUCKING LOGIC IN THIS, FUCKWADS.
-        serialize32(f.ANGLE_MODE << BOXANGLE | f.HORIZON_MODE << BOXHORIZON |
+        // Serialize the boxes in the order we delivered them, until multiwii retards fix their shit
+        junk = 0;
+        tmp = f.ANGLE_MODE << BOXANGLE | f.HORIZON_MODE << BOXHORIZON |
                     f.BARO_MODE << BOXBARO | f.MAG_MODE << BOXMAG | f.HEADFREE_MODE << BOXHEADFREE | rcOptions[BOXHEADADJ] << BOXHEADADJ |
                     rcOptions[BOXCAMSTAB] << BOXCAMSTAB | rcOptions[BOXCAMTRIG] << BOXCAMTRIG |
                     f.GPS_HOME_MODE << BOXGPSHOME | f.GPS_HOLD_MODE << BOXGPSHOLD |
@@ -389,70 +395,54 @@ static void evaluateCommand(void)
                     rcOptions[BOXCALIB] << BOXCALIB |
                     rcOptions[BOXGOV] << BOXGOV |
                     rcOptions[BOXOSD] << BOXOSD |
-                    f.ARMED << BOXARM);
-#else
-        // Serialize the boxes in the order we delivered them
-        tmp = 0;
+                    rcOptions[BOXTELEMETRY] << BOXTELEMETRY |
+                    f.ARMED << BOXARM;
         for (i = 0; i < numberBoxItems; i++) {
-            uint8_t val, box = availableBoxes[i];
-            switch (box) {
-                // Handle the special cases
-                case BOXANGLE:
-                    val = f.ANGLE_MODE;
-                    break;
-                case BOXHORIZON:
-                    val = f.HORIZON_MODE;
-                    break;
-                case BOXMAG:
-                    val = f.MAG_MODE;
-                    break;
-                case BOXBARO:
-                    val = f.BARO_MODE;
-                    break;
-                case BOXHEADFREE:
-                    val = f.HEADFREE_MODE;
-                    break;
-                case BOXGPSHOME:
-                    val = f.GPS_HOME_MODE;
-                    break;
-                case BOXGPSHOLD:
-                    val = f.GPS_HOLD_MODE;
-                    break;
-                case BOXPASSTHRU:
-                    val = f.PASSTHRU_MODE;
-                    break;
-                case BOXARM:
-                    val = f.ARMED;
-                    break;
-                default:
-                    // These just directly rely on their RC inputs
-                    val = rcOptions[ box ];
-                    break;
-            }
-            tmp |= (val << i);
+            int flag = (tmp & (1 << availableBoxes[i]));
+            if (flag)
+                junk |= 1 << i;
         }
-        serialize32(tmp);
-#endif
+        serialize32(junk);
         serialize8(mcfg.current_profile);
         break;
     case MSP_RAW_IMU:
         headSerialReply(18);
-        for (i = 0; i < 3; i++)
-            serialize16(accSmooth[i]);
+        // Retarded hack until multiwiidorks start using real units for sensor data
+        if (acc_1G > 1024) {
+            for (i = 0; i < 3; i++)
+                serialize16(accSmooth[i] / 8);
+        } else {
+            for (i = 0; i < 3; i++)
+                serialize16(accSmooth[i]);
+        }
         for (i = 0; i < 3; i++)
             serialize16(gyroData[i]);
         for (i = 0; i < 3; i++)
             serialize16(magADC[i]);
         break;
     case MSP_SERVO:
-        headSerialReply(16);
-        for (i = 0; i < 8; i++)
-            serialize16(servo[i]);
+        s_struct((uint8_t *)&servo, 16);
+        break;
+    case MSP_SERVO_CONF:
+        headSerialReply(56);
+        for (i = 0; i < MAX_SERVOS; i++) {
+            serialize16(cfg.servoConf[i].min);
+            serialize16(cfg.servoConf[i].max);
+            serialize16(cfg.servoConf[i].middle);
+            serialize8(cfg.servoConf[i].rate);
+        }
+        break;
+    case MSP_SET_SERVO_CONF:
+        headSerialReply(0);
+        for (i = 0; i < MAX_SERVOS; i++) {
+            cfg.servoConf[i].min = read16();
+            cfg.servoConf[i].max = read16();
+            cfg.servoConf[i].middle = read16();
+            cfg.servoConf[i].rate = read8();
+        }
         break;
     case MSP_MOTOR:
-        headSerialReply(16);
-        for (i = 0; i < 8; i++)
-            serialize16(motor[i]);
+        s_struct((uint8_t *)motor, 16);
         break;
     case MSP_RC:
         headSerialReply(16);
@@ -476,11 +466,10 @@ static void evaluateCommand(void)
         serialize8(GPS_update & 1);
         break;
     case MSP_ATTITUDE:
-        headSerialReply(8);
+        headSerialReply(6);
         for (i = 0; i < 2; i++)
             serialize16(angle[i]);
         serialize16(heading);
-        serialize16(headFreeModeHold);
         break;
     case MSP_ALTITUDE:
         headSerialReply(6);
@@ -488,10 +477,14 @@ static void evaluateCommand(void)
         serialize16(vario);
         break;
     case MSP_ANALOG:
-        headSerialReply(5);
-        serialize8(vbat);
-        serialize16(0); // power meter trash
+        headSerialReply(7);
+        serialize8((uint8_t)constrain(vbat, 0, 255));
+        serialize16((uint16_t)constrain(mAhdrawn, 0, 0xFFFF)); // milliamphours drawn from battery
         serialize16(rssi);
+        if (mcfg.multiwiicurrentoutput)
+            serialize16((uint16_t)constrain((abs(amperage) * 10), 0, 0xFFFF)); // send amperage in 0.001 A steps
+        else
+            serialize16((uint16_t)constrain(abs(amperage), 0, 0xFFFF)); // send amperage in 0.01 A steps
         break;
     case MSP_RC_TUNING:
         headSerialReply(7);
@@ -530,14 +523,26 @@ static void evaluateCommand(void)
             serialize8(availableBoxes[i]);
         break;
     case MSP_MISC:
-        headSerialReply(2);
-        serialize16(0); // intPowerTrigger1
+        headSerialReply(2 * 6 + 4 + 2 + 4);
+        serialize16(0); // intPowerTrigger1 (aka useless trash)
+        serialize16(mcfg.minthrottle);
+        serialize16(mcfg.maxthrottle);
+        serialize16(mcfg.mincommand);
+        serialize16(cfg.failsafe_throttle);
+        serialize16(0); // plog useless shit
+        serialize32(0); // plog useless shit
+        serialize16(cfg.mag_declination / 10); // TODO check this shit
+        serialize8(mcfg.vbatscale);
+        serialize8(mcfg.vbatmincellvoltage);
+        serialize8(mcfg.vbatmaxcellvoltage);
+        serialize8(0);
         break;
     case MSP_MOTOR_PINS:
         headSerialReply(8);
         for (i = 0; i < 8; i++)
             serialize8(i + 1);
         break;
+#ifdef GPS
     case MSP_WP:
         wp_no = read8();    // get the wp number
         headSerialReply(18);
@@ -553,7 +558,7 @@ static void evaluateCommand(void)
         serialize32(lon);
         serialize32(AltHold);           // altitude (cm) will come here -- temporary implementation to test feature with apps
         serialize16(0);                 // heading  will come here (deg)
-        serialize16(0);                 // time to stay (ms) will come here 
+        serialize16(0);                 // time to stay (ms) will come here
         serialize8(0);                  // nav flag will come here
         break;
     case MSP_SET_WP:
@@ -581,6 +586,7 @@ static void evaluateCommand(void)
         }
         headSerialReply(0);
         break;
+#endif /* GPS */
     case MSP_RESET_CONF:
         if (!f.ARMED)
             checkFirstTime(true);
@@ -588,7 +594,7 @@ static void evaluateCommand(void)
         break;
     case MSP_ACC_CALIBRATION:
         if (!f.ARMED)
-            calibratingA = 400;
+            calibratingA = CALIBRATING_ACC_CYCLES;
         headSerialReply(0);
         break;
     case MSP_MAG_CALIBRATION:
@@ -597,11 +603,17 @@ static void evaluateCommand(void)
         headSerialReply(0);
         break;
     case MSP_EEPROM_WRITE:
-        writeEEPROM(0, true);
-        headSerialReply(0);
+        if (f.ARMED) {
+            headSerialError(0);
+        } else {
+            writeEEPROM(0, true);
+            headSerialReply(0);
+        }
         break;
     case MSP_DEBUG:
         headSerialReply(8);
+        // make use of this crap, output some useful QA statistics
+        debug[3] = ((hse_value / 1000000) * 1000) + (SystemCoreClock / 1000000);         // XX0YY [crystal clock : core clock]
         for (i = 0; i < 4; i++)
             serialize16(debug[i]);      // 4 variables are here for general monitoring purpose
         break;
@@ -638,14 +650,10 @@ static void evaluateCommand(void)
 // evaluate all other incoming serial data
 static void evaluateOtherData(uint8_t sr)
 {
-    switch (sr) {
-        case '#':
-            cliProcess();
-            break;
-        case 'R':
-            systemReset(true);      // reboot to bootloader
-            break;
-    }
+    if (sr == '#')
+        cliProcess();
+    else if (sr == mcfg.reboot_character)
+        systemReset(true);      // reboot to bootloader
 }
 
 void serialCom(void)
@@ -662,19 +670,19 @@ void serialCom(void)
         HEADER_CMD,
     } c_state = IDLE;
 
-    // in cli mode, all uart stuff goes to here. enter cli mode by sending #
+    // in cli mode, all serial stuff goes to here. enter cli mode by sending #
     if (cliMode) {
         cliProcess();
         return;
     }
 
-    while (isUartAvailable()) {
-        c = uartRead();
+    while (serialTotalBytesWaiting(core.mainport)) {
+        c = serialRead(core.mainport);
 
         if (c_state == IDLE) {
             c_state = (c == '$') ? HEADER_START : IDLE;
-            if (c_state == IDLE)
-                evaluateOtherData(c); // evaluate all other incoming serial data
+            if (c_state == IDLE && !f.ARMED)
+                evaluateOtherData(c); // if not armed evaluate all other incoming serial data
         } else if (c_state == HEADER_START) {
             c_state = (c == 'M') ? HEADER_M : IDLE;
         } else if (c_state == HEADER_M) {
@@ -690,7 +698,6 @@ void serialCom(void)
             indRX = 0;
             checksum ^= c;
             c_state = HEADER_SIZE;      // the command is to follow
-            guiConnected = true;
         } else if (c_state == HEADER_SIZE) {
             cmdMSP = c;
             checksum ^= c;
@@ -704,9 +711,5 @@ void serialCom(void)
             }
             c_state = IDLE;
         }
-    }
-    if (!cliMode && !isUartAvailable() && feature(FEATURE_TELEMETRY) && f.ARMED) { // The first 2 conditions should never evaluate to true but I'm putting it here anyway - silpstream
-        sendTelemetry();
-        return;
     }
 }

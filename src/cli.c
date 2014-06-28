@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
@@ -9,9 +14,11 @@ static void cliDefaults(char *cmdline);
 static void cliDump(char *cmdLine);
 static void cliExit(char *cmdline);
 static void cliFeature(char *cmdline);
+static void cliGpsPassthrough(char *cmdline);
 static void cliHelp(char *cmdline);
 static void cliMap(char *cmdline);
 static void cliMixer(char *cmdline);
+static void cliMotor(char *cmdline);
 static void cliProfile(char *cmdline);
 static void cliSave(char *cmdline);
 static void cliSet(char *cmdline);
@@ -25,6 +32,12 @@ extern uint8_t accHardware;
 // from config.c RC Channel mapping
 extern const char rcChannelLetters[];
 
+// from mixer.c
+extern int16_t motor_disarmed[MAX_MOTORS];
+
+// signal that we're in cli mode
+uint8_t cliMode = 0;
+
 // buffer
 static char cliBuffer[48];
 static uint32_t bufferIndex = 0;
@@ -33,33 +46,35 @@ static float _atof(const char *p);
 static char *ftoa(float x, char *floatString);
 
 // sync this with MultiType enum from mw.h
-const char * const mixerNames[] = {
+static const char * const mixerNames[] = {
     "TRI", "QUADP", "QUADX", "BI",
     "GIMBAL", "Y6", "HEX6",
     "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
-    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4", "CUSTOM", NULL
+    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4", 
+    "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
+    "CUSTOM", NULL
 };
 
 // sync this with AvailableFeatures enum from board.h
-const char * const featureNames[] = {
-    "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SPEKTRUM", "MOTOR_STOP",
-    "SERVO_TILT", "GYRO_SMOOTHING", "LED_RING", "GPS",
+static const char * const featureNames[] = {
+    "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SERIALRX", "MOTOR_STOP",
+    "SERVO_TILT", "SOFTSERIAL", "LED_RING", "GPS",
     "FAILSAFE", "SONAR", "TELEMETRY", "POWERMETER", "VARIO", "3D",
     NULL
 };
 
 // sync this with AvailableSensors enum from board.h
-const char * const sensorNames[] = {
-    "ACC", "BARO", "MAG", "SONAR", "GPS", NULL
+static const char * const sensorNames[] = {
+    "GYRO", "ACC", "BARO", "MAG", "SONAR", "GPS", "GPS+MAG", NULL
 };
 
-const char * const accNames[] = {
-    "", "ADXL345", "MPU6050", "MMA845x", NULL
+static const char * const accNames[] = {
+    "", "ADXL345", "MPU6050", "MMA845x", "BMA280", "None", NULL
 };
 
 typedef struct {
-    char *name;
-    char *param;
+    const char *name;
+    const char *param;
     void (*func)(char *cmdline);
 } clicmd_t;
 
@@ -71,16 +86,18 @@ const clicmd_t cmdTable[] = {
     { "dump", "print configurable settings in a pastable form", cliDump },
     { "exit", "", cliExit },
     { "feature", "list or -val or val", cliFeature },
+    { "gpspassthrough", "passthrough gps to serial", cliGpsPassthrough },
     { "help", "", cliHelp },
     { "map", "mapping of rc channel order", cliMap },
     { "mixer", "mixer name or list", cliMixer },
+    { "motor", "get/set motor output value", cliMotor },
     { "profile", "index (0 to 2)", cliProfile },
     { "save", "save and reboot", cliSave },
     { "set", "name=value or blank or * for list", cliSet },
     { "status", "show system status", cliStatus },
     { "version", "", cliVersion },
 };
-#define CMD_COUNT (sizeof(cmdTable) / sizeof(cmdTable[0]))
+#define CMD_COUNT (sizeof(cmdTable) / sizeof(clicmd_t))
 
 typedef enum {
     VAR_UINT8,
@@ -101,6 +118,7 @@ typedef struct {
 
 const clivalue_t valueTable[] = {
     { "looptime", VAR_UINT16, &mcfg.looptime, 0, 9000 },
+    { "emf_avoidance", VAR_UINT8, &mcfg.emf_avoidance, 0, 1 },
     { "midrc", VAR_UINT16, &mcfg.midrc, 1200, 1700 },
     { "minthrottle", VAR_UINT16, &mcfg.minthrottle, 0, 2000 },
     { "maxthrottle", VAR_UINT16, &mcfg.maxthrottle, 0, 2000 },
@@ -111,74 +129,75 @@ const clivalue_t valueTable[] = {
     { "deadband3d_high", VAR_UINT16, &mcfg.deadband3d_high, 0, 2000 },
     { "neutral3d", VAR_UINT16, &mcfg.neutral3d, 0, 2000 },
     { "deadband3d_throttle", VAR_UINT16, &mcfg.deadband3d_throttle, 0, 2000 },
-    { "motor_pwm_rate", VAR_UINT16, &mcfg.motor_pwm_rate, 50, 498 },
+    { "motor_pwm_rate", VAR_UINT16, &mcfg.motor_pwm_rate, 50, 32000 },
     { "servo_pwm_rate", VAR_UINT16, &mcfg.servo_pwm_rate, 50, 498 },
     { "retarded_arm", VAR_UINT8, &mcfg.retarded_arm, 0, 1 },
+    { "flaps_speed", VAR_UINT8, &mcfg.flaps_speed, 0, 100 },
+    { "fixedwing_althold_dir", VAR_INT8, &mcfg.fixedwing_althold_dir, -1, 1 },
+    { "reboot_character", VAR_UINT8, &mcfg.reboot_character, 48, 126 },
     { "serial_baudrate", VAR_UINT32, &mcfg.serial_baudrate, 1200, 115200 },
-    { "gps_baudrate", VAR_UINT32, &mcfg.gps_baudrate, 1200, 115200 },
-    { "spektrum_hires", VAR_UINT8, &mcfg.spektrum_hires, 0, 1 },
+    { "softserial_baudrate", VAR_UINT32, &mcfg.softserial_baudrate, 1200, 19200 },
+    { "softserial_1_inverted", VAR_UINT8, &mcfg.softserial_1_inverted, 0, 1 },
+    { "softserial_2_inverted", VAR_UINT8, &mcfg.softserial_2_inverted, 0, 1 },
+    { "gps_type", VAR_UINT8, &mcfg.gps_type, 0, GPS_HARDWARE_MAX },
+    { "gps_baudrate", VAR_INT8, &mcfg.gps_baudrate, 0, GPS_BAUD_MAX },
+    { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, SERIALRX_PROVIDER_MAX },
+    { "telemetry_provider", VAR_UINT8, &mcfg.telemetry_provider, 0, TELEMETRY_PROVIDER_MAX },
+    { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },
+    { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
     { "vbatscale", VAR_UINT8, &mcfg.vbatscale, 10, 200 },
+    { "currentscale", VAR_UINT16, &mcfg.currentscale, 1, 10000 },
+    { "currentoffset", VAR_UINT16, &mcfg.currentoffset, 0, 1650 },
+    { "multiwiicurrentoutput", VAR_UINT8, &mcfg.multiwiicurrentoutput, 0, 1 },
     { "vbatmaxcellvoltage", VAR_UINT8, &mcfg.vbatmaxcellvoltage, 10, 50 },
     { "vbatmincellvoltage", VAR_UINT8, &mcfg.vbatmincellvoltage, 10, 50 },
     { "power_adc_channel", VAR_UINT8, &mcfg.power_adc_channel, 0, 9 },
-    { "align_gyro_x", VAR_INT8, &mcfg.align[ALIGN_GYRO][0], -3, 3 },
-    { "align_gyro_y", VAR_INT8, &mcfg.align[ALIGN_GYRO][1], -3, 3 },
-    { "align_gyro_z", VAR_INT8, &mcfg.align[ALIGN_GYRO][2], -3, 3 },
-    { "align_acc_x", VAR_INT8, &mcfg.align[ALIGN_ACCEL][0], -3, 3 },
-    { "align_acc_y", VAR_INT8, &mcfg.align[ALIGN_ACCEL][1], -3, 3 },
-    { "align_acc_z", VAR_INT8, &mcfg.align[ALIGN_ACCEL][2], -3, 3 },
-    { "align_mag_x", VAR_INT8, &mcfg.align[ALIGN_MAG][0], -3, 3 },
-    { "align_mag_y", VAR_INT8, &mcfg.align[ALIGN_MAG][1], -3, 3 },
-    { "align_mag_z", VAR_INT8, &mcfg.align[ALIGN_MAG][2], -3, 3 },
-    { "acc_hardware", VAR_UINT8, &mcfg.acc_hardware, 0, 3 },
+    { "align_gyro", VAR_UINT8, &mcfg.gyro_align, 0, 8 },
+    { "align_acc", VAR_UINT8, &mcfg.acc_align, 0, 8 },
+    { "align_mag", VAR_UINT8, &mcfg.mag_align, 0, 8 },
+    { "align_board_roll", VAR_INT16, &mcfg.board_align_roll, -180, 360 },
+    { "align_board_pitch", VAR_INT16, &mcfg.board_align_pitch, -180, 360 },
+    { "align_board_yaw", VAR_INT16, &mcfg.board_align_yaw, -180, 360 },
+    { "yaw_control_direction", VAR_INT8, &mcfg.yaw_control_direction, -1, 1 },
+    { "acc_hardware", VAR_UINT8, &mcfg.acc_hardware, 0, 5 },
+    { "max_angle_inclination", VAR_UINT16, &mcfg.max_angle_inclination, 100, 900 },
     { "moron_threshold", VAR_UINT8, &mcfg.moron_threshold, 0, 128 },
     { "gyro_lpf", VAR_UINT16, &mcfg.gyro_lpf, 0, 256 },
     { "gyro_cmpf_factor", VAR_UINT16, &mcfg.gyro_cmpf_factor, 100, 1000 },
     { "gyro_cmpfm_factor", VAR_UINT16, &mcfg.gyro_cmpfm_factor, 100, 1000 },
-    { "gps_type", VAR_UINT8, &mcfg.gps_type, 0, 3 },
     { "pid_controller", VAR_UINT8, &cfg.pidController, 0, 1 },
     { "deadband", VAR_UINT8, &cfg.deadband, 0, 32 },
     { "yawdeadband", VAR_UINT8, &cfg.yawdeadband, 0, 100 },
     { "alt_hold_throttle_neutral", VAR_UINT8, &cfg.alt_hold_throttle_neutral, 1, 250 },
+    { "alt_hold_fast_change", VAR_UINT8, &cfg.alt_hold_fast_change, 0, 1 },
+    { "throttle_correction_value", VAR_UINT8, &cfg.throttle_correction_value, 0, 150 },
+    { "throttle_correction_angle", VAR_UINT16, &cfg.throttle_correction_angle, 1, 900 },
     { "rc_rate", VAR_UINT8, &cfg.rcRate8, 0, 250 },
     { "rc_expo", VAR_UINT8, &cfg.rcExpo8, 0, 100 },
     { "thr_mid", VAR_UINT8, &cfg.thrMid8, 0, 100 },
-    { "thr_expo", VAR_UINT8, &cfg.thrExpo8, 0, 250 },
+    { "thr_expo", VAR_UINT8, &cfg.thrExpo8, 0, 100 },
     { "roll_pitch_rate", VAR_UINT8, &cfg.rollPitchRate, 0, 100 },
-    { "yawrate", VAR_UINT8, &cfg.yawRate, 0, 100 },
+    { "yaw_rate", VAR_UINT8, &cfg.yawRate, 0, 100 },
+    { "tpa_rate", VAR_UINT8, &cfg.dynThrPID, 0, 100},
+    { "tpa_breakpoint", VAR_UINT16, &cfg.tpa_breakpoint, 1000, 2000},
     { "failsafe_delay", VAR_UINT8, &cfg.failsafe_delay, 0, 200 },
     { "failsafe_off_delay", VAR_UINT8, &cfg.failsafe_off_delay, 0, 200 },
     { "failsafe_throttle", VAR_UINT16, &cfg.failsafe_throttle, 1000, 2000 },
     { "failsafe_detect_threshold", VAR_UINT16, &cfg.failsafe_detect_threshold, 100, 2000 },
+    { "rssi_aux_channel", VAR_INT8, &mcfg.rssi_aux_channel, 0, 4 },
     { "yaw_direction", VAR_INT8, &cfg.yaw_direction, -1, 1 },
-    { "tri_yaw_middle", VAR_UINT16, &cfg.tri_yaw_middle, 0, 2000 },
-    { "tri_yaw_min", VAR_UINT16, &cfg.tri_yaw_min, 0, 2000 },
-    { "tri_yaw_max", VAR_UINT16, &cfg.tri_yaw_max, 0, 2000 },
-    { "wing_left_min", VAR_UINT16, &cfg.wing_left_min, 0, 2000 },
-    { "wing_left_mid", VAR_UINT16, &cfg.wing_left_mid, 0, 2000 },
-    { "wing_left_max", VAR_UINT16, &cfg.wing_left_max, 0, 2000 },
-    { "wing_right_min", VAR_UINT16, &cfg.wing_right_min, 0, 2000 },
-    { "wing_right_mid", VAR_UINT16, &cfg.wing_right_mid, 0, 2000 },
-    { "wing_right_max", VAR_UINT16, &cfg.wing_right_max, 0, 2000 },
-    { "pitch_direction_l", VAR_INT8, &cfg.pitch_direction_l, -1, 1 },
-    { "pitch_direction_r", VAR_INT8, &cfg.pitch_direction_r, -1, 1 },
-    { "roll_direction_l", VAR_INT8, &cfg.roll_direction_l, -1, 1 },
-    { "roll_direction_r", VAR_INT8, &cfg.roll_direction_r, -1, 1 },
+    { "tri_unarmed_servo", VAR_INT8, &cfg.tri_unarmed_servo, 0, 1 },
     { "gimbal_flags", VAR_UINT8, &cfg.gimbal_flags, 0, 255},
-    { "gimbal_pitch_gain", VAR_INT8, &cfg.gimbal_pitch_gain, -100, 100 },
-    { "gimbal_roll_gain", VAR_INT8, &cfg.gimbal_roll_gain, -100, 100 },
-    { "gimbal_pitch_min", VAR_UINT16, &cfg.gimbal_pitch_min, 100, 3000 },
-    { "gimbal_pitch_max", VAR_UINT16, &cfg.gimbal_pitch_max, 100, 3000 },
-    { "gimbal_pitch_mid", VAR_UINT16, &cfg.gimbal_pitch_mid, 100, 3000 },
-    { "gimbal_roll_min", VAR_UINT16, &cfg.gimbal_roll_min, 100, 3000 },
-    { "gimbal_roll_max", VAR_UINT16, &cfg.gimbal_roll_max, 100, 3000 },
-    { "gimbal_roll_mid", VAR_UINT16, &cfg.gimbal_roll_mid, 100, 3000 },
     { "acc_lpf_factor", VAR_UINT8, &cfg.acc_lpf_factor, 0, 250 },
+    { "accxy_deadband", VAR_UINT8, &cfg.accxy_deadband, 0, 100 },
+    { "accz_deadband", VAR_UINT8, &cfg.accz_deadband, 0, 100 },
+    { "acc_unarmedcal", VAR_UINT8, &cfg.acc_unarmedcal, 0, 1 },
     { "acc_trim_pitch", VAR_INT16, &cfg.angleTrim[PITCH], -300, 300 },
     { "acc_trim_roll", VAR_INT16, &cfg.angleTrim[ROLL], -300, 300 },
     { "baro_tab_size", VAR_UINT8, &cfg.baro_tab_size, 0, BARO_TAB_SIZE_MAX },
     { "baro_noise_lpf", VAR_FLOAT, &cfg.baro_noise_lpf, 0, 1 },
-    { "baro_cf", VAR_FLOAT, &cfg.baro_cf, 0, 1 },
+    { "baro_cf_vel", VAR_FLOAT, &cfg.baro_cf_vel, 0, 1 },
+    { "baro_cf_alt", VAR_FLOAT, &cfg.baro_cf_alt, 0, 1 },
     { "mag_declination", VAR_INT16, &cfg.mag_declination, -18000, 18000 },
     { "gps_pos_p", VAR_UINT8, &cfg.P8[PIDPOS], 0, 200 },
     { "gps_pos_i", VAR_UINT8, &cfg.I8[PIDPOS], 0, 200 },
@@ -209,12 +228,23 @@ const clivalue_t valueTable[] = {
     { "p_level", VAR_UINT8, &cfg.P8[PIDLEVEL], 0, 200 },
     { "i_level", VAR_UINT8, &cfg.I8[PIDLEVEL], 0, 200 },
     { "d_level", VAR_UINT8, &cfg.D8[PIDLEVEL], 0, 200 },
+    { "p_vel", VAR_UINT8, &cfg.P8[PIDVEL], 0, 200 },
+    { "i_vel", VAR_UINT8, &cfg.I8[PIDVEL], 0, 200 },
+    { "d_vel", VAR_UINT8, &cfg.D8[PIDVEL], 0, 200 },
 };
 
-#define VALUE_COUNT (sizeof(valueTable) / sizeof(valueTable[0]))
+#define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
 
-static void cliSetVar(const clivalue_t *var, const int32_t value);
+
+typedef union {
+    int32_t int_value;
+    float float_value;
+} int_float_value_t;
+
+static void cliSetVar(const clivalue_t *var, const int_float_value_t value);
 static void cliPrintVar(const clivalue_t *var, uint32_t full);
+static void cliPrint(const char *str);
+static void cliWrite(uint8_t ch);
 
 #ifndef HAVE_ITOA_FUNCTION
 
@@ -234,7 +264,7 @@ static void cliPrintVar(const clivalue_t *var, uint32_t full);
 
 static char *i2a(unsigned i, char *a, unsigned r)
 {
-    if (i / r > 0) 
+    if (i / r > 0)
         a = i2a(i / r, a, r);
     *a = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i % r];
     return a + 1;
@@ -247,10 +277,10 @@ char *itoa(int i, char *a, int r)
     if (i < 0) {
         *a = '-';
         *i2a(-(unsigned)i, a + 1, r) = 0;
-    } else 
+    } else
         *i2a(i, a, r) = 0;
     return a;
-} 
+}
 
 #endif
 
@@ -272,17 +302,17 @@ char *itoa(int i, char *a, int r)
 static float _atof(const char *p)
 {
     int frac = 0;
-    double sign, value, scale;
+    float sign, value, scale;
 
     // Skip leading white space, if any.
-    while (white_space(*p) ) {
+    while (white_space(*p)) {
         p += 1;
     }
 
     // Get sign, if any.
-    sign = 1.0;
+    sign = 1.0f;
     if (*p == '-') {
-        sign = -1.0;
+        sign = -1.0f;
         p += 1;
 
     } else if (*p == '+') {
@@ -290,26 +320,26 @@ static float _atof(const char *p)
     }
 
     // Get digits before decimal point or exponent, if any.
-    value = 0.0;
+    value = 0.0f;
     while (valid_digit(*p)) {
-        value = value * 10.0 + (*p - '0');
+        value = value * 10.0f + (*p - '0');
         p += 1;
     }
 
     // Get digits after decimal point, if any.
     if (*p == '.') {
-        double pow10 = 10.0;
+        float pow10 = 10.0f;
         p += 1;
 
         while (valid_digit(*p)) {
             value += (*p - '0') / pow10;
-            pow10 *= 10.0;
+            pow10 *= 10.0f;
             p += 1;
         }
     }
 
     // Handle exponent, if any.
-    scale = 1.0;
+    scale = 1.0f;
     if ((*p == 'e') || (*p == 'E')) {
         unsigned int expon;
         p += 1;
@@ -330,12 +360,13 @@ static float _atof(const char *p)
             expon = expon * 10 + (*p - '0');
             p += 1;
         }
-        if (expon > 308) expon = 308;
+        if (expon > 308)
+            expon = 308;
 
         // Calculate scaling factor.
-        while (expon >= 50) { scale *= 1E50; expon -= 50; }
-        while (expon >=  8) { scale *= 1E8;  expon -=  8; }
-        while (expon >   0) { scale *= 10.0; expon -=  1; }
+        // while (expon >= 50) { scale *= 1E50f; expon -= 50; }
+        while (expon >=  8) { scale *= 1E8f;  expon -=  8; }
+        while (expon >   0) { scale *= 10.0f; expon -=  1; }
     }
 
     // Return signed and scaled floating point result.
@@ -358,7 +389,7 @@ static char *ftoa(float x, char *floatString)
     else
         x -= 0.0005f;
 
-    value = (int32_t) (x * 1000.0f);    // Convert float * 1000 to an integer
+    value = (int32_t)(x * 1000.0f);    // Convert float * 1000 to an integer
 
     itoa(abs(value), intString1, 10);   // Create string from abs of integer value
 
@@ -395,7 +426,7 @@ static char *ftoa(float x, char *floatString)
 
 static void cliPrompt(void)
 {
-    uartPrint("\r\n# ");
+    cliPrint("\r\n# ");
 }
 
 static int cliCompare(const void *a, const void *b)
@@ -440,7 +471,7 @@ static void cliCMix(char *cmdline)
     len = strlen(cmdline);
 
     if (len == 0) {
-        uartPrint("Custom mixer: \r\nMotor\tThr\tRoll\tPitch\tYaw\r\n");
+        cliPrint("Custom mixer: \r\nMotor\tThr\tRoll\tPitch\tYaw\r\n");
         for (i = 0; i < MAX_MOTORS; i++) {
             if (mcfg.customMixer[i].throttle == 0.0f)
                 break;
@@ -457,10 +488,10 @@ static void cliCMix(char *cmdline)
             mixsum[1] += mcfg.customMixer[i].pitch;
             mixsum[2] += mcfg.customMixer[i].yaw;
         }
-        uartPrint("Sanity check:\t");
+        cliPrint("Sanity check:\t");
         for (i = 0; i < 3; i++)
-            uartPrint(fabs(mixsum[i]) > 0.01f ? "NG\t" : "OK\t");
-        uartPrint("\r\n");
+            cliPrint(fabsf(mixsum[i]) > 0.01f ? "NG\t" : "OK\t");
+        cliPrint("\r\n");
         return;
     } else if (strncasecmp(cmdline, "reset", 5) == 0) {
         // erase custom mixer
@@ -472,7 +503,7 @@ static void cliCMix(char *cmdline)
             len = strlen(++ptr);
             for (i = 0; ; i++) {
                 if (mixerNames[i] == NULL) {
-                    uartPrint("Invalid mixer type...\r\n");
+                    cliPrint("Invalid mixer type...\r\n");
                     break;
                 }
                 if (strncasecmp(ptr, mixerNames[i], len) == 0) {
@@ -508,7 +539,7 @@ static void cliCMix(char *cmdline)
                 check++;
             }
             if (check != 4) {
-                uartPrint("Wrong number of arguments, needs idx thr roll pitch yaw\r\n");
+                cliPrint("Wrong number of arguments, needs idx thr roll pitch yaw\r\n");
             } else {
                 cliCMix("");
             }
@@ -520,16 +551,15 @@ static void cliCMix(char *cmdline)
 
 static void cliDefaults(char *cmdline)
 {
-    uartPrint("Resetting to defaults...\r\n");
+    cliPrint("Resetting to defaults...\r\n");
     checkFirstTime(true);
-    uartPrint("Rebooting...");
+    cliPrint("Rebooting...");
     delay(10);
     systemReset(false);
 }
 
 static void cliDump(char *cmdline)
 {
-    
     int i;
     char buf[16];
     float thr, roll, pitch, yaw;
@@ -554,19 +584,19 @@ static void cliDump(char *cmdline)
             pitch = mcfg.customMixer[i].pitch;
             yaw = mcfg.customMixer[i].yaw;
             printf("cmix %d", i + 1);
-            if (thr < 0) 
+            if (thr < 0)
                 printf(" ");
             printf("%s", ftoa(thr, buf));
-            if (roll < 0) 
+            if (roll < 0)
                 printf(" ");
             printf("%s", ftoa(roll, buf));
-            if (pitch < 0) 
+            if (pitch < 0)
                 printf(" ");
             printf("%s", ftoa(pitch, buf));
-            if (yaw < 0) 
+            if (yaw < 0)
                 printf(" ");
             printf("%s\r\n", ftoa(yaw, buf));
-        }   
+        }
         printf("cmix %d 0 0 0 0\r\n", i + 1);
     }
 
@@ -595,16 +625,18 @@ static void cliDump(char *cmdline)
         setval = &valueTable[i];
         printf("set %s = ", valueTable[i].name);
         cliPrintVar(setval, 0);
-        uartPrint("\r\n");
+        cliPrint("\r\n");
     }
 }
 
 static void cliExit(char *cmdline)
 {
-    uartPrint("\r\nLeaving CLI mode...\r\n");
+    cliPrint("\r\nLeaving CLI mode...\r\n");
     *cliBuffer = '\0';
     bufferIndex = 0;
     cliMode = 0;
+    // incase some idiot leaves a motor running during motortest, clear it here
+    mixerResetMotors();
     // save and reboot... I think this makes the most sense
     cliSave(cmdline);
 }
@@ -619,22 +651,22 @@ static void cliFeature(char *cmdline)
     mask = featureMask();
 
     if (len == 0) {
-        uartPrint("Enabled features: ");
+        cliPrint("Enabled features: ");
         for (i = 0; ; i++) {
             if (featureNames[i] == NULL)
                 break;
             if (mask & (1 << i))
                 printf("%s ", featureNames[i]);
         }
-        uartPrint("\r\n");
+        cliPrint("\r\n");
     } else if (strncasecmp(cmdline, "list", len) == 0) {
-        uartPrint("Available features: ");
+        cliPrint("Available features: ");
         for (i = 0; ; i++) {
             if (featureNames[i] == NULL)
                 break;
             printf("%s ", featureNames[i]);
         }
-        uartPrint("\r\n");
+        cliPrint("\r\n");
         return;
     } else {
         bool remove = false;
@@ -647,16 +679,16 @@ static void cliFeature(char *cmdline)
 
         for (i = 0; ; i++) {
             if (featureNames[i] == NULL) {
-                uartPrint("Invalid feature name...\r\n");
+                cliPrint("Invalid feature name...\r\n");
                 break;
             }
             if (strncasecmp(cmdline, featureNames[i], len) == 0) {
                 if (remove) {
                     featureClear(1 << i);
-                    uartPrint("Disabled ");
+                    cliPrint("Disabled ");
                 } else {
                     featureSet(1 << i);
-                    uartPrint("Enabled ");
+                    cliPrint("Enabled ");
                 }
                 printf("%s\r\n", featureNames[i]);
                 break;
@@ -665,11 +697,23 @@ static void cliFeature(char *cmdline)
     }
 }
 
+static void cliGpsPassthrough(char *cmdline)
+{
+#ifdef GPS
+    if (gpsSetPassthrough() == -1)
+        cliPrint("Error: Enable and plug in GPS first\r\n");
+    else
+        cliPrint("Enabling GPS passthrough...\r\n");
+#else
+    cliPrint("GPS support is not built in\r\n");
+#endif /* GPS */
+}
+
 static void cliHelp(char *cmdline)
 {
     uint32_t i = 0;
 
-    uartPrint("Available commands:\r\n");    
+    cliPrint("Available commands:\r\n");
     for (i = 0; i < CMD_COUNT; i++)
         printf("%s\t%s\r\n", cmdTable[i].name, cmdTable[i].param);
 }
@@ -685,16 +729,16 @@ static void cliMap(char *cmdline)
     if (len == 8) {
         // uppercase it
         for (i = 0; i < 8; i++)
-            cmdline[i] = toupper(cmdline[i]);
+            cmdline[i] = toupper((unsigned char)cmdline[i]);
         for (i = 0; i < 8; i++) {
             if (strchr(rcChannelLetters, cmdline[i]) && !strchr(cmdline + i + 1, cmdline[i]))
                 continue;
-            uartPrint("Must be any order of AETR1234\r\n");
+            cliPrint("Must be any order of AETR1234\r\n");
             return;
         }
         parseRcChannels(cmdline);
     }
-    uartPrint("Current assignment: ");
+    cliPrint("Current assignment: ");
     for (i = 0; i < 8; i++)
         out[mcfg.rcmap[i]] = rcChannelLetters[i];
     out[i] = '\0';
@@ -712,19 +756,19 @@ static void cliMixer(char *cmdline)
         printf("Current mixer: %s\r\n", mixerNames[mcfg.mixerConfiguration - 1]);
         return;
     } else if (strncasecmp(cmdline, "list", len) == 0) {
-        uartPrint("Available mixers: ");
+        cliPrint("Available mixers: ");
         for (i = 0; ; i++) {
             if (mixerNames[i] == NULL)
                 break;
             printf("%s ", mixerNames[i]);
         }
-        uartPrint("\r\n");
+        cliPrint("\r\n");
         return;
     }
 
     for (i = 0; ; i++) {
         if (mixerNames[i] == NULL) {
-            uartPrint("Invalid mixer type...\r\n");
+            cliPrint("Invalid mixer type...\r\n");
             break;
         }
         if (strncasecmp(cmdline, mixerNames[i], len) == 0) {
@@ -733,6 +777,52 @@ static void cliMixer(char *cmdline)
             break;
         }
     }
+}
+
+static void cliMotor(char *cmdline)
+{
+    int motor_index = 0;
+    int motor_value = 0;
+    int len, index = 0;
+    char *pch = NULL;
+
+    len = strlen(cmdline);
+    if (len == 0) {
+        printf("Usage:\r\nmotor index [value] - show [or set] motor value\r\n");
+        return;
+    }
+
+    pch = strtok(cmdline, " ");
+    while (pch != NULL) {
+        switch (index) {
+            case 0:
+                motor_index = atoi(pch);
+                break;
+            case 1:
+                motor_value = atoi(pch);
+                break;
+        }
+        index++;
+        pch = strtok(NULL, " ");
+    }
+
+    if (motor_index < 0 || motor_index >= MAX_MOTORS) {
+        printf("No such motor, use a number [0, %d]\r\n", MAX_MOTORS);
+        return;
+    }
+
+    if (index < 2) {
+        printf("Motor %d is set at %d\r\n", motor_index, motor_disarmed[motor_index]);
+        return;
+    }
+
+    if (motor_value < 1000 || motor_value > 2000) {
+        printf("Invalid motor value, 1000..2000\r\n");
+        return;
+    }
+
+    printf("Setting motor %d to %d\r\n", motor_index, motor_value);
+    motor_disarmed[motor_index] = motor_value;
 }
 
 static void cliProfile(char *cmdline)
@@ -756,11 +846,22 @@ static void cliProfile(char *cmdline)
 
 static void cliSave(char *cmdline)
 {
-    uartPrint("Saving...");
+    cliPrint("Saving...");
     writeEEPROM(0, true);
-    uartPrint("\r\nRebooting...");
+    cliPrint("\r\nRebooting...");
     delay(10);
     systemReset(false);
+}
+
+static void cliPrint(const char *str)
+{
+    while (*str)
+        serialWrite(core.mainport, *(str++));
+}
+
+static void cliWrite(uint8_t ch)
+{
+    serialWrite(core.mainport, ch);
 }
 
 static void cliPrintVar(const clivalue_t *var, uint32_t full)
@@ -802,25 +903,25 @@ static void cliPrintVar(const clivalue_t *var, uint32_t full)
         printf(" %d %d", var->min, var->max);
 }
 
-static void cliSetVar(const clivalue_t *var, const int32_t value)
+static void cliSetVar(const clivalue_t *var, const int_float_value_t value)
 {
     switch (var->type) {
         case VAR_UINT8:
         case VAR_INT8:
-            *(char *)var->ptr = (char)value;
+            *(char *)var->ptr = (char)value.int_value;
             break;
 
         case VAR_UINT16:
         case VAR_INT16:
-            *(short *)var->ptr = (short)value;
+            *(short *)var->ptr = (short)value.int_value;
             break;
 
         case VAR_UINT32:
-            *(int *)var->ptr = (int)value;
+            *(int *)var->ptr = (int)value.int_value;
             break;
 
         case VAR_FLOAT:
-            *(float *)var->ptr = *(float *)&value;
+            *(float *)var->ptr = (float)value.float_value;
             break;
     }
 }
@@ -837,14 +938,14 @@ static void cliSet(char *cmdline)
     len = strlen(cmdline);
 
     if (len == 0 || (len == 1 && cmdline[0] == '*')) {
-        uartPrint("Current settings: \r\n");
+        cliPrint("Current settings: \r\n");
         for (i = 0; i < VALUE_COUNT; i++) {
             val = &valueTable[i];
             printf("%s = ", valueTable[i].name);
             cliPrintVar(val, len); // when len is 1 (when * is passed as argument), it will print min/max values as well, for gui
-            uartPrint("\r\n");
+            cliPrint("\r\n");
         }
-    } else if ((eqptr = strstr(cmdline, "="))) {
+    } else if ((eqptr = strstr(cmdline, "=")) != NULL) {
         // has equal, set var
         eqptr++;
         len--;
@@ -854,16 +955,21 @@ static void cliSet(char *cmdline)
             val = &valueTable[i];
             if (strncasecmp(cmdline, valueTable[i].name, strlen(valueTable[i].name)) == 0) {
                 if (valuef >= valueTable[i].min && valuef <= valueTable[i].max) { // here we compare the float value since... it should work, RIGHT?
-                    cliSetVar(val, valueTable[i].type == VAR_FLOAT ? *(uint32_t *)&valuef : value); // this is a silly dirty hack. please fix me later.
+                    int_float_value_t tmp;
+                    if (valueTable[i].type == VAR_FLOAT)
+                        tmp.float_value = valuef;
+                    else
+                        tmp.int_value = value;
+                    cliSetVar(val, tmp);
                     printf("%s set to ", valueTable[i].name);
                     cliPrintVar(val, 0);
                 } else {
-                    uartPrint("ERR: Value assignment out of range\r\n");
+                    cliPrint("ERR: Value assignment out of range\r\n");
                 }
                 return;
             }
         }
-        uartPrint("ERR: Unknown variable name\r\n");
+        cliPrint("ERR: Unknown variable name\r\n");
     } else {
         // no equals, check for matching variables.
         for (i = 0; i < VALUE_COUNT; i++) {
@@ -896,28 +1002,28 @@ static void cliStatus(char *cmdline)
     if (sensors(SENSOR_ACC)) {
         printf("ACCHW: %s", accNames[accHardware]);
         if (accHardware == ACC_MPU6050)
-            printf(".%c", mcfg.mpu6050_scale ? 'o' : 'n');
+            printf(".%c", core.mpu6050_scale ? 'o' : 'n');
     }
-    uartPrint("\r\n");
+    cliPrint("\r\n");
 
     printf("Cycle Time: %d, I2C Errors: %d, config size: %d\r\n", cycleTime, i2cGetErrorCounter(), sizeof(master_t));
 }
 
 static void cliVersion(char *cmdline)
 {
-    uartPrint("Afro32 CLI version 2.1 " __DATE__ " / " __TIME__);
+    cliPrint("Afro32 CLI version 2.2 " __DATE__ " / " __TIME__);
 }
 
 void cliProcess(void)
 {
     if (!cliMode) {
         cliMode = 1;
-        uartPrint("\r\nEntering CLI Mode, type 'exit' to return, or 'help'\r\n");
+        cliPrint("\r\nEntering CLI Mode, type 'exit' to return, or 'help'\r\n");
         cliPrompt();
     }
 
-    while (isUartAvailable()) {
-        uint8_t c = uartRead();
+    while (serialTotalBytesWaiting(core.mainport)) {
+        uint8_t c = serialRead(core.mainport);
         if (c == '\t' || c == '?') {
             // do tab completion
             const clicmd_t *cmd, *pstart = NULL, *pend = NULL;
@@ -944,28 +1050,28 @@ void cliProcess(void)
             }
             if (!bufferIndex || pstart != pend) {
                 /* Print list of ambiguous matches */
-                uartPrint("\r\033[K");
+                cliPrint("\r\033[K");
                 for (cmd = pstart; cmd <= pend; cmd++) {
-                    uartPrint(cmd->name);
-                    uartWrite('\t');
+                    cliPrint(cmd->name);
+                    cliWrite('\t');
                 }
                 cliPrompt();
                 i = 0;    /* Redraw prompt */
             }
             for (; i < bufferIndex; i++)
-                uartWrite(cliBuffer[i]);
+                cliWrite(cliBuffer[i]);
         } else if (!bufferIndex && c == 4) {
             cliExit(cliBuffer);
             return;
         } else if (c == 12) {
             // clear screen
-            uartPrint("\033[2J\033[1;1H");
+            cliPrint("\033[2J\033[1;1H");
             cliPrompt();
         } else if (bufferIndex && (c == '\n' || c == '\r')) {
             // enter pressed
             clicmd_t *cmd = NULL;
             clicmd_t target;
-            uartPrint("\r\n");
+            cliPrint("\r\n");
             cliBuffer[bufferIndex] = 0; // null terminate
 
             target.name = cliBuffer;
@@ -975,7 +1081,7 @@ void cliProcess(void)
             if (cmd)
                 cmd->func(cliBuffer + strlen(cmd->name) + 1);
             else
-                uartPrint("ERR: Unknown command, try 'help'");
+                cliPrint("ERR: Unknown command, try 'help'");
 
             memset(cliBuffer, 0, sizeof(cliBuffer));
             bufferIndex = 0;
@@ -988,13 +1094,13 @@ void cliProcess(void)
             // backspace
             if (bufferIndex) {
                 cliBuffer[--bufferIndex] = 0;
-                uartPrint("\010 \010");
+                cliPrint("\010 \010");
             }
         } else if (bufferIndex < sizeof(cliBuffer) && c >= 32 && c <= 126) {
             if (!bufferIndex && c == 32)
                 continue;
             cliBuffer[bufferIndex++] = c;
-            uartWrite(c);
+            cliWrite(c);
         }
     }
 }

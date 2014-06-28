@@ -19,7 +19,7 @@ static uint8_t exti_pin_source;
 static IRQn_Type exti_irqn;
 
 static uint32_t last_measurement;
-static volatile int16_t *distance_ptr;
+static volatile int32_t *distance_ptr;
 
 void ECHO_EXTI_IRQHandler(void)
 {
@@ -35,8 +35,11 @@ void ECHO_EXTI_IRQHandler(void)
             // object we take half of the distance traveled.
             //
             // 340 m/s = 0.034 cm/microsecond = 29.41176471 *2 = 58.82352941 rounded to 59
-            int32_t pulse_duration = timing_stop - timing_start;
-            *distance_ptr = pulse_duration / 59;
+            int32_t distance = (timing_stop - timing_start) / 59;
+            // this sonar range is up to 4meter , but 3meter is the safe working range (+tilted and roll)
+            if (distance > 300)
+                distance = -1;
+            *distance_ptr = distance ;
         }
     }
 
@@ -59,9 +62,9 @@ void hcsr04_init(sonar_config_t config)
     EXTI_InitTypeDef EXTIInit;
 
     // enable AFIO for EXTI support - already done is drv_system.c
-    // RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph, ENABLE); 
+    // RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph, ENABLE);
 
-    switch(config) {
+    switch (config) {
         case sonar_pwm56:
             trigger_pin = Pin_8;   // PWM5 (PB8) - 5v tolerant
             echo_pin = Pin_9;      // PWM6 (PB9) - 5v tolerant
@@ -69,7 +72,7 @@ void hcsr04_init(sonar_config_t config)
             exti_pin_source = GPIO_PinSource9;
             exti_irqn = EXTI9_5_IRQn;
             break;
-        case sonar_rc78:    
+        case sonar_rc78:
             trigger_pin = Pin_0;   // RX7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
             echo_pin = Pin_1;      // RX8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
             exti_line = EXTI_Line1;
@@ -78,7 +81,7 @@ void hcsr04_init(sonar_config_t config)
             break;
     }
 
-    // tp - trigger pin 
+    // tp - trigger pin
     gpio.pin = trigger_pin;
     gpio.mode = Mode_Out_PP;
     gpio.speed = Speed_2MHz;
@@ -90,15 +93,15 @@ void hcsr04_init(sonar_config_t config)
     gpioInit(GPIOB, &gpio);
 
     // setup external interrupt on echo pin
-    GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, exti_pin_source);
+    gpioExtiLineConfig(GPIO_PortSourceGPIOB, exti_pin_source);
 
     EXTI_ClearITPendingBit(exti_line);
-       
+
     EXTIInit.EXTI_Line = exti_line;
     EXTIInit.EXTI_Mode = EXTI_Mode_Interrupt;
     EXTIInit.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
-    EXTIInit.EXTI_LineCmd = ENABLE;    
-    EXTI_Init(&EXTIInit);    
+    EXTIInit.EXTI_LineCmd = ENABLE;
+    EXTI_Init(&EXTIInit);
 
     NVIC_EnableIRQ(exti_irqn);
 
@@ -106,7 +109,7 @@ void hcsr04_init(sonar_config_t config)
 }
 
 // distance calculation is done asynchronously, using interrupt
-void hcsr04_get_distance(volatile int16_t *distance)
+void hcsr04_get_distance(volatile int32_t *distance)
 {
     uint32_t current_time = millis();
 

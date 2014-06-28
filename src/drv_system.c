@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 
 // cycles per microsecond
@@ -5,7 +10,13 @@ static volatile uint32_t usTicks = 0;
 // current uptime for 1kHz systick timer. will rollover after 49 days. hopefully we won't care.
 static volatile uint32_t sysTickUptime = 0;
 // from system_stm32f10x.c
-void SetSysClock(void);
+void SetSysClock(bool overclock);
+#ifdef BUZZER
+void systemBeep(bool onoff);
+static void beepRev4(bool onoff);
+static void beepRev5(bool onoff);
+void (*systemBeepPtr)(bool onoff) = NULL;
+#endif
 
 static void cycleCounterInit(void)
 {
@@ -37,26 +48,35 @@ uint32_t millis(void)
     return sysTickUptime;
 }
 
-void systemInit(void)
+void systemInit(bool overclock)
 {
     struct {
         GPIO_TypeDef *gpio;
         gpio_config_t cfg;
     } gpio_setup[] = {
-        { 
-            .gpio = LED0_GPIO, 
-            .cfg = { LED0_PIN, Mode_Out_PP, Speed_2MHz } 
-        },
-        { 
-            .gpio = LED1_GPIO, 
-            .cfg = { LED1_PIN, Mode_Out_PP, Speed_2MHz } 
-        },
-#ifdef BUZZER
-        { 
-            .gpio = BEEP_GPIO, 
-            .cfg = { BEEP_PIN, Mode_Out_OD, Speed_2MHz } 
+#ifdef LED0
+        {
+            .gpio = LED0_GPIO,
+            .cfg = { LED0_PIN, Mode_Out_PP, Speed_2MHz }
         },
 #endif
+#ifdef LED1
+
+        {
+            .gpio = LED1_GPIO,
+            .cfg = { LED1_PIN, Mode_Out_PP, Speed_2MHz }
+        },
+#endif
+#ifdef BUZZER
+        {
+            .gpio = BEEP_GPIO,
+            .cfg = { BEEP_PIN, Mode_Out_OD, Speed_2MHz }
+        },
+#endif
+        {
+            .gpio = INV_GPIO,
+            .cfg = { INV_PIN, Mode_Out_PP, Speed_2MHz }
+        },
     };
     gpio_config_t gpio;
     uint32_t i;
@@ -64,10 +84,12 @@ void systemInit(void)
 
     // Configure the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers
     // Configure the Flash Latency cycles and enable prefetch buffer
-    SetSysClock();
+    SetSysClock(overclock);
+    // Configure NVIC preempt/priority groups
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 
     // Turn on clocks for stuff we use
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4 | RCC_APB1Periph_I2C2, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_TIM1 | RCC_APB2Periph_ADC1 | RCC_APB2Periph_USART1, ENABLE);
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
     RCC_ClearFlag();
@@ -83,13 +105,23 @@ void systemInit(void)
 #define AFIO_MAPR_SWJ_CFG_NO_JTAG_SW            (0x2 << 24)
     AFIO->MAPR |= AFIO_MAPR_SWJ_CFG_NO_JTAG_SW;
 
+#ifdef BUZZER
     // Configure gpio
+    // rev5 needs inverted beeper. oops.
+    if (hse_value == 12000000)
+        systemBeepPtr = beepRev5;
+    else
+        systemBeepPtr = beepRev4;
+    BEEP_OFF;
+#endif
     LED0_OFF;
     LED1_OFF;
-    BEEP_OFF;
 
-    for (i = 0; i < gpio_count; i++)
+    for (i = 0; i < gpio_count; i++) {
+        if (hse_value == 12000000 && gpio_setup[i].cfg.mode == Mode_Out_OD)
+            gpio_setup[i].cfg.mode = Mode_Out_PP;
         gpioInit(gpio_setup[i].gpio, &gpio_setup[i].cfg);
+    }
 
     // Init cycle counter
     cycleCounterInit();
@@ -98,9 +130,7 @@ void systemInit(void)
     SysTick_Config(SystemCoreClock / 1000);
 
     // Configure the rest of the stuff
-#ifndef FY90Q
-    i2cInit(I2C2);
-#endif
+    i2cInit(I2CDEV_2);
     spiInit();
 
     // sleep for 100ms
@@ -174,3 +204,31 @@ void systemReset(bool toBootloader)
     // Generate system reset
     SCB->AIRCR = AIRCR_VECTKEY_MASK | (uint32_t)0x04;
 }
+
+#ifdef BUZZER
+static void beepRev4(bool onoff)
+{
+    if (onoff) {
+        digitalLo(BEEP_GPIO, BEEP_PIN);
+    } else {
+        digitalHi(BEEP_GPIO, BEEP_PIN);
+    }
+}
+
+static void beepRev5(bool onoff)
+{
+    if (onoff) {
+        digitalHi(BEEP_GPIO, BEEP_PIN);
+    } else {
+        digitalLo(BEEP_GPIO, BEEP_PIN);
+    }
+}
+#endif
+
+void systemBeep(bool onoff)
+{
+#ifdef BUZZER
+    systemBeepPtr(onoff);
+#endif
+}
+

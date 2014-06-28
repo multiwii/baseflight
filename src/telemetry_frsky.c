@@ -1,8 +1,11 @@
-/* 
+/*
  * FrSky Telemetry implementation by silpstream @ rcgroups
  */
 #include "board.h"
 #include "mw.h"
+
+#include "telemetry_common.h"
+#include "telemetry_frsky.h"
 
 #define CYCLETIME             125
 
@@ -45,32 +48,33 @@
 #define ID_GYRO_Y             0x41
 #define ID_GYRO_Z             0x42
 
+#define ID_VERT_SPEED         0x30 //opentx vario
+
 // from sensors.c
 extern uint8_t batteryCellCount;
 
- 
 static void sendDataHead(uint8_t id)
 {
-    uartWrite(PROTOCOL_HEADER);
-    uartWrite(id);
+    serialWrite(core.telemport, PROTOCOL_HEADER);
+    serialWrite(core.telemport, id);
 }
 
 static void sendTelemetryTail(void)
 {
-    uartWrite(PROTOCOL_TAIL);
+    serialWrite(core.telemport, PROTOCOL_TAIL);
 }
 
 static void serializeFrsky(uint8_t data)
 {
     // take care of byte stuffing
     if (data == 0x5e) {
-        uartWrite(0x5d);
-        uartWrite(0x3e);
+        serialWrite(core.telemport, 0x5d);
+        serialWrite(core.telemport, 0x3e);
     } else if (data == 0x5d) {
-        uartWrite(0x5d);
-        uartWrite(0x3d);
+        serialWrite(core.telemport, 0x5d);
+        serialWrite(core.telemport, 0x3d);
     } else
-        uartWrite(data);
+        serialWrite(core.telemport, data);
 }
 
 static void serialize16(int16_t a)
@@ -97,7 +101,7 @@ static void sendBaro(void)
     sendDataHead(ID_ALTITUDE_BP);
     serialize16(BaroAlt / 100);
     sendDataHead(ID_ALTITUDE_AP);
-    serialize16(BaroAlt % 100);
+    serialize16(abs(BaroAlt % 100));
 }
 
 static void sendTemperature1(void)
@@ -118,22 +122,48 @@ static void sendTime(void)
     serialize16(seconds % 60);
 }
 
+// Frsky pdf: dddmm.mmmm
+// .mmmm is returned in decimal fraction of minutes.
+static void frskyGPStoDDDMM_MMMM(int32_t mwiigps, int16_t *dddmm, int16_t *mmmm)
+{
+    int32_t absgps, deg, min;
+    absgps = abs(mwiigps);
+    deg    = absgps / 10000000;
+    absgps = (absgps - deg * 10000000) * 60;        // absgps = Minutes left * 10^7
+    min    = absgps / 10000000;                     // minutes left
+    *dddmm = deg * 100 + min;
+    *mmmm  = (absgps - min * 10000000) / 1000;
+}
+
 static void sendGPS(void)
 {
-    sendDataHead(ID_LATITUDE_BP);
-    serialize16(abs(GPS_coord[LAT]) / 100000);
-    sendDataHead(ID_LATITUDE_AP);
-    serialize16((abs(GPS_coord[LAT]) / 10) % 10000);
+    int16_t ddd, mmm;
 
+    frskyGPStoDDDMM_MMMM(GPS_coord[LAT], &ddd, &mmm);
+    sendDataHead(ID_LATITUDE_BP);
+    serialize16(ddd);
+    sendDataHead(ID_LATITUDE_AP);
+    serialize16(mmm);
     sendDataHead(ID_N_S);
     serialize16(GPS_coord[LAT] < 0 ? 'S' : 'N');
 
+    frskyGPStoDDDMM_MMMM(GPS_coord[LON], &ddd, &mmm);
     sendDataHead(ID_LONGITUDE_BP);
-    serialize16(abs(GPS_coord[LON]) / 100000);
+    serialize16(ddd);
     sendDataHead(ID_LONGITUDE_AP);
-    serialize16((abs(GPS_coord[LON]) / 10) % 10000);
+    serialize16(mmm);
     sendDataHead(ID_E_W);
     serialize16(GPS_coord[LON] < 0 ? 'W' : 'E');
+}
+
+/*
+ * Send vertical speed for opentx. ID_VERT_SPEED
+ * Unit is cm/s
+ */
+static void sendVario(void)
+{
+    sendDataHead(ID_VERT_SPEED);
+    serialize16(vario);
 }
 
 /*
@@ -183,7 +213,7 @@ static void sendVoltage(void)
 /*
  * Send voltage with ID_VOLTAGE_AMP
  */
-static void sendVoltageAmp()
+static void sendVoltageAmp(void)
 {
     uint16_t voltage = (vbat * 110) / 21;
 
@@ -201,56 +231,78 @@ static void sendHeading(void)
     serialize16(0);
 }
 
-static bool telemetryEnabled = false;
-
-void initTelemetry(bool State)
+void freeFrSkyTelemetryPort(void)
 {
-    if (State != telemetryEnabled) {
-        if (State)
-            serialInit(9600);
-        else
-            serialInit(mcfg.serial_baudrate);
-        telemetryEnabled = State;
+    if (mcfg.telemetry_port == TELEMETRY_PORT_UART) {
+        serialInit(mcfg.serial_baudrate);
+    }
+}
+
+void configureFrSkyTelemetryPort(void)
+{
+    if (mcfg.telemetry_port == TELEMETRY_PORT_UART) {
+        serialInit(9600);
     }
 }
 
 static uint32_t lastCycleTime = 0;
 static uint8_t cycleNum = 0;
 
-void sendTelemetry(void)
+bool canSendFrSkyTelemetry(void)
 {
-    if (millis() - lastCycleTime >= CYCLETIME) {
-        lastCycleTime = millis();
-        cycleNum++;
+    return serialTotalBytesWaiting(core.telemport) == 0;
+}
 
-        // Sent every 125ms
-        sendAccel();
+bool hasEnoughTimeLapsedSinceLastTelemetryTransmission(uint32_t currentMillis)
+{
+    return currentMillis - lastCycleTime >= CYCLETIME;
+}
+
+void handleFrSkyTelemetry(void)
+{
+    if (!canSendFrSkyTelemetry()) {
+        return;
+    }
+
+    uint32_t now = millis();
+
+    if (!hasEnoughTimeLapsedSinceLastTelemetryTransmission(now)) {
+        return;
+    }
+
+    lastCycleTime = now;
+
+    cycleNum++;
+
+    // Sent every 125ms
+    sendAccel();
+    sendVario();
+    sendTelemetryTail();
+
+    if ((cycleNum % 4) == 0) {      // Sent every 500ms
+        sendBaro();
+        sendHeading();
         sendTelemetryTail();
+    }
 
-        if ((cycleNum % 4) == 0) {      // Sent every 500ms
-            sendBaro();
-            sendHeading();
-            sendTelemetryTail();
+    if ((cycleNum % 8) == 0) {      // Sent every 1s
+        sendTemperature1();
+
+        if (feature(FEATURE_VBAT)) {
+            sendVoltage();
+            sendVoltageAmp();
         }
 
-        if ((cycleNum % 8) == 0) {      // Sent every 1s
-            sendTemperature1();
+        if (sensors(SENSOR_GPS))
+            sendGPS();
 
-            if (feature(FEATURE_VBAT)) {
-                sendVoltage();
-                sendVoltageAmp();
-            }
+        sendTelemetryTail();
+    }
 
-            if (sensors(SENSOR_GPS))
-                sendGPS();
-
-            sendTelemetryTail();
-        }
-
-        if (cycleNum == 40) {     //Frame 3: Sent every 5s
-            cycleNum = 0;
-            sendTime();
-            sendTelemetryTail();
-        }
+    if (cycleNum == 40) {     //Frame 3: Sent every 5s
+        cycleNum = 0;
+        sendTime();
+        sendTelemetryTail();
     }
 }
+

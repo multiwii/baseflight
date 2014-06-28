@@ -1,7 +1,6 @@
 #pragma once
 
-typedef enum
-{
+typedef enum {
     Mode_AIN = 0x0,
     Mode_IN_FLOATING = 0x04,
     Mode_IPD = 0x28,
@@ -12,17 +11,15 @@ typedef enum
     Mode_AF_PP = 0x18
 } GPIO_Mode;
 
-typedef enum
-{
+typedef enum {
     Speed_10MHz = 1,
-    Speed_2MHz, 
+    Speed_2MHz,
     Speed_50MHz
 } GPIO_Speed;
 
-typedef enum
-{
-    Pin_0 = 0x0000,
-    Pin_1 = 0x0001,
+typedef enum {
+    Pin_0 = 0x0001,
+    Pin_1 = 0x0002,
     Pin_2 = 0x0004,
     Pin_3 = 0x0008,
     Pin_4 = 0x0010,
@@ -40,8 +37,7 @@ typedef enum
     Pin_All = 0xFFFF
 } GPIO_Pin;
 
-typedef struct
-{
+typedef struct {
     uint16_t pin;
     GPIO_Mode mode;
     GPIO_Speed speed;
@@ -53,3 +49,5 @@ typedef struct
 #define digitalIn(p, i)     (p->IDR & i)
 
 void gpioInit(GPIO_TypeDef *gpio, gpio_config_t *config);
+void gpioExtiLineConfig(uint8_t portsrc, uint8_t pinsrc);
+void gpioPinRemapConfig(uint32_t remap, bool enable);

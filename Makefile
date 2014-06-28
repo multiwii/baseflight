@@ -14,7 +14,7 @@
 # Things that the user might override on the commandline
 #
 
-# The target to build, must be one of NAZE, FY90Q OR OLIMEXINO
+# The target to build, must be one of NAZE OR OLIMEXINO
 TARGET		?= NAZE
 
 # Compile-time options
@@ -30,7 +30,7 @@ SERIAL_DEVICE	?= /dev/ttyUSB0
 # Things that need to be maintained as the source changes
 #
 
-VALID_TARGETS	 = NAZE FY90Q OLIMEXINO
+VALID_TARGETS	 = NAZE OLIMEXINO
 
 # Working directories
 ROOT		 = $(dir $(lastword $(MAKEFILE_LIST)))
@@ -52,19 +52,29 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   mw.c \
 		   sensors.c \
 		   serial.c \
+		   sbus.c \
+		   sumd.c \
 		   spektrum.c \
-		   telemetry.c \
+		   rxmsp.c \
+		   telemetry_common.c \
+		   telemetry_frsky.c \
+		   telemetry_hott.c \
+		   drv_gpio.c \
 		   drv_i2c.c \
 		   drv_i2c_soft.c \
 		   drv_system.c \
+		   drv_serial.c \
+		   drv_softserial.c \
 		   drv_uart.c \
 		   printf.c \
+		   utils.c \
 		   $(CMSIS_SRC) \
 		   $(STDPERIPH_SRC)
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
 		   drv_adxl345.c \
+		   drv_bma280.c \
 		   drv_bmp085.c \
 		   drv_ms5611.c \
 		   drv_hcsr04.c \
@@ -75,21 +85,24 @@ NAZE_SRC	 = drv_adc.c \
 		   drv_mpu6050.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
-		   $(COMMON_SRC)
-
-# Source files for the FY90Q target
-FY90Q_SRC	 = drv_adc_fy90q.c \
-		   drv_pwm_fy90q.c \
+		   drv_spi.c \
+		   drv_timer.c \
 		   $(COMMON_SRC)
 
 # Source files for the OLIMEXINO target
-OLIMEXINO_SRC	 = drv_adc.c \
+OLIMEXINO_SRC	 = drv_spi.c \
+		   drv_adc.c \
 		   drv_adxl345.c \
 		   drv_mpu3050.c \
 		   drv_mpu6050.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
+		   drv_timer.c \
 		   $(COMMON_SRC)
+		   
+# In some cases, %.s regarded as intermediate file, which is actually not.
+# This will prevent accidental deletion of startup code.
+.PRECIOUS: %.s
 
 # Search path for baseflight sources
 VPATH		:= $(SRC_DIR):$(SRC_DIR)/baseflight_startups
@@ -120,7 +133,7 @@ INCLUDE_DIRS	 = $(SRC_DIR) \
 		   $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x \
 
 ARCH_FLAGS	 = -mthumb -mcpu=cortex-m3
-BASE_CFLAGS		 = $(ARCH_FLAGS) \
+BASE_CFLAGS	 = $(ARCH_FLAGS) \
 		   $(addprefix -D,$(OPTIONS)) \
 		   $(addprefix -I,$(INCLUDE_DIRS)) \
 		   -Wall \
@@ -139,7 +152,7 @@ LD_SCRIPT	 = $(ROOT)/stm32_flash.ld
 LDFLAGS		 = -lm \
 		   $(ARCH_FLAGS) \
 		   -static \
-		   -Wl,-gc-sections \
+		   -Wl,-gc-sections,-Map,$(TARGET_MAP) \
 		   -T$(LD_SCRIPT)
 
 ###############################################################################
@@ -166,12 +179,13 @@ endif
 TARGET_HEX	 = $(BIN_DIR)/baseflight_$(TARGET).hex
 TARGET_ELF	 = $(BIN_DIR)/baseflight_$(TARGET).elf
 TARGET_OBJS	 = $(addsuffix .o,$(addprefix $(OBJECT_DIR)/$(TARGET)/,$(basename $($(TARGET)_SRC))))
+TARGET_MAP   = $(OBJECT_DIR)/baseflight_$(TARGET).map
 
 # List of buildable ELF files and their object dependencies.
 # It would be nice to compute these lists, but that seems to be just beyond make.
 
 $(TARGET_HEX): $(TARGET_ELF)
-	$(OBJCOPY) -O ihex $< $@
+	$(OBJCOPY) -O ihex --set-start 0x8000000 $< $@
 
 $(TARGET_ELF):  $(TARGET_OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
@@ -193,7 +207,7 @@ $(OBJECT_DIR)/$(TARGET)/%.o): %.S
 	@$(CC) -c -o $@ $(ASFLAGS) $< 
 
 clean:
-	rm -f $(TARGET_HEX) $(TARGET_ELF) $(TARGET_OBJS)
+	rm -f $(TARGET_HEX) $(TARGET_ELF) $(TARGET_OBJS) $(TARGET_MAP)
 
 flash_$(TARGET): $(TARGET_HEX)
 	stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
