@@ -160,12 +160,10 @@ int main(void)
         // gpsInit will return if FEATURE_GPS is not enabled.
         gpsInit(mcfg.gps_baudrate);
     }
+
 #ifdef SONAR
-    // sonar stuff only works with PPM
-    if (feature(FEATURE_PPM)) {
-        if (feature(FEATURE_SONAR))
-            Sonar_init();
-    }
+    if (feature(FEATURE_SONAR))
+        Sonar_init(mcfg.sonar_type);
 #endif
 
     if (feature(FEATURE_SOFTSERIAL)) {

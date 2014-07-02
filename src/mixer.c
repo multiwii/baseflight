@@ -5,7 +5,6 @@
 #include "board.h"
 #include "mw.h"
 
-static uint8_t numberMotor = 0;
 int16_t motor[MAX_MOTORS];
 int16_t motor_disarmed[MAX_MOTORS];
 int16_t servo[MAX_SERVOS] = { 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500 };
@@ -194,21 +193,21 @@ void mixerInit(void)
             if (mcfg.customMixer[i].throttle == 0.0f)
                 break;
             currentMixer[i] = mcfg.customMixer[i];
-            numberMotor++;
+            core.numberMotor++;
         }
     } else {
-        numberMotor = mixers[mcfg.mixerConfiguration].numberMotor;
+        core.numberMotor = mixers[mcfg.mixerConfiguration].numberMotor;
         // copy motor-based mixers
         if (mixers[mcfg.mixerConfiguration].motor) {
-            for (i = 0; i < numberMotor; i++)
+            for (i = 0; i < core.numberMotor; i++)
                 currentMixer[i] = mixers[mcfg.mixerConfiguration].motor[i];
         }
     }
 
     // in 3D mode, mixer gain has to be halved
     if (feature(FEATURE_3D)) {
-        if (numberMotor > 1) {
-            for (i = 0; i < numberMotor; i++) {
+        if (core.numberMotor > 1) {
+            for (i = 0; i < core.numberMotor; i++) {
                 currentMixer[i].pitch *= 0.5f;
                 currentMixer[i].roll *= 0.5f;
                 currentMixer[i].yaw *= 0.5f;
@@ -312,7 +311,7 @@ void writeMotors(void)
 {
     uint8_t i;
 
-    for (i = 0; i < numberMotor; i++)
+    for (i = 0; i < core.numberMotor; i++)
         pwmWriteMotor(i, motor[i]);
 }
 
@@ -321,7 +320,7 @@ void writeAllMotors(int16_t mc)
     uint8_t i;
 
     // Sends commands to all motors
-    for (i = 0; i < numberMotor; i++)
+    for (i = 0; i < core.numberMotor; i++)
         motor[i] = mc;
     writeMotors();
 }
@@ -384,14 +383,14 @@ void mixTable(void)
     int16_t maxMotor;
     uint32_t i;
 
-    if (numberMotor > 3) {
+    if (core.numberMotor > 3) {
         // prevent "yaw jump" during yaw correction
         axisPID[YAW] = constrain(axisPID[YAW], -100 - abs(rcCommand[YAW]), +100 + abs(rcCommand[YAW]));
     }
 
     // motors for non-servo mixes
-    if (numberMotor > 1)
-        for (i = 0; i < numberMotor; i++)
+    if (core.numberMotor > 1)
+        for (i = 0; i < core.numberMotor; i++)
             motor[i] = rcCommand[THROTTLE] * currentMixer[i].throttle + axisPID[PITCH] * currentMixer[i].pitch + axisPID[ROLL] * currentMixer[i].roll + -cfg.yaw_direction * axisPID[YAW] * currentMixer[i].yaw;
 
     // airplane / servo mixes
@@ -481,10 +480,10 @@ void mixTable(void)
     }
 
     maxMotor = motor[0];
-    for (i = 1; i < numberMotor; i++)
+    for (i = 1; i < core.numberMotor; i++)
         if (motor[i] > maxMotor)
             maxMotor = motor[i];
-    for (i = 0; i < numberMotor; i++) {
+    for (i = 0; i < core.numberMotor; i++) {
         if (maxMotor > mcfg.maxthrottle)     // this is a way to still have good gyro corrections if at least one motor reaches its max.
             motor[i] -= maxMotor - mcfg.maxthrottle;
         if (feature(FEATURE_3D)) {

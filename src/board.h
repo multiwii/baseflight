@@ -100,6 +100,12 @@ typedef enum {
 } GPSHardware;
 
 typedef enum {
+    SONAR_HCSR04_PWM56 = 0,
+    SONAR_HCSR04_RC78,
+    SONAR_HARDWARE_MAX = SONAR_HCSR04_RC78,
+} SonarHardware;
+
+typedef enum {
     GPS_BAUD_115200 = 0,
     GPS_BAUD_57600,
     GPS_BAUD_38400,

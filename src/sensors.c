@@ -444,9 +444,22 @@ int Mag_getADC(void)
 
 #ifdef SONAR
 
-void Sonar_init(void)
+void Sonar_init(SonarHardware config)
 {
-    hcsr04_init(sonar_rc78);
+    switch (config) {
+        case SONAR_HCSR04_PWM56:
+            // this dont work with pwm rx
+            if (!feature(FEATURE_SERIALRX))
+                return;
+            break;
+        case SONAR_HCSR04_RC78:
+            // this dont work if motor 5 and 6 are pwm out
+            if ((core.numberMotor + core.numServos) > 4)
+                return;
+            break;
+    }
+
+    hcsr04_init(config);
     sensorsSet(SENSOR_SONAR);
     sonarAlt = 0;
 }

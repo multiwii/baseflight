@@ -282,6 +282,8 @@ typedef struct master_t {
 
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.
 
+    uint8_t sonar_type;
+
     // gps-related stuff
     uint8_t gps_type;                       // See GPSHardware enum.
     int8_t gps_baudrate;                    // See GPSBaudRates enum.
@@ -313,6 +315,7 @@ typedef struct core_t {
     uint8_t numRCChannels;                  // number of rc channels as reported by current input driver
     bool useServo;                          // feature SERVO_TILT or wing/airplane mixers will enable this
     uint8_t numServos;                      // how many total hardware servos we have. used by mixer
+    uint8_t numberMotor;
 } core_t;
 
 typedef struct flags_t {
@@ -432,7 +435,7 @@ int Baro_update(void);
 void Gyro_getADC(void);
 void Mag_init(void);
 int Mag_getADC(void);
-void Sonar_init(void);
+void Sonar_init(SonarHardware config);
 void Sonar_update(void);
 
 // Output
