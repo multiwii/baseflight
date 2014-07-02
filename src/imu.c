@@ -267,6 +267,8 @@ static void getEstimatedAttitude(void)
         rotateV(&EstM.V, deltaGyroAngle);
     } else {
         rotateV(&EstN.V, deltaGyroAngle);
+        if(EstG.A[Z] > (smallAngle*2))
+            EstN.V.Z = 0;
         normalizeV(&EstN.V, &EstN.V);
     }
 
