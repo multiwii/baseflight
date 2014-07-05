@@ -167,6 +167,11 @@ typedef void (*baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature);  
 typedef void (*serialReceiveCallbackPtr)(uint16_t data);   // used by serial drivers to return frames to app
 typedef uint16_t (*rcReadRawDataPtr)(uint8_t chan);        // used by receiver driver to return channel data
 typedef void (*pidControllerFuncPtr)(void);                // pid controller function prototype
+typedef void (*sonarReadFuncPtr)(volatile int32_t *distance);       // sonar read
+
+typedef struct sonar_t {
+    sonarReadFuncPtr read;                                 // read function
+} sonar_t;
 
 typedef struct sensor_t {
     sensorInitFuncPtr init;                                 // initialize function

@@ -18,6 +18,7 @@ extern float magneticDeclination;
 sensor_t acc;                       // acc access functions
 sensor_t gyro;                      // gyro access functions
 baro_t baro;                        // barometer access functions
+sonar_t sonar;                      // sonar access functions
 uint8_t accHardware = ACC_DEFAULT;  // which accel chip is used/detected
 
 bool sensorsAutodetect(void)
@@ -122,6 +123,23 @@ retry:
     else
         magneticDeclination = 0.0f;
 
+#ifdef SONAR
+    if (feature(FEATURE_SONAR)) {
+        switch (mcfg.sonar_type) {
+            case SONAR_HCSR04_PWM56:
+            case SONAR_HCSR04_RC78:
+                if (hcsr04_init(mcfg.sonar_type)) {
+                    sonar.read = hcsr04_get_distance;
+                    sensorsSet(SENSOR_SONAR);
+                }
+                break;
+            default:
+                // other sonar and i2c detection goes there
+                break;
+        }
+    }
+#endif
+
     return true;
 }
 
@@ -136,10 +154,10 @@ uint16_t batteryAdcToVoltage(uint16_t src)
 int32_t currentSensorToCentiamps(uint16_t src)
 {
     int32_t millivolts;
-    
+
     millivolts = ((uint32_t)src * ADCVREF * 100) / 4095;
     millivolts -= mcfg.currentoffset;
-    
+
     return (millivolts * 1000) / (int32_t)mcfg.currentscale; // current in 0.01A steps 
 }
 
@@ -444,29 +462,9 @@ int Mag_getADC(void)
 
 #ifdef SONAR
 
-void Sonar_init(SonarHardware config)
-{
-    switch (config) {
-        case SONAR_HCSR04_PWM56:
-            // this dont work with pwm rx
-            if (!feature(FEATURE_SERIALRX))
-                return;
-            break;
-        case SONAR_HCSR04_RC78:
-            // this dont work if motor 5 and 6 are pwm out
-            if ((core.numberMotor + core.numServos) > 4)
-                return;
-            break;
-    }
-
-    hcsr04_init(config);
-    sensorsSet(SENSOR_SONAR);
-    sonarAlt = 0;
-}
-
 void Sonar_update(void)
 {
-    hcsr04_get_distance(&sonarAlt);
+    sonar.read(&sonarAlt);
 }
 
 #endif

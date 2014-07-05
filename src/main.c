@@ -161,11 +161,6 @@ int main(void)
         gpsInit(mcfg.gps_baudrate);
     }
 
-#ifdef SONAR
-    if (feature(FEATURE_SONAR))
-        Sonar_init(mcfg.sonar_type);
-#endif
-
     if (feature(FEATURE_SOFTSERIAL)) {
         //mcfg.softserial_baudrate = 19200; // Uncomment to override config value
 

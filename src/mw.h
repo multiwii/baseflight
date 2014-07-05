@@ -413,6 +413,7 @@ extern flags_t f;
 extern sensor_t acc;
 extern sensor_t gyro;
 extern baro_t baro;
+extern sonar_t sonar;
 
 // main
 void setPIDController(int type);
@@ -435,7 +436,6 @@ int Baro_update(void);
 void Gyro_getADC(void);
 void Mag_init(void);
 int Mag_getADC(void);
-void Sonar_init(SonarHardware config);
 void Sonar_update(void);
 
 // Output
