@@ -56,7 +56,7 @@ void EXTI9_5_IRQHandler(void)
     ECHO_EXTI_IRQHandler();
 }
 
-void hcsr04_init(sonar_config_t config)
+bool hcsr04_init(SonarHardware config)
 {
     gpio_config_t gpio;
     EXTI_InitTypeDef EXTIInit;
@@ -65,14 +65,20 @@ void hcsr04_init(sonar_config_t config)
     // RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph, ENABLE);
 
     switch (config) {
-        case sonar_pwm56:
+        case SONAR_HCSR04_PWM56:
+            // this dont work with pwm rx
+            if (!feature(FEATURE_SERIALRX))
+                return false;
             trigger_pin = Pin_8;   // PWM5 (PB8) - 5v tolerant
             echo_pin = Pin_9;      // PWM6 (PB9) - 5v tolerant
             exti_line = EXTI_Line9;
             exti_pin_source = GPIO_PinSource9;
             exti_irqn = EXTI9_5_IRQn;
             break;
-        case sonar_rc78:
+        case SONAR_HCSR04_RC78:
+            // this dont work if motor 5 and 6 are pwm out
+            if ((core.numberMotor + core.numServos) > 4)
+                return false;
             trigger_pin = Pin_0;   // RX7 (PB0) - only 3.3v ( add a 1K Ohms resistor )
             echo_pin = Pin_1;      // RX8 (PB1) - only 3.3v ( add a 1K Ohms resistor )
             exti_line = EXTI_Line1;
@@ -106,6 +112,7 @@ void hcsr04_init(sonar_config_t config)
     NVIC_EnableIRQ(exti_irqn);
 
     last_measurement = millis() - 60; // force 1st measurement in hcsr04_get_distance()
+    return true;
 }
 
 // distance calculation is done asynchronously, using interrupt

@@ -101,6 +101,12 @@ typedef enum {
 } GPSHardware;
 
 typedef enum {
+    SONAR_HCSR04_PWM56 = 0,
+    SONAR_HCSR04_RC78,
+    SONAR_HARDWARE_MAX = SONAR_HCSR04_RC78,
+} SonarHardware;
+
+typedef enum {
     GPS_BAUD_115200 = 0,
     GPS_BAUD_57600,
     GPS_BAUD_38400,
@@ -162,6 +168,11 @@ typedef void (*baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature);  
 typedef void (*serialReceiveCallbackPtr)(uint16_t data);   // used by serial drivers to return frames to app
 typedef uint16_t (*rcReadRawDataPtr)(uint8_t chan);        // used by receiver driver to return channel data
 typedef void (*pidControllerFuncPtr)(void);                // pid controller function prototype
+typedef void (*sonarReadFuncPtr)(volatile int32_t *distance);       // sonar read
+
+typedef struct sonar_t {
+    sonarReadFuncPtr read;                                 // read function
+} sonar_t;
 
 typedef struct sensor_t {
     sensorInitFuncPtr init;                                 // initialize function
