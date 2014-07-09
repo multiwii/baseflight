@@ -289,7 +289,7 @@ typedef struct baro_t {
 
 #define GYRO
 #define ACC
-#define MAG
+//#define MAG
 #define MOTOR_PWM_RATE 16000
 
 #define SENSORS_SET (SENSOR_ACC | SENSOR_MAG)

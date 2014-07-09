@@ -159,6 +159,7 @@ void annexCode(void)
         rcCommand[PITCH] = rcCommand_PITCH;
     }
 
+#ifndef CJMCU
     if (feature(FEATURE_VBAT)) {
         vbatCycleTime += cycleTime;
         if (!(++vbatTimer % VBATFREQ)) {
@@ -181,6 +182,7 @@ void annexCode(void)
         } else
             buzzerFreq = 4;     // low battery
     }
+#endif
 
     buzzer(buzzerFreq);         // external buzzer routine that handles buzzer events globally now
 
