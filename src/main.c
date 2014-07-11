@@ -59,11 +59,12 @@ int main(void)
         adc_params.powerAdcChannel = 0;
         mcfg.power_adc_channel = 0;
     }
-
+#ifndef CJMCU
     adcInit(&adc_params);
     // Check battery type/voltage
     if (feature(FEATURE_VBAT))
         batteryInit();
+#endif
     initBoardAlignment();
 
     // We have these sensors; SENSORS_SET defined in board.h depending on hardware platform
