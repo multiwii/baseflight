@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 
 /*
@@ -51,7 +55,7 @@ enum {
     TYPE_S = 0x80
 };
 
-typedef void (* pwmWriteFuncPtr)(uint8_t index, uint16_t value);  // function pointer used to write motors
+typedef void (*pwmWriteFuncPtr)(uint8_t index, uint16_t value);  // function pointer used to write motors
 
 static pwmPortData_t pwmPorts[MAX_PORTS];
 static uint16_t captures[MAX_INPUTS];
@@ -60,11 +64,21 @@ static pwmPortData_t *servos[MAX_SERVOS];
 static pwmWriteFuncPtr pwmWritePtr = NULL;
 static uint8_t numMotors = 0;
 static uint8_t numServos = 0;
-static uint8_t  numInputs = 0;
+static uint8_t numInputs = 0;
 static uint16_t failsafeThreshold = 985;
 // external vars (ugh)
 extern int16_t failsafeCnt;
 
+#ifdef CJMCU
+static const uint8_t multiPPM[] = {
+    PWM1 | TYPE_IP,     // PPM input
+    PWM2 | TYPE_M,
+    PWM3 | TYPE_M,
+    PWM4 | TYPE_M,
+    PWM5 | TYPE_M,
+    0xFF
+};
+#else
 static const uint8_t multiPPM[] = {
     PWM1 | TYPE_IP,     // PPM input
     PWM9 | TYPE_M,      // Swap to servo if needed
@@ -79,6 +93,7 @@ static const uint8_t multiPPM[] = {
     PWM8 | TYPE_M,      // Swap to servo if needed
     0xFF
 };
+#endif
 
 static const uint8_t multiPWM[] = {
     PWM1 | TYPE_IW,     // input #1
@@ -143,7 +158,7 @@ static const uint8_t * const hardwareMaps[] = {
 
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 {
-    TIM_OCInitTypeDef  TIM_OCInitStructure;
+    TIM_OCInitTypeDef TIM_OCInitStructure;
 
     TIM_OCStructInit(&TIM_OCInitStructure);
     TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2;
@@ -175,14 +190,14 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 
 void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity)
 {
-    TIM_ICInitTypeDef  TIM_ICInitStructure;
+    TIM_ICInitTypeDef TIM_ICInitStructure;
 
     TIM_ICStructInit(&TIM_ICInitStructure);
     TIM_ICInitStructure.TIM_Channel = channel;
     TIM_ICInitStructure.TIM_ICPolarity = polarity;
     TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
     TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-    TIM_ICInitStructure.TIM_ICFilter = 0x0;
+    TIM_ICInitStructure.TIM_ICFilter = 0x00;
 
     TIM_ICInit(tim, &TIM_ICInitStructure);
 }
@@ -242,13 +257,27 @@ static pwmPortData_t *pwmInConfig(uint8_t port, timerCCCallbackPtr callback, uin
     return p;
 }
 
+static void failsafeCheck(uint8_t channel, uint16_t pulse)
+{
+    static uint8_t goodPulses;
+
+    if (channel < 4 && pulse > failsafeThreshold)
+        goodPulses |= (1 << channel);       // if signal is valid - mark channel as OK
+    if (goodPulses == 0x0F) {               // If first four chanells have good pulses, clear FailSafe counter
+        goodPulses = 0;
+        if (failsafeCnt > 20)
+            failsafeCnt -= 20;
+        else
+            failsafeCnt = 0;
+    }
+}
+
 static void ppmCallback(uint8_t port, uint16_t capture)
 {
     uint16_t diff;
     static uint16_t now;
     static uint16_t last = 0;
     static uint8_t chan = 0;
-    static uint8_t GoodPulses;
 
     last = now;
     now = capture;
@@ -257,20 +286,11 @@ static void ppmCallback(uint8_t port, uint16_t capture)
     if (diff > 2700) { // Per http://www.rcgroups.com/forums/showpost.php?p=21996147&postcount=3960 "So, if you use 2.5ms or higher as being the reset for the PPM stream start, you will be fine. I use 2.7ms just to be safe."
         chan = 0;
     } else {
-        if (diff > 750 && diff < 2250 && chan < MAX_INPUTS) {   // 750 to 2250 ms is our 'valid' channel range
+        if (diff > PULSE_MIN && diff < PULSE_MAX && chan < MAX_INPUTS) {   // 750 to 2250 ms is our 'valid' channel range
             captures[chan] = diff;
-            if (chan < 4 && diff > failsafeThreshold)
-                GoodPulses |= (1 << chan);      // if signal is valid - mark channel as OK
-            if (GoodPulses == 0x0F) {           // If first four chanells have good pulses, clear FailSafe counter
-                GoodPulses = 0;
-                if (failsafeCnt > 20)
-                    failsafeCnt -= 20;
-                else
-                    failsafeCnt = 0;
-            }
+            failsafeCheck(chan, diff);
         }
         chan++;
-        failsafeCnt = 0;
     }
 }
 
@@ -284,12 +304,13 @@ static void pwmCallback(uint8_t port, uint16_t capture)
         pwmPorts[port].fall = capture;
         // compute capture
         pwmPorts[port].capture = pwmPorts[port].fall - pwmPorts[port].rise;
-        captures[pwmPorts[port].channel] = pwmPorts[port].capture;
+        if (pwmPorts[port].capture > PULSE_MIN && pwmPorts[port].capture < PULSE_MAX) { // valid pulse width
+            captures[pwmPorts[port].channel] = pwmPorts[port].capture;
+            failsafeCheck(pwmPorts[port].channel, pwmPorts[port].capture);
+        }
         // switch state
         pwmPorts[port].state = 0;
         pwmICConfig(timerHardware[port].tim, timerHardware[port].channel, TIM_ICPolarity_Rising);
-        // reset failsafe
-        failsafeCnt = 0;
     }
 }
 
@@ -355,7 +376,8 @@ bool pwmInit(drv_pwm_config_t *init)
         }
 
         if (init->extraServos && !init->airplane) {
-            // remap PWM5..8 as servos when used in extended servo mode
+            // remap PWM5..8 as servos when used in extended servo mode. 
+            // condition for airplane because airPPM already has these as servos
             if (port >= PWM5 && port <= PWM8)
                 mask = TYPE_S;
         }
@@ -384,6 +406,10 @@ bool pwmInit(drv_pwm_config_t *init)
     pwmWritePtr = pwmWriteStandard;
     if (init->motorPwmRate > 500)
         pwmWritePtr = pwmWriteBrushed;
+
+    // set return values in init struct
+    init->numServos = numServos;
+
     return false;
 }
 

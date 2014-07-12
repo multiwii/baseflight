@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 
 /* FreeFlight/Naze32 timer layout
@@ -40,6 +45,15 @@
     TIM4 4 channels
 */
 
+#ifdef CJMCU
+const timerHardware_t timerHardware[] = {
+    { TIM2, GPIOA, Pin_0, TIM_Channel_1, TIM2_IRQn, 0, },          // PWM1
+    { TIM3, GPIOB, Pin_0, TIM_Channel_3, TIM3_IRQn, 0, },          // PWM2
+    { TIM4, GPIOB, Pin_9, TIM_Channel_4, TIM4_IRQn, 0, },          // PWM3
+    { TIM3, GPIOB, Pin_1, TIM_Channel_4, TIM3_IRQn, 0, },          // PWM4
+    { TIM4, GPIOB, Pin_8, TIM_Channel_3, TIM4_IRQn, 0, },          // PWM5
+};
+#else
 const timerHardware_t timerHardware[] = {
     { TIM2, GPIOA, Pin_0, TIM_Channel_1, TIM2_IRQn, 0, },          // PWM1
     { TIM2, GPIOA, Pin_1, TIM_Channel_2, TIM2_IRQn, 0, },          // PWM2
@@ -56,6 +70,7 @@ const timerHardware_t timerHardware[] = {
     { TIM4, GPIOB, Pin_8, TIM_Channel_3, TIM4_IRQn, 0, },          // PWM13
     { TIM4, GPIOB, Pin_9, TIM_Channel_4, TIM4_IRQn, 0, },          // PWM14
 };
+#endif
 
 #define MAX_TIMERS 4 // TIM1..TIM4
 #define CC_CHANNELS_PER_TIMER 4 // TIM_Channel_1..4
@@ -139,7 +154,7 @@ void timerNVICConfigure(uint8_t irq)
     NVIC_InitTypeDef NVIC_InitStructure;
 
     NVIC_InitStructure.NVIC_IRQChannel = irq;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
@@ -147,7 +162,7 @@ void timerNVICConfigure(uint8_t irq)
 
 void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint8_t mhz)
 {
-    TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 
     TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
     TIM_TimeBaseStructure.TIM_Period = period - 1; // AKA TIMx_ARR

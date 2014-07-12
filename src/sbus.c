@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
@@ -22,14 +27,15 @@ void sbusInit(rcReadRawDataPtr *callback)
     int b;
     for (b = 0; b < SBUS_MAX_CHANNEL; b++)
         sbusChannelData[b] = 2 * (mcfg.midrc - SBUS_OFFSET);
+    // Configure hardware inverter on PB2. If not available, this has no effect.
+    INV_ON;
     core.rcvrport = uartOpen(USART2, sbusDataReceive, 100000, (portMode_t)(MODE_RX | MODE_SBUS));
     if (callback)
         *callback = sbusReadRawRC;
     core.numRCChannels = SBUS_MAX_CHANNEL;
 }
 
-struct sbus_dat
-{
+struct sbus_dat {
     unsigned int chan0 : 11;
     unsigned int chan1 : 11;
     unsigned int chan2 : 11;
@@ -44,8 +50,7 @@ struct sbus_dat
     unsigned int chan11 : 11;
 } __attribute__ ((__packed__));
 
-typedef union
-{
+typedef union {
     uint8_t in[SBUS_FRAME_SIZE];
     struct sbus_dat msg;
 } sbus_msg;
@@ -57,7 +62,7 @@ static void sbusDataReceive(uint16_t c)
 {
     uint32_t sbusTime;
     static uint32_t sbusTimeLast;
-    static uint8_t  sbusFramePosition;
+    static uint8_t sbusFramePosition;
 
     sbusTime = micros();
     if ((sbusTime - sbusTimeLast) > 2500) // sbus2 fast timing
@@ -81,24 +86,25 @@ static void sbusDataReceive(uint16_t c)
 
 bool sbusFrameComplete(void)
 {
-    if (sbusFrameDone) {
-        if (!((sbus.in[22] >> 3) & 0x0001)) { // failsave flag
-            failsafeCnt = 0; // clear FailSafe counter
-            sbusChannelData[0] = sbus.msg.chan0;
-            sbusChannelData[1] = sbus.msg.chan1;
-            sbusChannelData[2] = sbus.msg.chan2;
-            sbusChannelData[3] = sbus.msg.chan3;
-            sbusChannelData[4] = sbus.msg.chan4;
-            sbusChannelData[5] = sbus.msg.chan5;
-            sbusChannelData[6] = sbus.msg.chan6;
-            sbusChannelData[7] = sbus.msg.chan7;
-            // need more channels? No problem. Add them.
-            sbusFrameDone = false;
-            return true;
-        }
-        sbusFrameDone = false;
+    if (!sbusFrameDone) {
+        return false;
     }
-    return false;
+    sbusFrameDone = false;
+    if (feature(FEATURE_FAILSAFE) && ((sbus.in[22] >> 3) & 0x0001)) {
+        // internal failsafe enabled and rx failsafe flag set
+        return false;
+    }
+    failsafeCnt = 0; // clear FailSafe counter
+    sbusChannelData[0] = sbus.msg.chan0;
+    sbusChannelData[1] = sbus.msg.chan1;
+    sbusChannelData[2] = sbus.msg.chan2;
+    sbusChannelData[3] = sbus.msg.chan3;
+    sbusChannelData[4] = sbus.msg.chan4;
+    sbusChannelData[5] = sbus.msg.chan5;
+    sbusChannelData[6] = sbus.msg.chan6;
+    sbusChannelData[7] = sbus.msg.chan7;
+    // need more channels? No problem. Add them.
+    return true;
 }
 
 static uint16_t sbusReadRawRC(uint8_t chan)

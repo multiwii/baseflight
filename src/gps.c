@@ -1,7 +1,13 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
 extern void fw_nav_reset();
+#ifdef GPS
 
 #ifndef sq
 #define sq(x) ((x)*(x))
@@ -41,7 +47,7 @@ static const uint8_t ubloxInit[] = {
     0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x03, 0x01, 0x0F, 0x49,           // set STATUS MSG rate
     0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x06, 0x01, 0x12, 0x4F,           // set SOL MSG rate
     0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x12, 0x01, 0x1E, 0x67,           // set VELNED MSG rate
-    0xB5, 0x62, 0x06, 0x16, 0x08, 0x00, 0x03, 0x07, 0x03, 0x00, 0x51, 0x08, 0x00, 0x00, 0x8A, 0x41, // set WAAS to EGNOS
+    0xB5, 0x62, 0x06, 0x16, 0x08, 0x00, 0x03, 0x07, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x31, 0xE5, // set SBAS to auto-detect
     0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A,             // set rate to 5Hz
 };
 
@@ -59,10 +65,10 @@ typedef struct gpsData_t {
     int errors;                     // gps error counter - crc error/lost of data/sync etc. reset on each reinit.
     uint32_t lastMessage;           // last time valid GPS data was received (millis)
     uint32_t lastLastMessage;       // last-last valid GPS message. Used to calculate delta.
-    
+
     uint32_t state_position;           // incremental variable for loops
     uint32_t state_ts;                    // timestamp for last state_position increment
-    
+
 } gpsData_t;
 
 gpsData_t gpsData;
@@ -101,7 +107,7 @@ void gpsInit(uint8_t baudrateIndex)
     gpsSetState(GPS_INITIALIZING);
 }
 
-void gpsInitHardware(void)
+static void gpsInitHardware(void)
 {
     switch (mcfg.gps_type) {
         case GPS_NMEA:
@@ -432,7 +438,7 @@ static void gpsNewData(uint16_t c)
 #endif
             // dTnav calculation
             // Time for calculating x,y speed and navigation pids
-            dTnav = (float) (millis() - nav_loopTimer) / 1000.0f;
+            dTnav = (float)(millis() - nav_loopTimer) / 1000.0f;
             nav_loopTimer = millis();
             // prevent runup from bad GPS
             dTnav = min(dTnav, 1.0f);
@@ -622,7 +628,7 @@ static bool check_missed_wp(void)
 static void GPS_distance_cm_bearing(int32_t * lat1, int32_t * lon1, int32_t * lat2, int32_t * lon2, uint32_t * dist, int32_t * bearing)
 {
     float dLat = *lat2 - *lat1; // difference of latitude in 1/10 000 000 degrees
-    float dLon = (float) (*lon2 - *lon1) * GPS_scaleLonDown;
+    float dLon = (float)(*lon2 - *lon1) * GPS_scaleLonDown;
     *dist = sqrtf(sq(dLat) + sq(dLon)) * 1.113195f;
 
     *bearing = 9000.0f + atan2f(-dLat, dLon) * 5729.57795f;      // Convert the output radians to 100xdeg
@@ -654,8 +660,8 @@ static void GPS_calc_velocity(void)
 
     if (init) {
         float tmp = 1.0f / dTnav;
-        actual_speed[GPS_X] = (float) (GPS_coord[LON] - last[LON]) * GPS_scaleLonDown * tmp;
-        actual_speed[GPS_Y] = (float) (GPS_coord[LAT] - last[LAT]) * tmp;
+        actual_speed[GPS_X] = (float)(GPS_coord[LON] - last[LON]) * GPS_scaleLonDown * tmp;
+        actual_speed[GPS_Y] = (float)(GPS_coord[LAT] - last[LAT]) * tmp;
 
         actual_speed[GPS_X] = (actual_speed[GPS_X] + speed_old[GPS_X]) / 2;
         actual_speed[GPS_Y] = (actual_speed[GPS_Y] + speed_old[GPS_Y]) / 2;
@@ -680,7 +686,7 @@ static void GPS_calc_velocity(void)
 //
 static void GPS_calc_location_error(int32_t *target_lat, int32_t *target_lng, int32_t *gps_lat, int32_t *gps_lng)
 {
-    error[LON] = (float) (*target_lng - *gps_lng) * GPS_scaleLonDown;   // X Error
+    error[LON] = (float)(*target_lng - *gps_lng) * GPS_scaleLonDown;   // X Error
     error[LAT] = *target_lat - *gps_lat;        // Y Error
 }
 
@@ -708,7 +714,7 @@ static void GPS_calc_poshold(void)
             d = 0;
 #endif
 
-        nav[axis] +=d;
+        nav[axis] += d;
         nav[axis] = constrain(nav[axis], -NAV_BANK_MAX, NAV_BANK_MAX);
         navPID[axis].integrator = poshold_ratePID[axis].integrator;
     }
@@ -784,7 +790,7 @@ static int16_t GPS_calc_desired_speed(int16_t max_speed, bool _slow)
     // limit the ramp up of the speed
     // waypoint_speed_gov is reset to 0 at each new WP command
     if (max_speed > waypoint_speed_gov) {
-        waypoint_speed_gov += (int) (100.0f * dTnav);    // increase at .5/ms
+        waypoint_speed_gov += (int)(100.0f * dTnav);    // increase at .5/ms
         max_speed = waypoint_speed_gov;
     }
     return max_speed;
@@ -908,7 +914,7 @@ static uint32_t grab_fields(char *src, uint8_t mult)
         tmp *= 10;
         if (src[i] >= '0' && src[i] <= '9')
             tmp += src[i] - '0';
-        if (i >= 15) 
+        if (i >= 15)
             return 0; // out of bounds
     }
     return tmp;
@@ -1066,8 +1072,7 @@ typedef struct {
     uint32_t heading_accuracy;
 } ubx_nav_velned;
 
-typedef struct
-{
+typedef struct {
     uint8_t chn;                // Channel number, 255 for SVx not assigned to channel
     uint8_t svid;               // Satellite ID
     uint8_t flags;              // Bitmask
@@ -1078,8 +1083,7 @@ typedef struct
     int32_t prRes;              // Pseudo range residual in centimetres
 } ubx_nav_svinfo_channel;
 
-typedef struct
-{
+typedef struct {
     uint32_t time;              // GPS Millisecond time of week
     uint8_t numCh;              // Number of channels
     uint8_t globalFlags;        // Bitmask, Chip hardware generation 0:Antaris, 1:u-blox 5, 2:u-blox 6
@@ -1190,7 +1194,7 @@ static bool gpsNewFrameUBLOX(uint8_t data)
         case 5:
             _step++;
             _ck_b += (_ck_a += data);       // checksum byte
-            _payload_length += (uint16_t) (data << 8);
+            _payload_length += (uint16_t)(data << 8);
             if (_payload_length > 512) {
                 _payload_length = 0;
                 _step = 0;
@@ -1273,3 +1277,17 @@ static bool UBLOX_parse_gps(void)
     }
     return false;
 }
+
+#else
+
+void gpsInit(uint8_t baudrateIndex)
+{
+    
+}
+
+void gpsThread(void)
+{
+    
+}
+
+#endif /* GPS */

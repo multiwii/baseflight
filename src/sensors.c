@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
@@ -20,30 +25,28 @@ sensor_t gyro;                      // gyro access functions
 baro_t baro;                        // barometer access functions
 uint8_t accHardware = ACC_DEFAULT;  // which accel chip is used/detected
 
-#ifdef FY90Q
-// FY90Q analog gyro/acc
-void sensorsAutodetect(void)
-{
-    adcSensorInit(&acc, &gyro);
-}
-#else
-// AfroFlight32 i2c sensors
-void sensorsAutodetect(void)
+bool sensorsAutodetect(void)
 {
     int16_t deg, min;
+#ifndef CJMCU
     drv_adxl345_config_t acc_params;
+#endif
     bool haveMpu6k = false;
 
     // Autodetect gyro hardware. We have MPU3050 or MPU6050.
     if (mpu6050Detect(&acc, &gyro, mcfg.gyro_lpf, &core.mpu6050_scale)) {
         // this filled up  acc.* struct with init values
         haveMpu6k = true;
-    } else if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
+    } else
+#ifndef CJMCU
+        if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
         // well, we found our gyro
         ;
-    } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf)) {
+    } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf))
+#endif
+    {
         // if this fails, we get a beep + blink pattern. we're doomed, no gyro or i2c error.
-        failureMode(3);
+        return false;
     }
 
     // Accelerometer. Fuck it. Let user break shit.
@@ -53,6 +56,7 @@ retry:
             sensorsClear(SENSOR_ACC);
             break;
         case ACC_DEFAULT: // autodetect
+#ifndef CJMCU
         case ACC_ADXL345: // ADXL345
             acc_params.useFifo = false;
             acc_params.dataRate = 800; // unused currently
@@ -61,6 +65,7 @@ retry:
             if (mcfg.acc_hardware == ACC_ADXL345)
                 break;
             ; // fallthrough
+#endif
         case ACC_MPU6050: // MPU6050
             if (haveMpu6k) {
                 mpu6050Detect(&acc, &gyro, mcfg.gyro_lpf, &core.mpu6050_scale); // yes, i'm rerunning it again.  re-fill acc struct
@@ -69,7 +74,7 @@ retry:
                     break;
             }
             ; // fallthrough
-#ifndef OLIMEXINO
+#ifdef NAZE
         case ACC_MMA8452: // MMA8452
             if (mma8452Detect(&acc)) {
                 accHardware = ACC_MMA8452;
@@ -100,9 +105,11 @@ retry:
 
 #ifdef BARO
     // Detect what pressure sensors are available. baro->update() is set to sensor-specific update function
-    if (!ms5611Detect(&baro)) {
-        // ms5611 disables BMP085, and tries to initialize + check PROM crc. if this works, we have a baro
-        if (!bmp085Detect(&baro)) {
+    if (!bmp085Detect(&baro)) {
+        // ms5611 disables BMP085, and tries to initialize + check PROM crc. 
+        // moved 5611 init here because there have been some reports that calibration data in BMP180
+        // has been "passing" ms5611 PROM crc check
+        if (!ms5611Detect(&baro)) {
             // if both failed, we don't have anything
             sensorsClear(SENSOR_BARO);
         }
@@ -127,14 +134,26 @@ retry:
         magneticDeclination = (deg + ((float)min * (1.0f / 60.0f))) * 10; // heading is in 0.1deg units
     else
         magneticDeclination = 0.0f;
+
+    return true;
 }
-#endif
 
 uint16_t batteryAdcToVoltage(uint16_t src)
 {
     // calculate battery voltage based on ADC reading
     // result is Vbatt in 0.1V steps. 3.3V = ADC Vref, 4095 = 12bit adc, 110 = 11:1 voltage divider (10k:1k) * 10 for 0.1V
     return (((src) * 3.3f) / 4095) * mcfg.vbatscale;
+}
+
+#define ADCVREF 33L
+int32_t currentSensorToCentiamps(uint16_t src)
+{
+    int32_t millivolts;
+    
+    millivolts = ((uint32_t)src * ADCVREF * 100) / 4095;
+    millivolts -= mcfg.currentoffset;
+    
+    return (millivolts * 1000) / (int32_t)mcfg.currentscale; // current in 0.01A steps 
 }
 
 void batteryInit(void)
@@ -150,8 +169,8 @@ void batteryInit(void)
 
     voltage = batteryAdcToVoltage((uint16_t)(voltage / 32));
 
-    // autodetect cell count, going from 2S..6S
-    for (i = 2; i < 6; i++) {
+    // autodetect cell count, going from 2S..8S
+    for (i = 1; i < 8; i++) {
         if (voltage < i * mcfg.vbatmaxcellvoltage)
             break;
     }

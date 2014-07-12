@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 
 // cycles per microsecond
@@ -10,7 +15,7 @@ void SetSysClock(bool overclock);
 void systemBeep(bool onoff);
 static void beepRev4(bool onoff);
 static void beepRev5(bool onoff);
-void (* systemBeepPtr)(bool onoff) = NULL;
+void (*systemBeepPtr)(bool onoff) = NULL;
 #endif
 
 static void cycleCounterInit(void)
@@ -68,6 +73,12 @@ void systemInit(bool overclock)
             .cfg = { BEEP_PIN, Mode_Out_OD, Speed_2MHz }
         },
 #endif
+#ifdef INVERTER
+        {
+            .gpio = INV_GPIO,
+            .cfg = { INV_PIN, Mode_Out_PP, Speed_2MHz }
+        },
+#endif
     };
     gpio_config_t gpio;
     uint32_t i;
@@ -76,9 +87,11 @@ void systemInit(bool overclock)
     // Configure the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers
     // Configure the Flash Latency cycles and enable prefetch buffer
     SetSysClock(overclock);
+    // Configure NVIC preempt/priority groups
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 
     // Turn on clocks for stuff we use
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4 | RCC_APB1Periph_I2C2, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_TIM1 | RCC_APB2Periph_ADC1 | RCC_APB2Periph_USART1, ENABLE);
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
     RCC_ClearFlag();
@@ -106,6 +119,7 @@ void systemInit(bool overclock)
     LED0_OFF;
     LED1_OFF;
 
+    // Hack - rev4 and below used opendrain to PNP for buzzer. Rev5 and above use PP to NPN.
     for (i = 0; i < gpio_count; i++) {
         if (hse_value == 12000000 && gpio_setup[i].cfg.mode == Mode_Out_OD)
             gpio_setup[i].cfg.mode = Mode_Out_PP;
@@ -119,10 +133,10 @@ void systemInit(bool overclock)
     SysTick_Config(SystemCoreClock / 1000);
 
     // Configure the rest of the stuff
-#ifndef FY90Q
-    i2cInit(I2C2);
-#endif
+    i2cInit(I2C_DEVICE);
+#ifndef CJMCU
     spiInit();
+#endif
 
     // sleep for 100ms
     delay(100);
@@ -170,8 +184,8 @@ void delay(uint32_t ms)
 
 void failureMode(uint8_t mode)
 {
-    LED1_ON;
-    LED0_OFF;
+    LED1_OFF;
+    LED0_ON;
     while (1) {
         LED1_TOGGLE;
         LED0_TOGGLE;

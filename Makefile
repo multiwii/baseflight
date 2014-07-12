@@ -14,7 +14,7 @@
 # Things that the user might override on the commandline
 #
 
-# The target to build, must be one of NAZE, FY90Q OR OLIMEXINO
+# The target to build, must be one of NAZE OR OLIMEXINO
 TARGET		?= NAZE
 
 # Compile-time options
@@ -30,7 +30,7 @@ SERIAL_DEVICE	?= /dev/ttyUSB0
 # Things that need to be maintained as the source changes
 #
 
-VALID_TARGETS	 = NAZE FY90Q OLIMEXINO
+VALID_TARGETS	 = NAZE OLIMEXINO CJMCU
 
 # Working directories
 ROOT		 = $(dir $(lastword $(MAKEFILE_LIST)))
@@ -45,31 +45,34 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   buzzer.c \
 		   cli.c \
 		   config.c \
-		   gps.c \
 		   imu.c \
 		   main.c \
 		   mixer.c \
 		   mw.c \
 		   sensors.c \
 		   serial.c \
-		   sbus.c \
-		   sumd.c \
-		   spektrum.c \
-		   telemetry_common.c \
-		   telemetry_frsky.c \
-		   telemetry_hott.c \
+		   rxmsp.c \
 		   drv_gpio.c \
 		   drv_i2c.c \
 		   drv_i2c_soft.c \
 		   drv_system.c \
 		   drv_serial.c \
-		   drv_softserial.c \
 		   drv_uart.c \
 		   printf.c \
 		   utils.c \
 		   fw_nav.c \
 		   $(CMSIS_SRC) \
 		   $(STDPERIPH_SRC)
+
+# Source files for full-featured systems
+HIGHEND_SRC	 = gps.c \
+		   sbus.c \
+		   sumd.c \
+		   spektrum.c \
+		   drv_softserial.c \
+		   telemetry_common.c \
+		   telemetry_frsky.c \
+		   telemetry_hott.c
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
@@ -87,11 +90,7 @@ NAZE_SRC	 = drv_adc.c \
 		   drv_pwm.c \
 		   drv_spi.c \
 		   drv_timer.c \
-		   $(COMMON_SRC)
-
-# Source files for the FY90Q target
-FY90Q_SRC	 = drv_adc_fy90q.c \
-		   drv_pwm_fy90q.c \
+		   $(HIGHEND_SRC) \
 		   $(COMMON_SRC)
 
 # Source files for the OLIMEXINO target
@@ -103,8 +102,17 @@ OLIMEXINO_SRC	 = drv_spi.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
 		   drv_timer.c \
+		   $(HIGHEND_SRC) \
 		   $(COMMON_SRC)
-		   
+
+# Source files for the CJMCU target
+CJMCU_SRC	 = drv_adc.c \
+		   drv_mpu6050.c \
+		   drv_hmc5883l.c \
+		   drv_pwm.c \
+		   drv_timer.c \
+		   $(COMMON_SRC)
+
 # In some cases, %.s regarded as intermediate file, which is actually not.
 # This will prevent accidental deletion of startup code.
 .PRECIOUS: %.s

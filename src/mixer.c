@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 #include "mw.h"
 
@@ -430,7 +434,7 @@ void mixTable(void)
             break;
 
         case MULTITYPE_DUALCOPTER:
-            for (i = 4; i < 6; i++ ) {
+            for (i = 4; i < 6; i++) {
                 servo[i] = axisPID[5 - i] * servoDirection(i, 1); // mix and setup direction
                 servo[i] += servoMiddle(i);
             }
@@ -468,13 +472,10 @@ void mixTable(void)
 
     // forward AUX1-4 to servo outputs (not constrained)
     if (cfg.gimbal_flags & GIMBAL_FORWARDAUX) {
-        int offset = 0;
+        int offset = core.numServos - 4;
         // offset servos based off number already used in mixer types
         // airplane and servo_tilt together can't be used
-        if (mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_FLYING_WING)
-            offset = 4;
-        else if (mixers[mcfg.mixerConfiguration].useServo)
-            offset = 2;
+        // calculate offset by taking 4 from core.numServos
         for (i = 0; i < 4; i++)
             pwmWriteServo(i + offset, rcData[AUX1 + i]);
     }

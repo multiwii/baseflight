@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
@@ -137,11 +142,14 @@ const clivalue_t valueTable[] = {
     { "softserial_2_inverted", VAR_UINT8, &mcfg.softserial_2_inverted, 0, 1 },
     { "gps_type", VAR_UINT8, &mcfg.gps_type, 0, GPS_HARDWARE_MAX },
     { "gps_baudrate", VAR_INT8, &mcfg.gps_baudrate, 0, GPS_BAUD_MAX },
-    { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, 3 },
+    { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, SERIALRX_PROVIDER_MAX },
     { "telemetry_provider", VAR_UINT8, &mcfg.telemetry_provider, 0, TELEMETRY_PROVIDER_MAX },
     { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },
     { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
     { "vbatscale", VAR_UINT8, &mcfg.vbatscale, 10, 200 },
+    { "currentscale", VAR_UINT16, &mcfg.currentscale, 1, 10000 },
+    { "currentoffset", VAR_UINT16, &mcfg.currentoffset, 0, 1650 },
+    { "multiwiicurrentoutput", VAR_UINT8, &mcfg.multiwiicurrentoutput, 0, 1 },
     { "vbatmaxcellvoltage", VAR_UINT8, &mcfg.vbatmaxcellvoltage, 10, 50 },
     { "vbatmincellvoltage", VAR_UINT8, &mcfg.vbatmincellvoltage, 10, 50 },
     { "power_adc_channel", VAR_UINT8, &mcfg.power_adc_channel, 0, 9 },
@@ -187,6 +195,7 @@ const clivalue_t valueTable[] = {
     { "accxy_deadband", VAR_UINT8, &cfg.accxy_deadband, 0, 100 },
     { "accz_deadband", VAR_UINT8, &cfg.accz_deadband, 0, 100 },
     { "acc_unarmedcal", VAR_UINT8, &cfg.acc_unarmedcal, 0, 1 },
+    { "small_angle", VAR_UINT8, &cfg.small_angle, 0, 90 },
     { "acc_trim_pitch", VAR_INT16, &cfg.angleTrim[PITCH], -300, 300 },
     { "acc_trim_roll", VAR_INT16, &cfg.angleTrim[ROLL], -300, 300 },
     { "baro_tab_size", VAR_UINT8, &cfg.baro_tab_size, 0, BARO_TAB_SIZE_MAX },
@@ -308,7 +317,7 @@ static float _atof(const char *p)
     float sign, value, scale;
 
     // Skip leading white space, if any.
-    while (white_space(*p) ) {
+    while (white_space(*p)) {
         p += 1;
     }
 
@@ -363,7 +372,7 @@ static float _atof(const char *p)
             expon = expon * 10 + (*p - '0');
             p += 1;
         }
-        if (expon > 308) 
+        if (expon > 308)
             expon = 308;
 
         // Calculate scaling factor.
@@ -392,7 +401,7 @@ static char *ftoa(float x, char *floatString)
     else
         x -= 0.0005f;
 
-    value = (int32_t) (x * 1000.0f);    // Convert float * 1000 to an integer
+    value = (int32_t)(x * 1000.0f);    // Convert float * 1000 to an integer
 
     itoa(abs(value), intString1, 10);   // Create string from abs of integer value
 
@@ -702,10 +711,14 @@ static void cliFeature(char *cmdline)
 
 static void cliGpsPassthrough(char *cmdline)
 {
+#ifdef GPS
     if (gpsSetPassthrough() == -1)
         cliPrint("Error: Enable and plug in GPS first\r\n");
     else
         cliPrint("Enabling GPS passthrough...\r\n");
+#else
+    cliPrint("GPS support is not built in\r\n");
+#endif /* GPS */
 }
 
 static void cliHelp(char *cmdline)

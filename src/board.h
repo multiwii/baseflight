@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #pragma once
 
 // for roundf()
@@ -22,6 +26,7 @@
 
 #include "drv_system.h"         // timers, delays, etc
 #include "drv_gpio.h"
+#include "utils.h"
 
 #ifndef M_PI
 #define M_PI       3.14159265358979323846f
@@ -83,6 +88,8 @@ typedef enum {
     SERIALRX_SPEKTRUM2048 = 1,
     SERIALRX_SBUS = 2,
     SERIALRX_SUMD = 3,
+    SERIALRX_MSP = 4,
+    SERIALRX_PROVIDER_MAX = SERIALRX_MSP,
 } SerialRXType;
 
 typedef enum {
@@ -141,8 +148,7 @@ enum {
     TEMP_UPDATED = 1 << 3
 };
 
-typedef struct sensor_data_t
-{
+typedef struct sensor_data_t {
     int16_t gyro[3];
     int16_t acc[3];
     int16_t mag[3];
@@ -150,24 +156,22 @@ typedef struct sensor_data_t
     int updated;
 } sensor_data_t;
 
-typedef void (* sensorInitFuncPtr)(sensor_align_e align);   // sensor init prototype
-typedef void (* sensorReadFuncPtr)(int16_t *data);          // sensor read and align prototype
-typedef void (* baroOpFuncPtr)(void);                       // baro start operation
-typedef void (* baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature);             // baro calculation (filled params are pressure and temperature)
-typedef void (* serialReceiveCallbackPtr)(uint16_t data);   // used by serial drivers to return frames to app
-typedef uint16_t (* rcReadRawDataPtr)(uint8_t chan);        // used by receiver driver to return channel data
-typedef void (* pidControllerFuncPtr)(void);                // pid controller function prototype
+typedef void (*sensorInitFuncPtr)(sensor_align_e align);   // sensor init prototype
+typedef void (*sensorReadFuncPtr)(int16_t *data);          // sensor read and align prototype
+typedef void (*baroOpFuncPtr)(void);                       // baro start operation
+typedef void (*baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature);             // baro calculation (filled params are pressure and temperature)
+typedef void (*serialReceiveCallbackPtr)(uint16_t data);   // used by serial drivers to return frames to app
+typedef uint16_t (*rcReadRawDataPtr)(uint8_t chan);        // used by receiver driver to return channel data
+typedef void (*pidControllerFuncPtr)(void);                // pid controller function prototype
 
-typedef struct sensor_t
-{
+typedef struct sensor_t {
     sensorInitFuncPtr init;                                 // initialize function
     sensorReadFuncPtr read;                                 // read 3 axis data function
     sensorReadFuncPtr temperature;                          // read temperature if available
     float scale;                                            // scalefactor (currently used for gyro only, todo for accel)
 } sensor_t;
 
-typedef struct baro_t
-{
+typedef struct baro_t {
     uint16_t ut_delay;
     uint16_t up_delay;
     baroOpFuncPtr start_ut;
@@ -178,23 +182,64 @@ typedef struct baro_t
 } baro_t;
 
 // Hardware definitions and GPIO
-#ifdef FY90Q
- // FY90Q
-#define LED0_GPIO   GPIOC
-#define LED0_PIN    Pin_12
-#define LED1_GPIO   GPIOA
-#define LED1_PIN    Pin_15
+// Target definitions (NAZE, OLIMEXINO, CJMCU, ... are same as in Makefile
+#if defined(NAZE)
+// Afroflight32
+
+#define LED0_GPIO   GPIOB
+#define LED0_PIN    Pin_3 // PB3 (LED)
+#define LED1_GPIO   GPIOB
+#define LED1_PIN    Pin_4 // PB4 (LED)
+#define BEEP_GPIO   GPIOA
+#define BEEP_PIN    Pin_12 // PA12 (Buzzer)
+#define BARO_GPIO   GPIOC
+#define BARO_PIN    Pin_13
+#define INV_PIN     Pin_2 // PB2 (BOOT1) abused as inverter select GPIO
+#define INV_GPIO    GPIOB
 
 #define GYRO
 #define ACC
+#define MAG
+#define BARO
+#define GPS
+#define LEDRING
+#define SONAR
+#define BUZZER
 #define LED0
 #define LED1
+#define INVERTER
+#define MOTOR_PWM_RATE 400
 
-#define SENSORS_SET (SENSOR_ACC)
+#define SENSORS_SET (SENSOR_ACC | SENSOR_BARO | SENSOR_MAG)
+#define I2C_DEVICE (I2CDEV_2)
 
-#else
+// #define PROD_DEBUG
+// #define SOFT_I2C                 // enable to test software i2c
+// #define SOFT_I2C_PB1011          // If SOFT_I2C is enabled above, need to define pinout as well (I2C1 = PB67, I2C2 = PB1011)
+// #define SOFT_I2C_PB67
 
-#ifdef OLIMEXINO
+ // AfroFlight32
+#include "drv_adc.h"
+#include "drv_adxl345.h"
+#include "drv_bma280.h"
+#include "drv_bmp085.h"
+#include "drv_ms5611.h"
+#include "drv_hmc5883l.h"
+#include "drv_i2c.h"
+#include "drv_spi.h"
+#include "drv_ledring.h"
+#include "drv_mma845x.h"
+#include "drv_mpu3050.h"
+#include "drv_mpu6050.h"
+#include "drv_l3g4200d.h"
+#include "drv_pwm.h"
+#include "drv_timer.h"
+#include "drv_serial.h"
+#include "drv_uart.h"
+#include "drv_softserial.h"
+#include "drv_hcsr04.h"
+
+#elif defined(OLIMEXINO)
 // OLIMEXINO
 
 #ifdef OLIMEXINO_UNCUT_LED2_E_JUMPER
@@ -212,35 +257,57 @@ typedef struct baro_t
 
 #define GYRO
 #define ACC
+#define MOTOR_PWM_RATE 400
 
 #define SENSORS_SET (SENSOR_ACC)
+#define I2C_DEVICE (I2CDEV_2)
 
-#else
-// Afroflight32
+#include "drv_adc.h"
+#include "drv_i2c.h"
+#include "drv_spi.h"
+#include "drv_adxl345.h"
+#include "drv_mpu3050.h"
+#include "drv_mpu6050.h"
+#include "drv_l3g4200d.h"
+#include "drv_pwm.h"
+#include "drv_timer.h"
+#include "drv_serial.h"
+#include "drv_uart.h"
+#include "drv_softserial.h"
 
-#define LED0_GPIO   GPIOB
-#define LED0_PIN    Pin_3 // PB3 (LED)
-#define LED1_GPIO   GPIOB
-#define LED1_PIN    Pin_4 // PB4 (LED)
-#define BEEP_GPIO   GPIOA
-#define BEEP_PIN    Pin_12 // PA12 (Buzzer)
-#define BARO_GPIO   GPIOC
-#define BARO_PIN    Pin_13
+#elif defined(CJMCU)
+// CJMCU brushed quad pcb
+
+#define LED0_GPIO   GPIOC
+#define LED0_PIN    Pin_13 // PC13 (LED)
+#define LED0
+#define LED1_GPIO   GPIOC
+#define LED1_PIN    Pin_14 // PC14 (LED)
+#define LED1
+#define LED2_GPIO   GPIOC
+#define LED2_PIN    Pin_15 // PC15 (LED)
+#define LED2
 
 #define GYRO
 #define ACC
 #define MAG
-#define BARO
-#define LEDRING
-#define SONAR
-#define BUZZER
-#define LED0
-#define LED1
+#define MOTOR_PWM_RATE 16000
 
-#define SENSORS_SET (SENSOR_ACC | SENSOR_BARO | SENSOR_MAG)
+#define SENSORS_SET (SENSOR_ACC | SENSOR_MAG)
+#define I2C_DEVICE (I2CDEV_1)
 
-#endif
-#endif
+#include "drv_adc.h"
+#include "drv_hmc5883l.h"
+#include "drv_i2c.h"
+#include "drv_mpu6050.h"
+#include "drv_pwm.h"
+#include "drv_timer.h"
+#include "drv_serial.h"
+#include "drv_uart.h"
+
+#else
+#error TARGET NOT DEFINED!
+#endif /* all conditions */
 
 // Helpful macros
 #ifdef LED0
@@ -273,54 +340,10 @@ typedef struct baro_t
 #define BEEP_ON                  ;
 #endif
 
-#undef SOFT_I2C                 // enable to test software i2c
-
-#include "utils.h"
-
-#ifdef FY90Q
- // FY90Q
-#include "drv_adc.h"
-#include "drv_i2c.h"
-#include "drv_pwm.h"
-#include "drv_uart.h"
+#ifdef INV_GPIO
+#define INV_OFF                  digitalLo(INV_GPIO, INV_PIN);
+#define INV_ON                   digitalHi(INV_GPIO, INV_PIN);
 #else
-
-#ifdef OLIMEXINO
-// OLIMEXINO
-#include "drv_adc.h"
-#include "drv_i2c.h"
-#include "drv_spi.h"
-#include "drv_adxl345.h"
-#include "drv_mpu3050.h"
-#include "drv_mpu6050.h"
-#include "drv_l3g4200d.h"
-#include "drv_pwm.h"
-#include "drv_timer.h"
-#include "drv_serial.h"
-#include "drv_uart.h"
-#include "drv_softserial.h"
-#else
-
- // AfroFlight32
-#include "drv_adc.h"
-#include "drv_adxl345.h"
-#include "drv_bma280.h"
-#include "drv_bmp085.h"
-#include "drv_ms5611.h"
-#include "drv_hmc5883l.h"
-#include "drv_i2c.h"
-#include "drv_spi.h"
-#include "drv_ledring.h"
-#include "drv_mma845x.h"
-#include "drv_mpu3050.h"
-#include "drv_mpu6050.h"
-#include "drv_l3g4200d.h"
-#include "drv_pwm.h"
-#include "drv_timer.h"
-#include "drv_serial.h"
-#include "drv_uart.h"
-#include "drv_softserial.h"
-#include "drv_hcsr04.h"
-
-#endif
+#define INV_OFF                 ;
+#define INV_ON                  ;
 #endif

@@ -35,8 +35,11 @@ void ECHO_EXTI_IRQHandler(void)
             // object we take half of the distance traveled.
             //
             // 340 m/s = 0.034 cm/microsecond = 29.41176471 *2 = 58.82352941 rounded to 59
-            int32_t pulse_duration = timing_stop - timing_start;
-            *distance_ptr = pulse_duration / 59;
+            int32_t distance = (timing_stop - timing_start) / 59;
+            // this sonar range is up to 4meter , but 3meter is the safe working range (+tilted and roll)
+            if (distance > 300)
+                distance = -1;
+            *distance_ptr = distance ;
         }
     }
 
@@ -61,7 +64,7 @@ void hcsr04_init(sonar_config_t config)
     // enable AFIO for EXTI support - already done is drv_system.c
     // RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | RCC_APB2Periph, ENABLE);
 
-    switch(config) {
+    switch (config) {
         case sonar_pwm56:
             trigger_pin = Pin_8;   // PWM5 (PB8) - 5v tolerant
             echo_pin = Pin_9;      // PWM6 (PB9) - 5v tolerant
