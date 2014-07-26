@@ -166,7 +166,7 @@ int32_t applyDeadband(int32_t value, int32_t deadband)
 static const float fc_acc = 0.5f / (M_PI * F_CUT_ACCZ);
 
 // rotate acc into Earth frame and calculate acceleration in it
-void acc_calc(uint32_t deltaT)
+void acc_calc(float deltaT)
 {
     static int32_t accZoffset = 0;
     static float accz_smooth;
