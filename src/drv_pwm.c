@@ -292,28 +292,23 @@ static void ppmCallback(uint8_t port, uint16_t capture)
     static uint16_t last = 0;
     static uint16_t frametime = 0;
     static int8_t chan = 0;
-    static uint8_t frsky_errcnt = 0;
-    static bool frsky_18patch = false;
+    static uint8_t frsky_problemcnt = 0;
     uint16_t diff = newval - last;
     bool sync = diff > 2700;                                               // rcgroups.com/forums/showpost.php?p=21996147&postcount=3960 "So, if you use 2.5ms or higher as being the reset for the PPM stream start, you will be fine. I use 2.7ms just to be safe."
     last = newval;
 
-    if (frsky_18patch)
+    if (frsky_problemcnt == 30)
         sync |= chan == 8;                                                 // FrSky 18ms Fix, force sync after 8 channels
     else 
         frametime += diff;
 
     if (sync) {
-        if (!frsky_18patch) {
+        if (frsky_problemcnt != 30) {
             if (frametime < 18300 && chan == 8)
-                frsky_errcnt++;
+                frsky_problemcnt++;
             else
-                frsky_errcnt = 0;
-            
-            if (frsky_errcnt == 30)
-                frsky_18patch = true;                                      // Condition must be true 30 times in a row before we enable the FrSky fix
-            else
-                frametime = 0;
+                frsky_problemcnt = 0;
+            frametime = 0;            
         }
         chan = 0;
     } else {
