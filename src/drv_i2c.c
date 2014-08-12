@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 
 #ifndef SOFT_I2C
@@ -5,11 +9,33 @@
 // I2C2
 // SCL  PB10
 // SDA  PB11
+// I2C1
+// SCL  PB6
+// SDA  PB7
 
-static I2C_TypeDef *I2Cx;
 static void i2c_er_handler(void);
 static void i2c_ev_handler(void);
 static void i2cUnstick(void);
+
+typedef struct i2cDevice_t {
+    I2C_TypeDef *dev;
+    GPIO_TypeDef *gpio;
+    uint16_t scl;
+    uint16_t sda;
+    uint8_t ev_irq;
+    uint8_t er_irq;
+    uint32_t peripheral;
+} i2cDevice_t;
+
+static const i2cDevice_t i2cHardwareMap[] = {
+    { I2C1, GPIOB, Pin_6, Pin_7, I2C1_EV_IRQn, I2C1_ER_IRQn, RCC_APB1Periph_I2C1 },
+    { I2C2, GPIOB, Pin_10, Pin_11, I2C2_EV_IRQn, I2C2_ER_IRQn, RCC_APB1Periph_I2C2 },
+};
+
+// Copy of peripheral address for IRQ routines
+static I2C_TypeDef *I2Cx;
+// Copy of device index for reinit, etc purposes
+static I2CDevice I2Cx_index;
 
 void I2C1_ER_IRQHandler(void)
 {
@@ -45,34 +71,12 @@ static volatile uint8_t reading;
 static volatile uint8_t* write_p;
 static volatile uint8_t* read_p;
 
-static void i2c_er_handler(void)
+static bool i2cHandleHardwareFailure(void)
 {
-    volatile uint32_t SR1Register;
-    // Read the I2C1 status register
-    SR1Register = I2Cx->SR1;
-    if (SR1Register & 0x0F00) { //an error
-        error = true;
-        // I2C1error.error = ((SR1Register & 0x0F00) >> 8);        //save error
-        // I2C1error.job = job;    //the task
-    }
-    // If AF, BERR or ARLO, abandon the current job and commence new if there are jobs
-    if (SR1Register & 0x0700) {
-        (void)I2Cx->SR2;                                // read second status register to clear ADDR if it is set (note that BTF will not be set after a NACK)
-        I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);        // disable the RXNE/TXE interrupt - prevent the ISR tailchaining onto the ER (hopefully)
-        if (!(SR1Register & 0x0200) && !(I2Cx->CR1 & 0x0200)) {  // if we dont have an ARLO error, ensure sending of a stop
-            if (I2Cx->CR1 & 0x0100) {                   // We are currently trying to send a start, this is very bad as start,stop will hang the peripheral
-                while (I2Cx->CR1 & 0x0100);             // wait for any start to finish sending
-                I2C_GenerateSTOP(I2Cx, ENABLE);         // send stop to finalise bus transaction
-                while (I2Cx->CR1 & 0x0200);             // wait for stop to finish sending
-                i2cInit(I2Cx);                          // reset and configure the hardware
-            } else {
-                I2C_GenerateSTOP(I2Cx, ENABLE);         // stop to free up the bus
-                I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);   // Disable EVT and ERR interrupts while bus inactive
-            }
-        }
-    }
-    I2Cx->SR1 &= ~0x0F00;                               // reset all the error bits to clear the interrupt
-    busy = 0;
+    i2cErrorCount++;
+    // reinit peripheral + clock out garbage
+    i2cInit(I2Cx_index);
+    return false;
 }
 
 bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data)
@@ -89,21 +93,20 @@ bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data)
     busy = 1;
     error = false;
 
-    if (!(I2Cx->CR2 & I2C_IT_EVT)) {        //if we are restarting the driver
-        if (!(I2Cx->CR1 & 0x0100)) {        // ensure sending a start
-            while (I2Cx->CR1 & 0x0200) { ; }               //wait for any stop to finish sending
-            I2C_GenerateSTART(I2Cx, ENABLE);        //send the start for the new job
+    if (!(I2Cx->CR2 & I2C_IT_EVT)) {                                    // if we are restarting the driver
+        if (!(I2Cx->CR1 & 0x0100)) {                                    // ensure sending a start
+            while (I2Cx->CR1 & 0x0200 && --timeout > 0) { ; }           // wait for any stop to finish sending
+            if (timeout == 0)
+                return i2cHandleHardwareFailure();
+            I2C_GenerateSTART(I2Cx, ENABLE);                            // send the start for the new job
         }
-        I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, ENABLE);        //allow the interrupts to fire off again
+        I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, ENABLE);            // allow the interrupts to fire off again
     }
 
-    while (busy && --timeout > 0);
-    if (timeout == 0) {
-        i2cErrorCount++;
-        // reinit peripheral + clock out garbage
-        i2cInit(I2Cx);
-        return false;
-    }
+    timeout = I2C_DEFAULT_TIMEOUT;
+    while (busy && --timeout > 0) { ; }
+    if (timeout == 0)
+        return i2cHandleHardwareFailure();
 
     return !error;
 }
@@ -127,171 +130,192 @@ bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf)
     busy = 1;
     error = false;
 
-    if (!(I2Cx->CR2 & I2C_IT_EVT)) {        //if we are restarting the driver
-        if (!(I2Cx->CR1 & 0x0100)) {        // ensure sending a start
-            while (I2Cx->CR1 & 0x0200) { ; }               //wait for any stop to finish sending
-            I2C_GenerateSTART(I2Cx, ENABLE);        //send the start for the new job
+    if (!(I2Cx->CR2 & I2C_IT_EVT)) {                                    // if we are restarting the driver
+        if (!(I2Cx->CR1 & 0x0100)) {                                    // ensure sending a start
+            while (I2Cx->CR1 & 0x0200 && --timeout > 0) { ; }           // wait for any stop to finish sending
+            if (timeout == 0)
+                return i2cHandleHardwareFailure();
+            I2C_GenerateSTART(I2Cx, ENABLE);                            // send the start for the new job
         }
-        I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, ENABLE);        //allow the interrupts to fire off again
+        I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, ENABLE);            // allow the interrupts to fire off again
     }
 
-    while (busy && --timeout > 0);
-    if (timeout == 0) {
-        i2cErrorCount++;
-        // reinit peripheral + clock out garbage
-        i2cInit(I2Cx);
-        return false;
-    }
+    timeout = I2C_DEFAULT_TIMEOUT;
+    while (busy && --timeout > 0) { ; }
+    if (timeout == 0)
+        return i2cHandleHardwareFailure();
 
     return !error;
 }
 
-void i2c_ev_handler(void)
+static void i2c_er_handler(void)
 {
-    static uint8_t subaddress_sent, final_stop; //flag to indicate if subaddess sent, flag to indicate final bus condition
-    static int8_t index;        //index is signed -1==send the subaddress
-    uint8_t SReg_1 = I2Cx->SR1; //read the status register here
+    // Read the I2C1 status register
+    volatile uint32_t SR1Register = I2Cx->SR1;
 
-    if (SReg_1 & 0x0001) {      //we just sent a start - EV5 in ref manual
-        I2Cx->CR1 &= ~0x0800;  //reset the POS bit so ACK/NACK applied to the current byte
-        I2C_AcknowledgeConfig(I2Cx, ENABLE);    //make sure ACK is on
-        index = 0;              //reset the index
-        if (reading && (subaddress_sent || 0xFF == reg)) {       //we have sent the subaddr
-            subaddress_sent = 1;        //make sure this is set in case of no subaddress, so following code runs correctly
-            if (bytes == 2)
-                I2Cx->CR1 |= 0x0800;    //set the POS bit so NACK applied to the final byte in the two byte read
-            I2C_Send7bitAddress(I2Cx, addr, I2C_Direction_Receiver);   //send the address and set hardware mode
-        } else {                //direction is Tx, or we havent sent the sub and rep start
-            I2C_Send7bitAddress(I2Cx, addr, I2C_Direction_Transmitter);        //send the address and set hardware mode
-            if (reg != 0xFF)       //0xFF as subaddress means it will be ignored, in Tx or Rx mode
-                index = -1;     //send a subaddress
-        }
-    } else if (SReg_1 & 0x0002) {       //we just sent the address - EV6 in ref manual
-        // Read SR1,2 to clear ADDR
-        __DMB(); // memory fence to control hardware
-        if (bytes == 1 && reading && subaddress_sent) {     // we are receiving 1 byte - EV6_3
-            I2C_AcknowledgeConfig(I2Cx, DISABLE);           // turn off ACK
-            __DMB();
-            (void)I2Cx->SR2;                                // clear ADDR after ACK is turned off
-            I2C_GenerateSTOP(I2Cx, ENABLE);                 // program the stop
-            final_stop = 1;
-            I2C_ITConfig(I2Cx, I2C_IT_BUF, ENABLE);         // allow us to have an EV7
-        } else {                    // EV6 and EV6_1
-            (void)I2Cx->SR2;        // clear the ADDR here
-            __DMB();
-            if (bytes == 2 && reading && subaddress_sent) {     //rx 2 bytes - EV6_1
-                I2C_AcknowledgeConfig(I2Cx, DISABLE);   //turn off ACK
-                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);        //disable TXE to allow the buffer to fill
-            } else if (bytes == 3 && reading && subaddress_sent)       //rx 3 bytes
-                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);        //make sure RXNE disabled so we get a BTF in two bytes time
-            else                //receiving greater than three bytes, sending subaddress, or transmitting
-                I2C_ITConfig(I2Cx, I2C_IT_BUF, ENABLE);
-        }
-    } else if (SReg_1 & 0x004) {        //Byte transfer finished - EV7_2, EV7_3 or EV8_2
-        final_stop = 1;
-        if (reading && subaddress_sent) {     //EV7_2, EV7_3
-            if (bytes > 2) {      //EV7_2
-                I2C_AcknowledgeConfig(I2Cx, DISABLE);   //turn off ACK
-                read_p[index++] = I2C_ReceiveData(I2Cx);    //read data N-2
-                I2C_GenerateSTOP(I2Cx, ENABLE); //program the Stop
-                final_stop = 1; //reuired to fix hardware
-                read_p[index++] = I2C_ReceiveData(I2Cx);    //read data N-1
-                I2C_ITConfig(I2Cx, I2C_IT_BUF, ENABLE); //enable TXE to allow the final EV7
-            } else {            //EV7_3
-                if (final_stop)
-                    I2C_GenerateSTOP(I2Cx, ENABLE);     //program the Stop
-                else
-                    I2C_GenerateSTART(I2Cx, ENABLE);    //program a rep start
-                read_p[index++] = I2C_ReceiveData(I2Cx);    //read data N-1
-                read_p[index++] = I2C_ReceiveData(I2Cx);    //read data N
-                index++;        //to show job completed
+    if (SR1Register & 0x0F00)                                           // an error
+        error = true;
+
+    // If AF, BERR or ARLO, abandon the current job and commence new if there are jobs
+    if (SR1Register & 0x0700) {
+        (void)I2Cx->SR2;                                                // read second status register to clear ADDR if it is set (note that BTF will not be set after a NACK)
+        I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                        // disable the RXNE/TXE interrupt - prevent the ISR tailchaining onto the ER (hopefully)
+        if (!(SR1Register & 0x0200) && !(I2Cx->CR1 & 0x0200)) {         // if we dont have an ARLO error, ensure sending of a stop
+            if (I2Cx->CR1 & 0x0100) {                                   // We are currently trying to send a start, this is very bad as start, stop will hang the peripheral
+                while (I2Cx->CR1 & 0x0100) { ; }                        // wait for any start to finish sending
+                I2C_GenerateSTOP(I2Cx, ENABLE);                         // send stop to finalise bus transaction
+                while (I2Cx->CR1 & 0x0200) { ; }                        // wait for stop to finish sending
+                i2cInit(I2Cx_index);                                    // reset and configure the hardware
+            } else {
+                I2C_GenerateSTOP(I2Cx, ENABLE);                         // stop to free up the bus
+                I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);   // Disable EVT and ERR interrupts while bus inactive
             }
-        } else {                //EV8_2, which may be due to a subaddress sent or a write completion
-            if (subaddress_sent || (writing)) {
-                if (final_stop)
-                    I2C_GenerateSTOP(I2Cx, ENABLE);     //program the Stop
-                else
-                    I2C_GenerateSTART(I2Cx, ENABLE);    //program a rep start
-                index++;        //to show that the job is complete
-            } else {            //We need to send a subaddress
-                I2C_GenerateSTART(I2Cx, ENABLE);        //program the repeated Start
-                subaddress_sent = 1;    //this is set back to zero upon completion of the current task
-            }
-        }
-        //we must wait for the start to clear, otherwise we get constant BTF
-        while (I2Cx->CR1 & 0x0100) { ; }
-    } else if (SReg_1 & 0x0040) {       //Byte received - EV7
-        read_p[index++] = I2C_ReceiveData(I2Cx);
-        if (bytes == (index + 3))
-            I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);    //disable TXE to allow the buffer to flush so we can get an EV7_2
-        if (bytes == index)       //We have completed a final EV7
-            index++;            //to show job is complete
-    } else if (SReg_1 & 0x0080) {       //Byte transmitted -EV8/EV8_1
-        if (index != -1) {      //we dont have a subaddress to send
-            I2C_SendData(I2Cx, write_p[index++]);
-            if (bytes == index)   //we have sent all the data
-                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);        //disable TXE to allow the buffer to flush
-        } else {
-            index++;
-            I2C_SendData(I2Cx, reg);       //send the subaddress
-            if (reading || !bytes)      //if receiving or sending 0 bytes, flush now
-                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);        //disable TXE to allow the buffer to flush
         }
     }
-    if (index == bytes + 1) {   //we have completed the current job
-        //Completion Tasks go here
-        //End of completion tasks
-        subaddress_sent = 0;    //reset this here
-        // I2Cx->CR1 &= ~0x0800;   //reset the POS bit so NACK applied to the current byte
-        if (final_stop)  //If there is a final stop and no more jobs, bus is inactive, disable interrupts to prevent BTF
-            I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);       //Disable EVT and ERR interrupts while bus inactive
+    I2Cx->SR1 &= ~0x0F00;                                               // reset all the error bits to clear the interrupt
+    busy = 0;
+}
+
+void i2c_ev_handler(void)
+{
+    static uint8_t subaddress_sent, final_stop;                         // flag to indicate if subaddess sent, flag to indicate final bus condition
+    static int8_t index;                                                // index is signed -1 == send the subaddress
+    uint8_t SReg_1 = I2Cx->SR1;                                         // read the status register here
+
+    if (SReg_1 & 0x0001) {                                              // we just sent a start - EV5 in ref manual
+        I2Cx->CR1 &= ~0x0800;                                           // reset the POS bit so ACK/NACK applied to the current byte
+        I2C_AcknowledgeConfig(I2Cx, ENABLE);                            // make sure ACK is on
+        index = 0;                                                      // reset the index
+        if (reading && (subaddress_sent || 0xFF == reg)) {              // we have sent the subaddr
+            subaddress_sent = 1;                                        // make sure this is set in case of no subaddress, so following code runs correctly
+            if (bytes == 2)
+                I2Cx->CR1 |= 0x0800;                                    // set the POS bit so NACK applied to the final byte in the two byte read
+            I2C_Send7bitAddress(I2Cx, addr, I2C_Direction_Receiver);    // send the address and set hardware mode
+        } else {                                                        // direction is Tx, or we havent sent the sub and rep start
+            I2C_Send7bitAddress(I2Cx, addr, I2C_Direction_Transmitter); // send the address and set hardware mode
+            if (reg != 0xFF)                                            // 0xFF as subaddress means it will be ignored, in Tx or Rx mode
+                index = -1;                                             // send a subaddress
+        }
+    } else if (SReg_1 & 0x0002) {                                       // we just sent the address - EV6 in ref manual
+        // Read SR1,2 to clear ADDR
+        __DMB();                                                        // memory fence to control hardware
+        if (bytes == 1 && reading && subaddress_sent) {                 // we are receiving 1 byte - EV6_3
+            I2C_AcknowledgeConfig(I2Cx, DISABLE);                       // turn off ACK
+            __DMB();
+            (void)I2Cx->SR2;                                            // clear ADDR after ACK is turned off
+            I2C_GenerateSTOP(I2Cx, ENABLE);                             // program the stop
+            final_stop = 1;
+            I2C_ITConfig(I2Cx, I2C_IT_BUF, ENABLE);                     // allow us to have an EV7
+        } else {                                                        // EV6 and EV6_1
+            (void)I2Cx->SR2;                                            // clear the ADDR here
+            __DMB();
+            if (bytes == 2 && reading && subaddress_sent) {             // rx 2 bytes - EV6_1
+                I2C_AcknowledgeConfig(I2Cx, DISABLE);                   // turn off ACK
+                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                // disable TXE to allow the buffer to fill
+            } else if (bytes == 3 && reading && subaddress_sent)        // rx 3 bytes
+                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                // make sure RXNE disabled so we get a BTF in two bytes time
+            else                                                        // receiving greater than three bytes, sending subaddress, or transmitting
+                I2C_ITConfig(I2Cx, I2C_IT_BUF, ENABLE);
+        }
+    } else if (SReg_1 & 0x004) {                                        // Byte transfer finished - EV7_2, EV7_3 or EV8_2
+        final_stop = 1;
+        if (reading && subaddress_sent) {                               // EV7_2, EV7_3
+            if (bytes > 2) {                                            // EV7_2
+                I2C_AcknowledgeConfig(I2Cx, DISABLE);                   // turn off ACK
+                read_p[index++] = (uint8_t)I2Cx->DR;                    // read data N-2
+                I2C_GenerateSTOP(I2Cx, ENABLE);                         // program the Stop
+                final_stop = 1;                                         // required to fix hardware
+                read_p[index++] = (uint8_t)I2Cx->DR;                    // read data N - 1
+                I2C_ITConfig(I2Cx, I2C_IT_BUF, ENABLE);                 // enable TXE to allow the final EV7
+            } else {                                                    // EV7_3
+                if (final_stop)
+                    I2C_GenerateSTOP(I2Cx, ENABLE);                     // program the Stop
+                else
+                    I2C_GenerateSTART(I2Cx, ENABLE);                    // program a rep start
+                read_p[index++] = (uint8_t)I2Cx->DR;                    // read data N - 1
+                read_p[index++] = (uint8_t)I2Cx->DR;                    // read data N
+                index++;                                                // to show job completed
+            }
+        } else {                                                        // EV8_2, which may be due to a subaddress sent or a write completion
+            if (subaddress_sent || (writing)) {
+                if (final_stop)
+                    I2C_GenerateSTOP(I2Cx, ENABLE);                     // program the Stop
+                else
+                    I2C_GenerateSTART(I2Cx, ENABLE);                    // program a rep start
+                index++;                                                // to show that the job is complete
+            } else {                                                    // We need to send a subaddress
+                I2C_GenerateSTART(I2Cx, ENABLE);                        // program the repeated Start
+                subaddress_sent = 1;                                    // this is set back to zero upon completion of the current task
+            }
+        }
+        // we must wait for the start to clear, otherwise we get constant BTF
+        while (I2Cx->CR1 & 0x0100) { ; }
+    } else if (SReg_1 & 0x0040) {                                       // Byte received - EV7
+        read_p[index++] = (uint8_t)I2Cx->DR;
+        if (bytes == (index + 3))
+            I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                    // disable TXE to allow the buffer to flush so we can get an EV7_2
+        if (bytes == index)                                             // We have completed a final EV7
+            index++;                                                    // to show job is complete
+    } else if (SReg_1 & 0x0080) {                                       // Byte transmitted EV8 / EV8_1
+        if (index != -1) {                                              // we dont have a subaddress to send
+            I2Cx->DR = write_p[index++];
+            if (bytes == index)                                         // we have sent all the data
+                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                // disable TXE to allow the buffer to flush
+        } else {
+            index++;
+            I2Cx->DR = reg;                                             // send the subaddress
+            if (reading || !bytes)                                      // if receiving or sending 0 bytes, flush now
+                I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                // disable TXE to allow the buffer to flush
+        }
+    }
+    if (index == bytes + 1) {                                           // we have completed the current job
+        subaddress_sent = 0;                                            // reset this here
+        if (final_stop)                                                 // If there is a final stop and no more jobs, bus is inactive, disable interrupts to prevent BTF
+            I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);       // Disable EVT and ERR interrupts while bus inactive
         busy = 0;
     }
 }
 
-void i2cInit(I2C_TypeDef *I2C)
+void i2cInit(I2CDevice index)
 {
-    NVIC_InitTypeDef NVIC_InitStructure;
-    I2C_InitTypeDef I2C_InitStructure;
-    gpio_config_t gpio;
+    NVIC_InitTypeDef nvic;
+    I2C_InitTypeDef i2c;
 
-    // Init pins
-    gpio.pin = Pin_10 | Pin_11;
-    gpio.speed = Speed_2MHz;
-    gpio.mode = Mode_AF_OD;
-    gpioInit(GPIOB, &gpio);
+    if (index > I2CDEV_MAX)
+        index = I2CDEV_MAX;
 
-    I2Cx = I2C;
+    // Turn on peripheral clock, save device and index
+    I2Cx = i2cHardwareMap[index].dev;
+    I2Cx_index = index;
+    RCC_APB1PeriphClockCmd(i2cHardwareMap[index].peripheral, ENABLE);
 
     // clock out stuff to make sure slaves arent stuck
+    // This will also configure GPIO as AF_OD at the end
     i2cUnstick();
 
-    // Init I2C
+    // Init I2C peripheral
     I2C_DeInit(I2Cx);
-    I2C_StructInit(&I2C_InitStructure);
+    I2C_StructInit(&i2c);
 
-    I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);       //Enable EVT and ERR interrupts - they are enabled by the first request
-    I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
-    I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_2;
-    I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-    I2C_InitStructure.I2C_ClockSpeed = 400000;
+    I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);               // Enable EVT and ERR interrupts - they are enabled by the first request
+    i2c.I2C_Mode = I2C_Mode_I2C;
+    i2c.I2C_DutyCycle = I2C_DutyCycle_2;
+    i2c.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
+    i2c.I2C_ClockSpeed = 400000;
     I2C_Cmd(I2Cx, ENABLE);
-    I2C_Init(I2Cx, &I2C_InitStructure);
-
-    NVIC_PriorityGroupConfig(0x500);
+    I2C_Init(I2Cx, &i2c);
 
     // I2C ER Interrupt
-    NVIC_InitStructure.NVIC_IRQChannel = I2C2_ER_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
+    nvic.NVIC_IRQChannel = i2cHardwareMap[index].er_irq;
+    nvic.NVIC_IRQChannelPreemptionPriority = 0;
+    nvic.NVIC_IRQChannelSubPriority = 0;
+    nvic.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&nvic);
 
     // I2C EV Interrupt
-    NVIC_InitStructure.NVIC_IRQChannel = I2C2_EV_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
-    NVIC_Init(&NVIC_InitStructure);
-
+    nvic.NVIC_IRQChannel = i2cHardwareMap[index].ev_irq;
+    nvic.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_Init(&nvic);
 }
 
 uint16_t i2cGetErrorCounter(void)
@@ -301,44 +325,52 @@ uint16_t i2cGetErrorCounter(void)
 
 static void i2cUnstick(void)
 {
-    gpio_config_t gpio;
-    uint8_t i;
+    GPIO_TypeDef *gpio;
+    gpio_config_t cfg;
+    uint16_t scl, sda;
+    int i;
 
-    gpio.pin = Pin_10 | Pin_11;
-    gpio.speed = Speed_2MHz;
-    gpio.mode = Mode_Out_OD;
-    gpioInit(GPIOB, &gpio);
+    // prepare pins
+    gpio = i2cHardwareMap[I2Cx_index].gpio;
+    scl = i2cHardwareMap[I2Cx_index].scl;
+    sda = i2cHardwareMap[I2Cx_index].sda;
 
-    digitalHi(GPIOB, Pin_10 | Pin_11);
+    digitalHi(gpio, scl | sda);
+
+    cfg.pin = scl | sda;
+    cfg.speed = Speed_2MHz;
+    cfg.mode = Mode_Out_OD;
+    gpioInit(gpio, &cfg);
+
     for (i = 0; i < 8; i++) {
         // Wait for any clock stretching to finish
-        while (!digitalIn(GPIOB, Pin_10))
+        while (!digitalIn(gpio, scl))
             delayMicroseconds(10);
 
         // Pull low
-        digitalLo(GPIOB, Pin_10); // Set bus low
+        digitalLo(gpio, scl); // Set bus low
         delayMicroseconds(10);
         // Release high again
-        digitalHi(GPIOB, Pin_10); // Set bus high
+        digitalHi(gpio, scl); // Set bus high
         delayMicroseconds(10);
     }
 
     // Generate a start then stop condition
     // SCL  PB10
     // SDA  PB11
-    digitalLo(GPIOB, Pin_11); // Set bus data low
+    digitalLo(gpio, sda); // Set bus data low
     delayMicroseconds(10);
-    digitalLo(GPIOB, Pin_10); // Set bus scl low
+    digitalLo(gpio, scl); // Set bus scl low
     delayMicroseconds(10);
-    digitalHi(GPIOB, Pin_10); // Set bus scl high
+    digitalHi(gpio, scl); // Set bus scl high
     delayMicroseconds(10);
-    digitalHi(GPIOB, Pin_11); // Set bus sda high
+    digitalHi(gpio, sda); // Set bus sda high
 
     // Init pins
-    gpio.pin = Pin_10 | Pin_11;
-    gpio.speed = Speed_2MHz;
-    gpio.mode = Mode_AF_OD;
-    gpioInit(GPIOB, &gpio);
+    cfg.pin = scl | sda;
+    cfg.speed = Speed_2MHz;
+    cfg.mode = Mode_AF_OD;
+    gpioInit(gpio, &cfg);
 }
 
 #endif

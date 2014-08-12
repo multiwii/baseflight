@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 
 /*
@@ -65,6 +69,31 @@ static uint16_t failsafeThreshold = 985;
 // external vars (ugh)
 extern int16_t failsafeCnt;
 
+
+#ifdef CJMCU
+static const uint8_t multiPPM[] = {
+    PWM1 | TYPE_IP,     // PPM input
+    PWM7 | TYPE_M,
+    PWM14 | TYPE_M,
+    PWM8 | TYPE_M,
+    PWM13 | TYPE_M,
+    0xFF
+};
+
+static const uint8_t multiPWM[] = {
+    PWM1 | TYPE_IW,     // PWM input
+    PWM2 | TYPE_IW,
+    PWM3 | TYPE_IW,
+    PWM4 | TYPE_IW,
+    PWM9 | TYPE_IW,
+    PWM10 | TYPE_IW,
+    PWM7 | TYPE_M,
+    PWM14 | TYPE_M,
+    PWM8 | TYPE_M,
+    PWM13 | TYPE_M,
+    0xFF
+};
+#else
 static const uint8_t multiPPM[] = {
     PWM1 | TYPE_IP,     // PPM input
     PWM9 | TYPE_M,      // Swap to servo if needed
@@ -97,6 +126,7 @@ static const uint8_t multiPWM[] = {
     PWM14 | TYPE_M,     // motor #4 or #6
     0xFF
 };
+#endif
 
 static const uint8_t airPPM[] = {
     PWM1 | TYPE_IP,     // PPM input
@@ -182,7 +212,7 @@ void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity)
     TIM_ICInitStructure.TIM_ICPolarity = polarity;
     TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
     TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-    TIM_ICInitStructure.TIM_ICFilter = 0x03;
+    TIM_ICInitStructure.TIM_ICFilter = 0x00;
 
     TIM_ICInit(tim, &TIM_ICInitStructure);
 }
@@ -259,6 +289,7 @@ static void failsafeCheck(uint8_t channel, uint16_t pulse)
 
 static void ppmCallback(uint8_t port, uint16_t capture)
 {
+    (void)port;
     uint16_t diff;
     static uint16_t now;
     static uint16_t last = 0;
@@ -361,7 +392,8 @@ bool pwmInit(drv_pwm_config_t *init)
         }
 
         if (init->extraServos && !init->airplane) {
-            // remap PWM5..8 as servos when used in extended servo mode
+            // remap PWM5..8 as servos when used in extended servo mode. 
+            // condition for airplane because airPPM already has these as servos
             if (port >= PWM5 && port <= PWM8)
                 mask = TYPE_S;
         }
@@ -390,6 +422,10 @@ bool pwmInit(drv_pwm_config_t *init)
     pwmWritePtr = pwmWriteStandard;
     if (init->motorPwmRate > 500)
         pwmWritePtr = pwmWriteBrushed;
+
+    // set return values in init struct
+    init->numServos = numServos;
+
     return false;
 }
 

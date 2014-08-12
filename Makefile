@@ -14,7 +14,7 @@
 # Things that the user might override on the commandline
 #
 
-# The target to build, must be one of NAZE, FY90Q OR OLIMEXINO
+# The target to build, must be one of NAZE OR OLIMEXINO
 TARGET		?= NAZE
 
 # Compile-time options
@@ -30,7 +30,7 @@ SERIAL_DEVICE	?= /dev/ttyUSB0
 # Things that need to be maintained as the source changes
 #
 
-VALID_TARGETS	 = NAZE FY90Q OLIMEXINO
+VALID_TARGETS	 = NAZE OLIMEXINO CJMCU
 
 # Working directories
 ROOT		 = $(dir $(lastword $(MAKEFILE_LIST)))
@@ -41,35 +41,37 @@ OBJECT_DIR	 = $(ROOT)/obj
 BIN_DIR		 = $(ROOT)/obj
 
 # Source files common to all targets
-COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
-		   buzzer.c \
+COMMON_SRC	 = buzzer.c \
 		   cli.c \
 		   config.c \
-		   gps.c \
 		   imu.c \
 		   main.c \
 		   mixer.c \
 		   mw.c \
 		   sensors.c \
 		   serial.c \
-		   sbus.c \
-		   sumd.c \
-		   spektrum.c \
 		   rxmsp.c \
-		   telemetry_common.c \
-		   telemetry_frsky.c \
-		   telemetry_hott.c \
 		   drv_gpio.c \
 		   drv_i2c.c \
 		   drv_i2c_soft.c \
 		   drv_system.c \
 		   drv_serial.c \
-		   drv_softserial.c \
 		   drv_uart.c \
 		   printf.c \
 		   utils.c \
+		   sbus.c \
+		   sumd.c \
+		   spektrum.c \
+		   startup_stm32f10x_md_gcc.S \
 		   $(CMSIS_SRC) \
 		   $(STDPERIPH_SRC)
+
+# Source files for full-featured systems
+HIGHEND_SRC	 = gps.c \
+		   drv_softserial.c \
+		   telemetry_common.c \
+		   telemetry_frsky.c \
+		   telemetry_hott.c
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
@@ -87,11 +89,7 @@ NAZE_SRC	 = drv_adc.c \
 		   drv_pwm.c \
 		   drv_spi.c \
 		   drv_timer.c \
-		   $(COMMON_SRC)
-
-# Source files for the FY90Q target
-FY90Q_SRC	 = drv_adc_fy90q.c \
-		   drv_pwm_fy90q.c \
+		   $(HIGHEND_SRC) \
 		   $(COMMON_SRC)
 
 # Source files for the OLIMEXINO target
@@ -103,8 +101,17 @@ OLIMEXINO_SRC	 = drv_spi.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
 		   drv_timer.c \
+		   $(HIGHEND_SRC) \
 		   $(COMMON_SRC)
-		   
+
+# Source files for the CJMCU target
+CJMCU_SRC	 = drv_adc.c \
+		   drv_mpu6050.c \
+		   drv_hmc5883l.c \
+		   drv_pwm.c \
+		   drv_timer.c \
+		   $(COMMON_SRC)
+
 # In some cases, %.s regarded as intermediate file, which is actually not.
 # This will prevent accidental deletion of startup code.
 .PRECIOUS: %.s
@@ -138,10 +145,24 @@ INCLUDE_DIRS	 = $(SRC_DIR) \
 		   $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x \
 
 ARCH_FLAGS	 = -mthumb -mcpu=cortex-m3
-BASE_CFLAGS	 = $(ARCH_FLAGS) \
+
+ifeq ($(DEBUG),GDB)
+OPTIMIZE	 = -O0
+LTO_FLAGS	 = $(OPTIMIZE)
+else
+OPTIMIZE	 = -Os
+LTO_FLAGS	 = -flto -fuse-linker-plugin $(OPTIMIZE)
+endif
+
+DEBUG_FLAGS	 = -ggdb3
+
+CFLAGS		 = $(ARCH_FLAGS) \
+		   $(LTO_FLAGS) \
 		   $(addprefix -D,$(OPTIONS)) \
 		   $(addprefix -I,$(INCLUDE_DIRS)) \
-		   -Wall \
+		   $(DEBUG_FLAGS) \
+		   -std=gnu99 \
+		   -Wall -pedantic -Wextra -Wshadow -Wunsafe-loop-optimizations \
 		   -ffunction-sections \
 		   -fdata-sections \
 		   -DSTM32F10X_MD \
@@ -155,7 +176,13 @@ ASFLAGS		 = $(ARCH_FLAGS) \
 # XXX Map/crossref output?
 LD_SCRIPT	 = $(ROOT)/stm32_flash.ld
 LDFLAGS		 = -lm \
+		   --nostartfiles \
+		   --specs=nano.specs \
+		   -lc \
+		   -lnosys \
 		   $(ARCH_FLAGS) \
+		   $(LTO_FLAGS) \
+		   $(DEBUG_FLAGS) \
 		   -static \
 		   -Wl,-gc-sections,-Map,$(TARGET_MAP) \
 		   -T$(LD_SCRIPT)
@@ -169,15 +196,6 @@ LDFLAGS		 = -lm \
 #
 ifeq ($(filter $(TARGET),$(VALID_TARGETS)),)
 $(error Target '$(TARGET)' is not valid, must be one of $(VALID_TARGETS))
-endif
-
-ifeq ($(DEBUG),GDB)
-CFLAGS = $(BASE_CFLAGS) \
-	-ggdb \
-	-O0
-else
-CFLAGS = $(BASE_CFLAGS) \
-	-Os
 endif
 
 

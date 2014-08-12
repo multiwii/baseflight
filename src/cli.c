@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
@@ -141,6 +146,9 @@ const clivalue_t valueTable[] = {
     { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },
     { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
     { "vbatscale", VAR_UINT8, &mcfg.vbatscale, 10, 200 },
+    { "currentscale", VAR_UINT16, &mcfg.currentscale, 1, 10000 },
+    { "currentoffset", VAR_UINT16, &mcfg.currentoffset, 0, 1650 },
+    { "multiwiicurrentoutput", VAR_UINT8, &mcfg.multiwiicurrentoutput, 0, 1 },
     { "vbatmaxcellvoltage", VAR_UINT8, &mcfg.vbatmaxcellvoltage, 10, 50 },
     { "vbatmincellvoltage", VAR_UINT8, &mcfg.vbatmincellvoltage, 10, 50 },
     { "power_adc_channel", VAR_UINT8, &mcfg.power_adc_channel, 0, 9 },
@@ -184,12 +192,14 @@ const clivalue_t valueTable[] = {
     { "accxy_deadband", VAR_UINT8, &cfg.accxy_deadband, 0, 100 },
     { "accz_deadband", VAR_UINT8, &cfg.accz_deadband, 0, 100 },
     { "acc_unarmedcal", VAR_UINT8, &cfg.acc_unarmedcal, 0, 1 },
+    { "small_angle", VAR_UINT8, &cfg.small_angle, 0, 180 },
     { "acc_trim_pitch", VAR_INT16, &cfg.angleTrim[PITCH], -300, 300 },
     { "acc_trim_roll", VAR_INT16, &cfg.angleTrim[ROLL], -300, 300 },
     { "baro_tab_size", VAR_UINT8, &cfg.baro_tab_size, 0, BARO_TAB_SIZE_MAX },
     { "baro_noise_lpf", VAR_FLOAT, &cfg.baro_noise_lpf, 0, 1 },
     { "baro_cf_vel", VAR_FLOAT, &cfg.baro_cf_vel, 0, 1 },
     { "baro_cf_alt", VAR_FLOAT, &cfg.baro_cf_alt, 0, 1 },
+    { "accz_lpf_cutoff", VAR_FLOAT, &cfg.accz_lpf_cutoff, 1, 20 },
     { "mag_declination", VAR_INT16, &cfg.mag_declination, -18000, 18000 },
     { "gps_pos_p", VAR_UINT8, &cfg.P8[PIDPOS], 0, 200 },
     { "gps_pos_i", VAR_UINT8, &cfg.I8[PIDPOS], 0, 200 },
@@ -543,6 +553,7 @@ static void cliCMix(char *cmdline)
 
 static void cliDefaults(char *cmdline)
 {
+    (void)cmdline;
     cliPrint("Resetting to defaults...\r\n");
     checkFirstTime(true);
     cliPrint("Rebooting...");
@@ -552,7 +563,8 @@ static void cliDefaults(char *cmdline)
 
 static void cliDump(char *cmdline)
 {
-    int i;
+    (void)cmdline;
+    unsigned int i;
     char buf[16];
     float thr, roll, pitch, yaw;
     uint32_t mask;
@@ -691,14 +703,20 @@ static void cliFeature(char *cmdline)
 
 static void cliGpsPassthrough(char *cmdline)
 {
+    (void)cmdline;
+#ifdef GPS
     if (gpsSetPassthrough() == -1)
         cliPrint("Error: Enable and plug in GPS first\r\n");
     else
         cliPrint("Enabling GPS passthrough...\r\n");
+#else
+    cliPrint("GPS support is not built in\r\n");
+#endif /* GPS */
 }
 
 static void cliHelp(char *cmdline)
 {
+    (void)cmdline;
     uint32_t i = 0;
 
     cliPrint("Available commands:\r\n");
@@ -834,6 +852,7 @@ static void cliProfile(char *cmdline)
 
 static void cliSave(char *cmdline)
 {
+    (void)cmdline;
     cliPrint("Saving...");
     writeEEPROM(0, true);
     cliPrint("\r\nRebooting...");
@@ -973,6 +992,7 @@ static void cliSet(char *cmdline)
 
 static void cliStatus(char *cmdline)
 {
+    (void)cmdline;
     uint8_t i;
     uint32_t mask;
 
@@ -999,6 +1019,7 @@ static void cliStatus(char *cmdline)
 
 static void cliVersion(char *cmdline)
 {
+    (void)cmdline;
     cliPrint("Afro32 CLI version 2.2 " __DATE__ " / " __TIME__);
 }
 
@@ -1015,7 +1036,7 @@ void cliProcess(void)
         if (c == '\t' || c == '?') {
             // do tab completion
             const clicmd_t *cmd, *pstart = NULL, *pend = NULL;
-            int i = bufferIndex;
+            unsigned int i = bufferIndex;
             for (cmd = cmdTable; cmd < cmdTable + CMD_COUNT; cmd++) {
                 if (bufferIndex && (strncasecmp(cliBuffer, cmd->name, bufferIndex) != 0))
                     continue;

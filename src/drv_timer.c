@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 
 /* FreeFlight/Naze32 timer layout
@@ -60,7 +65,7 @@ const timerHardware_t timerHardware[] = {
 #define MAX_TIMERS 4 // TIM1..TIM4
 #define CC_CHANNELS_PER_TIMER 4 // TIM_Channel_1..4
 
-static const TIM_TypeDef *timers[MAX_TIMERS] = {
+static const TIM_TypeDef * const timers[MAX_TIMERS] = {
     TIM1, TIM2, TIM3, TIM4
 };
 
@@ -75,7 +80,7 @@ typedef struct timerConfig_s {
     uint8_t reference;
 } timerConfig_t;
 
-timerConfig_t timerConfig[MAX_TIMERS * CC_CHANNELS_PER_TIMER];
+timerConfig_t timerConfigs[MAX_TIMERS * CC_CHANNELS_PER_TIMER];
 
 static uint8_t lookupTimerIndex(const TIM_TypeDef *tim)
 {
@@ -105,9 +110,9 @@ void configureTimerChannelCallback(TIM_TypeDef *tim, uint8_t channel, uint8_t re
         return;
     }
 
-    timerConfig[timerConfigIndex].callback = callback;
-    timerConfig[timerConfigIndex].channel = channel;
-    timerConfig[timerConfigIndex].reference = reference;
+    timerConfigs[timerConfigIndex].callback = callback;
+    timerConfigs[timerConfigIndex].channel = channel;
+    timerConfigs[timerConfigIndex].reference = reference;
 }
 
 void configureTimerInputCaptureCompareChannel(TIM_TypeDef *tim, const uint8_t channel)
@@ -139,7 +144,7 @@ void timerNVICConfigure(uint8_t irq)
     NVIC_InitTypeDef NVIC_InitStructure;
 
     NVIC_InitStructure.NVIC_IRQChannel = irq;
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
@@ -173,7 +178,7 @@ void timerConfigure(const timerHardware_t *timerHardwarePtr, uint16_t period, ui
 timerConfig_t *findTimerConfig(TIM_TypeDef *tim, uint8_t channel)
 {
     uint8_t timerConfigIndex = (lookupTimerIndex(tim) * MAX_TIMERS) + lookupChannelIndex(channel);
-    return &(timerConfig[timerConfigIndex]);
+    return &(timerConfigs[timerConfigIndex]);
 }
 
 static void timCCxHandler(TIM_TypeDef *tim)

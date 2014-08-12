@@ -1,21 +1,39 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 #include <string.h>
 
+#define ASSERT_CONCAT_(a, b) a##b
+#define ASSERT_CONCAT(a, b) ASSERT_CONCAT_(a, b)
+#define ct_assert(e) enum { ASSERT_CONCAT(assert_line_, __LINE__) = 1/(!!(e)) }
+
+// define this symbol to increase or decrease flash size. not rely on flash_size_register.
 #ifndef FLASH_PAGE_COUNT
 #define FLASH_PAGE_COUNT 128
 #endif
 
 #define FLASH_PAGE_SIZE                 ((uint16_t)0x400)
-#define FLASH_WRITE_ADDR                (0x08000000 + (uint32_t)FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - 2))       // use the last 2 KB for storage
+// if sizeof(mcfg) is over this number, compile-time error will occur. so, need to add another page to config data.
+#define CONFIG_SIZE                     (FLASH_PAGE_SIZE * 2)
 
 master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 63;
+static const uint8_t EEPROM_CONF_VERSION = 66;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
+static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
+
+void initEEPROM(void)
+{
+    // make sure (at compile time) that config struct doesn't overflow allocated flash pages
+    ct_assert(sizeof(mcfg) < CONFIG_SIZE);
+}
 
 void parseRcChannels(const char *input)
 {
@@ -86,7 +104,9 @@ void activateConfig(void)
     }
 
     setPIDController(cfg.pidController);
+#ifdef GPS
     gpsSetPIDs();
+#endif
 }
 
 void loadAndActivateConfig(void)
@@ -98,10 +118,8 @@ void loadAndActivateConfig(void)
 void writeEEPROM(uint8_t b, uint8_t updateProfile)
 {
     FLASH_Status status;
-    uint32_t i;
     uint8_t chk = 0;
     const uint8_t *p;
-    int tries = 0;
 
     // prepare checksum/version constants
     mcfg.version = EEPROM_CONF_VERSION;
@@ -122,27 +140,21 @@ void writeEEPROM(uint8_t b, uint8_t updateProfile)
     mcfg.chk = chk;
 
     // write it
-retry:
     FLASH_Unlock();
-    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
+    for (unsigned int tries = 3; tries; tries--) {
+        FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
-    if (FLASH_ErasePage(FLASH_WRITE_ADDR) == FLASH_COMPLETE) {
-        for (i = 0; i < sizeof(master_t); i += 4) {
+        FLASH_ErasePage(FLASH_WRITE_ADDR);
+        status = FLASH_ErasePage(FLASH_WRITE_ADDR + FLASH_PAGE_SIZE);
+        for (unsigned int i = 0; i < sizeof(master_t) && status == FLASH_COMPLETE; i += 4)
             status = FLASH_ProgramWord(FLASH_WRITE_ADDR + i, *(uint32_t *)((char *)&mcfg + i));
-            if (status != FLASH_COMPLETE) {
-                FLASH_Lock();
-                tries++;
-                if (tries < 3)
-                    goto retry;
-                else
-                    break;
-            }
-        }
+        if (status == FLASH_COMPLETE)
+            break;
     }
     FLASH_Lock();
 
     // Flash write failed - just die now
-    if (tries == 3 || !validEEPROM()) {
+    if (status != FLASH_COMPLETE || !validEEPROM()) {
         failureMode(10);
     }
 
@@ -175,7 +187,11 @@ static void resetConf(void)
     mcfg.version = EEPROM_CONF_VERSION;
     mcfg.mixerConfiguration = MULTITYPE_QUADX;
     featureClearAll();
+#ifdef CJMCU
+    featureSet(FEATURE_PPM);
+#else
     featureSet(FEATURE_VBAT);
+#endif
 
     // global settings
     mcfg.current_profile = 0;       // default profile
@@ -195,6 +211,7 @@ static void resetConf(void)
     mcfg.max_angle_inclination = 500;    // 50 degrees
     mcfg.yaw_control_direction = 1;
     mcfg.moron_threshold = 32;
+    mcfg.currentscale = 400; // for Allegro ACS758LCB-100U (40mV/A)
     mcfg.vbatscale = 110;
     mcfg.vbatmaxcellvoltage = 43;
     mcfg.vbatmincellvoltage = 33;
@@ -217,7 +234,7 @@ static void resetConf(void)
     mcfg.deadband3d_high = 1514;
     mcfg.neutral3d = 1460;
     mcfg.deadband3d_throttle = 50;
-    mcfg.motor_pwm_rate = 400;
+    mcfg.motor_pwm_rate = MOTOR_PWM_RATE;
     mcfg.servo_pwm_rate = 50;
     // gps/nav stuff
     mcfg.gps_type = GPS_NMEA;
@@ -280,7 +297,9 @@ static void resetConf(void)
     cfg.baro_noise_lpf = 0.6f;
     cfg.baro_cf_vel = 0.985f;
     cfg.baro_cf_alt = 0.965f;
+    cfg.accz_lpf_cutoff = 5.0f;
     cfg.acc_unarmedcal = 1;
+    cfg.small_angle = 25;
 
     // Radio
     parseRcChannels("AETR1234");

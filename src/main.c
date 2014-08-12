@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 #include "mw.h"
 
@@ -14,6 +18,7 @@ extern uint16_t pwmReadRawRC(uint8_t chan);
 // gcc/GNU version
 static void _putc(void *p, char c)
 {
+    (void)p;
     serialWrite(core.mainport, c);
 }
 #else
@@ -38,6 +43,7 @@ int main(void)
     serialPort_t* loopbackPort2 = NULL;
 #endif
 
+    initEEPROM();
     checkFirstTime(false);
     readEEPROM();
     systemInit(mcfg.emf_avoidance);
@@ -126,6 +132,7 @@ int main(void)
     }
 
     pwmInit(&pwm_params);
+    core.numServos = pwm_params.numServos;
 
     // configure PWM/CPPM read function and max number of channels. spektrum or sbus below will override both of these, if enabled
     for (i = 0; i < RC_CHANS; i++)
@@ -149,11 +156,14 @@ int main(void)
                 mspInit(&rcReadRawFunc);
                 break;
         }
-    } else { // spektrum and GPS are mutually exclusive
+    }
+#ifndef CJMCU
+    else { // spektrum and GPS are mutually exclusive
         // Optional GPS - available in both PPM and PWM input mode, in PWM input, reduces number of available channels by 2.
         // gpsInit will return if FEATURE_GPS is not enabled.
         gpsInit(mcfg.gps_baudrate);
     }
+#endif
 #ifdef SONAR
     // sonar stuff only works with PPM
     if (feature(FEATURE_PPM)) {
@@ -162,6 +172,7 @@ int main(void)
     }
 #endif
 
+#ifndef CJMCU
     if (feature(FEATURE_SOFTSERIAL)) {
         //mcfg.softserial_baudrate = 19200; // Uncomment to override config value
 
@@ -180,6 +191,7 @@ int main(void)
 
     if (feature(FEATURE_TELEMETRY))
         initTelemetry();
+#endif
 
     previousTime = micros();
     if (mcfg.mixerConfiguration == MULTITYPE_GIMBAL)

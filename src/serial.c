@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
 
@@ -65,11 +70,13 @@
 
 #define INBUF_SIZE 64
 
-struct box_t {
+typedef struct box_t {
     const uint8_t boxIndex;         // this is from boxnames enum
     const char *boxName;            // GUI-readable box name
-    const uint8_t permanentId;      //
-} boxes[] = {
+    const uint8_t permanentId;      // Permanent ID for reporting to GUI
+} box_t;
+
+static const box_t boxes[] = {
     { BOXARM, "ARM;", 0 },
     { BOXANGLE, "ANGLE;", 1 },
     { BOXHORIZON, "HORIZON;", 2 },
@@ -277,9 +284,11 @@ void serialInit(uint32_t baudrate)
 
 static void evaluateCommand(void)
 {
-    uint32_t i, tmp, junk;
+    uint32_t i, j, tmp, junk;
+#ifdef GPS
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
+#endif
 
     switch (cmdMSP) {
     case MSP_SET_RAW_RC:
@@ -471,10 +480,13 @@ static void evaluateCommand(void)
         break;
     case MSP_ANALOG:
         headSerialReply(7);
-        serialize8(vbat);
-        serialize16(0); // power meter trash
+        serialize8((uint8_t)constrain(vbat, 0, 255));
+        serialize16((uint16_t)constrain(mAhdrawn, 0, 0xFFFF)); // milliamphours drawn from battery
         serialize16(rssi);
-        serialize16(0); // amperage
+        if (mcfg.multiwiicurrentoutput)
+            serialize16((uint16_t)constrain((abs(amperage) * 10), 0, 0xFFFF)); // send amperage in 0.001 A steps
+        else
+            serialize16((uint16_t)constrain(abs(amperage), 0, 0xFFFF)); // send amperage in 0.01 A steps
         break;
     case MSP_RC_TUNING:
         headSerialReply(7);
@@ -509,8 +521,12 @@ static void evaluateCommand(void)
         break;
     case MSP_BOXIDS:
         headSerialReply(numberBoxItems);
-        for (i = 0; i < numberBoxItems; i++)
-            serialize8(availableBoxes[i]);
+        for (i = 0; i < numberBoxItems; i++) {
+            for  (j = 0; j < CHECKBOXITEMS; j++) {
+                if (boxes[j].permanentId == availableBoxes[i])
+                    serialize8(boxes[j].permanentId);
+            }
+        }
         break;
     case MSP_MISC:
         headSerialReply(2 * 6 + 4 + 2 + 4);
@@ -532,6 +548,7 @@ static void evaluateCommand(void)
         for (i = 0; i < 8; i++)
             serialize8(i + 1);
         break;
+#ifdef GPS
     case MSP_WP:
         wp_no = read8();    // get the wp number
         headSerialReply(18);
@@ -575,6 +592,7 @@ static void evaluateCommand(void)
         }
         headSerialReply(0);
         break;
+#endif /* GPS */
     case MSP_RESET_CONF:
         if (!f.ARMED)
             checkFirstTime(true);

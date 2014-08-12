@@ -1,5 +1,12 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #include "board.h"
 #include "mw.h"
+
+#ifdef GPS
 
 #ifndef sq
 #define sq(x) ((x)*(x))
@@ -99,7 +106,7 @@ void gpsInit(uint8_t baudrateIndex)
     gpsSetState(GPS_INITIALIZING);
 }
 
-void gpsInitHardware(void)
+static void gpsInitHardware(void)
 {
     switch (mcfg.gps_type) {
         case GPS_NMEA:
@@ -231,7 +238,7 @@ static bool gpsNewFrame(uint8_t c)
 #define GPS_LOW_SPEED_D_FILTER     1    // below .5m/s speed ignore D term for POSHOLD_RATE, theoretically this also removed D term induced noise
 
 static bool check_missed_wp(void);
-static void GPS_distance_cm_bearing(int32_t * lat1, int32_t * lon1, int32_t * lat2, int32_t * lon2, uint32_t * dist, int32_t * bearing);
+static void GPS_distance_cm_bearing(int32_t * lat1, int32_t * lon1, int32_t * lat2, int32_t * lon2, int32_t * dist, int32_t * bearing);
 //static void GPS_distance(int32_t lat1, int32_t lon1, int32_t lat2, int32_t lon2, uint16_t* dist, int16_t* bearing);
 static void GPS_calc_longitude_scaling(int32_t lat);
 static void GPS_calc_velocity(void);
@@ -241,8 +248,8 @@ static void GPS_calc_nav_rate(int max_speed);
 static void GPS_update_crosstrack(void);
 static bool UBLOX_parse_gps(void);
 static int16_t GPS_calc_desired_speed(int16_t max_speed, bool _slow);
-int32_t wrap_18000(int32_t error);
-static int32_t wrap_36000(int32_t angle);
+int32_t wrap_18000(int32_t err);
+static int32_t wrap_36000(int32_t deg);
 
 typedef struct {
     int16_t last_velocity;
@@ -367,7 +374,7 @@ static int16_t crosstrack_error;
 // distance between plane and home in cm
 //static int32_t home_distance;
 // distance between plane and next_WP in cm
-static uint32_t wp_distance;
+static int32_t wp_distance;
 
 // used for slow speed wind up when start navigation;
 static int16_t waypoint_speed_gov;
@@ -395,7 +402,7 @@ static void gpsNewData(uint16_t c)
 {
     int axis;
     static uint32_t nav_loopTimer;
-    uint32_t dist;
+    int32_t dist;
     int32_t dir;
     int16_t speed;
 
@@ -609,7 +616,7 @@ static bool check_missed_wp(void)
 ////////////////////////////////////////////////////////////////////////////////////
 // Get distance between two points in cm
 // Get bearing from pos1 to pos2, returns an 1deg = 100 precision
-static void GPS_distance_cm_bearing(int32_t * lat1, int32_t * lon1, int32_t * lat2, int32_t * lon2, uint32_t * dist, int32_t * bearing)
+static void GPS_distance_cm_bearing(int32_t * lat1, int32_t * lon1, int32_t * lat2, int32_t * lon2, int32_t * dist, int32_t * bearing)
 {
     float dLat = *lat2 - *lat1; // difference of latitude in 1/10 000 000 degrees
     float dLon = (float)(*lon2 - *lon1) * GPS_scaleLonDown;
@@ -783,22 +790,22 @@ static int16_t GPS_calc_desired_speed(int16_t max_speed, bool _slow)
 ////////////////////////////////////////////////////////////////////////////////////
 // Utilities
 //
-int32_t wrap_18000(int32_t error)
+int32_t wrap_18000(int32_t err)
 {
-    if (error > 18000)
-        error -= 36000;
-    if (error < -18000)
-        error += 36000;
-    return error;
+    if (err > 18000)
+        err -= 36000;
+    if (err < -18000)
+        err += 36000;
+    return err;
 }
 
-static int32_t wrap_36000(int32_t angle)
+static int32_t wrap_36000(int32_t deg)
 {
-    if (angle > 36000)
-        angle -= 36000;
-    if (angle < 0)
-        angle += 36000;
-    return angle;
+    if (deg > 36000)
+        deg -= 36000;
+    if (deg < 0)
+        deg += 36000;
+    return deg;
 }
 
 // This code is used for parsing NMEA data
@@ -916,6 +923,8 @@ static uint8_t hex_c(uint8_t n)
 /* This is a light implementation of a GPS frame decoding
    This should work with most of modern GPS devices configured to output NMEA frames.
    It assumes there are some NMEA GGA frames to decode on the serial bus
+   Now verifies checksum correctly before applying data 
+
    Here we use only the following data :
      - latitude
      - longitude
@@ -925,75 +934,129 @@ static uint8_t hex_c(uint8_t n)
      - GPS altitude (for OSD displaying)
      - GPS speed (for OSD displaying)
 */
+
+#define NO_FRAME   0
 #define FRAME_GGA  1
 #define FRAME_RMC  2
+
+typedef struct gpsMessage_t {
+    int32_t latitude;
+    int32_t longitude; 
+    uint8_t numSat;
+    uint16_t altitude;
+    uint16_t speed;
+    uint16_t ground_course;
+} gpsMessage_t;
 
 static bool gpsNewFrameNMEA(char c)
 {
     uint8_t frameOK = 0;
     static uint8_t param = 0, offset = 0, parity = 0;
     static char string[15];
-    static uint8_t checksum_param, frame = 0;
+    static uint8_t checksum_param, gps_frame = NO_FRAME;
+    static gpsMessage_t gps_msg;
 
-    if (c == '$') {
-        param = 0;
-        offset = 0;
-        parity = 0;
-    } else if (c == ',' || c == '*') {
-        string[offset] = 0;
-        if (param == 0) {       //frame identification
-            frame = 0;
-            if (string[0] == 'G' && string[1] == 'P' && string[2] == 'G' && string[3] == 'G' && string[4] == 'A')
-                frame = FRAME_GGA;
-            if (string[0] == 'G' && string[1] == 'P' && string[2] == 'R' && string[3] == 'M' && string[4] == 'C')
-                frame = FRAME_RMC;
-        } else if (frame == FRAME_GGA) {
-            if (param == 2) {
-                GPS_coord[LAT] = GPS_coord_to_degrees(string);
-            } else if (param == 3 && string[0] == 'S')
-                GPS_coord[LAT] = -GPS_coord[LAT];
-            else if (param == 4) {
-                GPS_coord[LON] = GPS_coord_to_degrees(string);
-            } else if (param == 5 && string[0] == 'W')
-                GPS_coord[LON] = -GPS_coord[LON];
-            else if (param == 6) {
-                f.GPS_FIX = string[0] > '0';
-            } else if (param == 7) {
-                GPS_numSat = grab_fields(string, 0);
-            } else if (param == 9) {
-                GPS_altitude = grab_fields(string, 0);  // altitude in meters added by Mis
+    switch (c) {
+        case '$':
+            param = 0;
+            offset = 0;
+            parity = 0;
+            break;
+
+        case ',':
+        case '*':
+            string[offset] = 0;
+            if (param == 0) {       // frame identification
+                gps_frame = NO_FRAME;
+                if (string[0] == 'G' && string[1] == 'P' && string[2] == 'G' && string[3] == 'G' && string[4] == 'A')
+                    gps_frame = FRAME_GGA;
+                if (string[0] == 'G' && string[1] == 'P' && string[2] == 'R' && string[3] == 'M' && string[4] == 'C')
+                    gps_frame = FRAME_RMC;
             }
-        } else if (frame == FRAME_RMC) {
-            if (param == 7) {
-                GPS_speed = (grab_fields(string, 1) * 5144L) / 1000L;   // speed in cm/s added by Mis
-            } else if (param == 8) {
-                GPS_ground_course = grab_fields(string, 1);             // ground course deg * 10
+
+            switch (gps_frame) {
+                case FRAME_GGA:        // ************* GPGGA FRAME parsing
+                    switch (param) {
+                        case 2:
+                            gps_msg.latitude = GPS_coord_to_degrees(string);
+                            break;
+                        case 3:
+                            if (string[0] == 'S')
+                                gps_msg.latitude *= -1;
+                            break;
+                        case 4:
+                            gps_msg.longitude = GPS_coord_to_degrees(string);
+                            break;
+                        case 5:
+                            if (string[0] == 'W')
+                                gps_msg.longitude *= -1;
+                            break;
+                        case 6:
+                            f.GPS_FIX = string[0] > '0';
+                            break;
+                        case 7:
+                            gps_msg.numSat = grab_fields(string, 0);
+                            break;
+                        case 9:
+                            gps_msg.altitude = grab_fields(string, 0);     // altitude in meters added by Mis
+                            break;
+                    }
+                    break;
+
+                case FRAME_RMC:        // ************* GPRMC FRAME parsing
+                    switch (param) {
+                        case 7:
+                            gps_msg.speed = ((grab_fields(string, 1) * 5144L) / 1000L);    // speed in cm/s added by Mis
+                            break;
+                        case 8:
+                            gps_msg.ground_course = (grab_fields(string, 1));      // ground course deg * 10
+                            break;
+                    }
+                    break;
             }
-        }
-        param++;
-        offset = 0;
-        if (c == '*')
-            checksum_param = 1;
-        else
-            parity ^= c;
-    } else if (c == '\r' || c == '\n') {
-        if (checksum_param) {   // parity checksum
-            uint8_t checksum = hex_c(string[0]);
-            checksum <<= 4;
-            checksum += hex_c(string[1]);
-            if (checksum == parity)
-                frameOK = 1;
-        }
-        checksum_param = 0;
-    } else {
-        if (offset < 15)
-            string[offset++] = c;
-        if (!checksum_param)
-            parity ^= c;
+            param++;
+            offset = 0;
+            if (c == '*')
+                checksum_param = 1;
+            else
+                parity ^= c;
+            break;
+
+        case '\r':
+        case '\n':
+            if (checksum_param) {   //parity checksum
+                uint8_t checksum = 16 * ((string[0] >= 'A') ? string[0] - 'A' + 10 : string[0] - '0') + ((string[1] >= 'A') ? string[1] - 'A' + 10 : string[1] - '0');
+                if (checksum == parity) {
+                    switch (gps_frame) {
+                        case FRAME_GGA:
+                          frameOK = 1;
+                          if (f.GPS_FIX) {
+                                GPS_coord[LAT] = gps_msg.latitude;
+                                GPS_coord[LON] = gps_msg.longitude;
+                                GPS_numSat = gps_msg.numSat;
+                                GPS_altitude = gps_msg.altitude;
+                            }
+                            break;
+
+                        case FRAME_RMC:
+                            GPS_speed = gps_msg.speed;
+                            GPS_ground_course = gps_msg.ground_course;
+                            break;
+                    }
+                }
+            }
+            checksum_param = 0;
+            break;
+
+        default:
+            if (offset < 15)
+                string[offset++] = c;
+            if (!checksum_param)
+                parity ^= c;
+            break;
     }
-    return frameOK && (frame == FRAME_GGA);
+    return frameOK;
 }
-
 
 // UBX support
 typedef struct {
@@ -1261,3 +1324,17 @@ static bool UBLOX_parse_gps(void)
     }
     return false;
 }
+
+#else
+
+void gpsInit(uint8_t baudrateIndex)
+{
+    
+}
+
+void gpsThread(void)
+{
+    
+}
+
+#endif /* GPS */

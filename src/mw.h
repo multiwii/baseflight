@@ -1,3 +1,8 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
+
 #pragma once
 
 /* for VBAT monitoring frequency */
@@ -177,7 +182,9 @@ typedef struct config_t {
     float baro_noise_lpf;                   // additional LPF to reduce baro noise
     float baro_cf_vel;                      // apply Complimentary Filter to keep the calculated velocity based on baro velocity (i.e. near real velocity)
     float baro_cf_alt;                      // apply CF to use ACC for height estimation
+    float accz_lpf_cutoff;                  // cutoff frequency for the low pass filter used on the acc z-axis for althold in Hz
     uint8_t acc_unarmedcal;                 // turn automatic acc compensation on/off
+    uint8_t small_angle;                    // what is considered a safe angle for arming
 
     uint16_t activate[CHECKBOXITEMS];       // activate switches
 
@@ -256,6 +263,9 @@ typedef struct master_t {
     int16_t magZero[3];
 
     // Battery/ADC stuff
+    uint16_t currentscale;                  // scale the current sensor output voltage to milliamps. Value in 1/10th mV/A
+    uint16_t currentoffset;                 // offset of the current sensor in millivolt steps
+    uint8_t multiwiicurrentoutput;          // if set to 1 output the amperage in milliamp steps instead of 0.01A steps via msp
     uint8_t vbatscale;                      // adjust this to match battery voltage to reported value
     uint8_t vbatmaxcellvoltage;             // maximum voltage per cell, used for auto-detecting battery voltage in 0.1V units, default is 43 (4.3V)
     uint8_t vbatmincellvoltage;             // minimum voltage per cell, this triggers battery out alarms, in 0.1V units, default is 33 (3.3V)
@@ -277,11 +287,11 @@ typedef struct master_t {
     uint8_t gps_type;                       // See GPSHardware enum.
     int8_t gps_baudrate;                    // See GPSBaudRates enum.
 
-    uint32_t serial_baudrate;
+    uint32_t serial_baudrate;               // primary serial (MSP) port baudrate
 
-    uint32_t softserial_baudrate;             // shared by both soft serial ports
-    uint8_t softserial_1_inverted;            // use inverted softserial input and output signals on port 1
-    uint8_t softserial_2_inverted;            // use inverted softserial input and output signals on port 2
+    uint32_t softserial_baudrate;           // shared by both soft serial ports
+    uint8_t softserial_1_inverted;          // use inverted softserial input and output signals on port 1
+    uint8_t softserial_2_inverted;          // use inverted softserial input and output signals on port 2
 
     uint8_t telemetry_provider;             // See TelemetryProvider enum.
     uint8_t telemetry_port;                 // See TelemetryPort enum.
@@ -303,6 +313,7 @@ typedef struct core_t {
     uint8_t mpu6050_scale;                  // es/non-es variance between MPU6050 sensors, half my boards are mpu6000ES, need this to be dynamic. automatically set by mpu6050 driver.
     uint8_t numRCChannels;                  // number of rc channels as reported by current input driver
     bool useServo;                          // feature SERVO_TILT or wing/airplane mixers will enable this
+    uint8_t numServos;                      // how many total hardware servos we have. used by mixer
 } core_t;
 
 typedef struct flags_t {
@@ -345,7 +356,6 @@ extern uint16_t cycleTime;
 extern uint16_t calibratingA;
 extern uint16_t calibratingB;
 extern uint16_t calibratingG;
-extern int16_t heading;
 extern int32_t baroPressure;
 extern int32_t baroTemperature;
 extern uint32_t baroPressureSum;
@@ -353,7 +363,9 @@ extern int32_t BaroAlt;
 extern int32_t sonarAlt;
 extern int32_t EstAlt;
 extern int32_t AltHold;
-extern int32_t errorAltitudeI;
+extern int32_t setVelocity;
+extern uint8_t velocityControl;
+extern int32_t errorVelocityI;
 extern int32_t BaroPID;
 extern int32_t vario;
 extern int16_t throttleAngleCorrection;
@@ -363,8 +375,10 @@ extern int16_t motor[MAX_MOTORS];
 extern int16_t servo[MAX_SERVOS];
 extern int16_t rcData[RC_CHANS];
 extern uint16_t rssi;                  // range: [0;1023]
-extern uint8_t vbat;
+extern uint16_t vbat;                  // battery voltage in 0.1V steps
 extern int16_t telemTemperature1;      // gyro sensor temperature
+extern int32_t amperage;               // amperage read by current sensor in 0.01A steps
+extern int32_t mAhdrawn;              // milli ampere hours drawn from battery since start
 extern uint8_t toggleBeep;
 
 #define PITCH_LOOKUP_LENGTH 7
@@ -415,6 +429,7 @@ int getEstimatedAltitude(void);
 bool sensorsAutodetect(void);
 void batteryInit(void);
 uint16_t batteryAdcToVoltage(uint16_t src);
+int32_t currentSensorToCentiamps(uint16_t src);
 void ACC_getADC(void);
 int Baro_update(void);
 void Gyro_getADC(void);
@@ -437,6 +452,7 @@ void serialInit(uint32_t baudrate);
 void serialCom(void);
 
 // Config
+void initEEPROM(void);
 void parseRcChannels(const char *input);
 void activateConfig(void);
 void loadAndActivateConfig(void);

@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 #include "mw.h"
 
@@ -12,7 +16,9 @@ uint32_t previousTime = 0;
 uint16_t cycleTime = 0;         // this is the number in micro second to achieve a full loop, it can differ a little and is taken into account in the PID loop
 int16_t headFreeModeHold;
 
-uint8_t vbat;                   // battery voltage in 0.1V steps
+uint16_t vbat;                  // battery voltage in 0.1V steps
+int32_t amperage;               // amperage read by current sensor in centiampere (1/100th A)
+int32_t mAhdrawn;              // milliampere hours drawn from the battery since start
 int16_t telemTemperature1;      // gyro sensor temperature
 
 int16_t failsafeCnt = 0;
@@ -90,11 +96,10 @@ void annexCode(void)
 
     // vbat shit
     static uint8_t vbatTimer = 0;
-    static uint8_t ind = 0;
-    uint16_t vbatRaw = 0;
-    static uint16_t vbatRawArray[8];
-
-    int i;
+    static int32_t vbatRaw = 0;
+    static int32_t amperageRaw = 0;
+    static int64_t mAhdrawnRaw = 0;
+    static int32_t vbatCycleTime = 0;
 
     // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
     if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
@@ -155,11 +160,21 @@ void annexCode(void)
     }
 
     if (feature(FEATURE_VBAT)) {
+        vbatCycleTime += cycleTime;
         if (!(++vbatTimer % VBATFREQ)) {
-            vbatRawArray[(ind++) % 8] = adcGetChannel(ADC_BATTERY);
-            for (i = 0; i < 8; i++)
-                vbatRaw += vbatRawArray[i];
+            vbatRaw -= vbatRaw / 8;
+            vbatRaw += adcGetChannel(ADC_BATTERY);
             vbat = batteryAdcToVoltage(vbatRaw / 8);
+            
+            if (mcfg.power_adc_channel > 0) {
+                amperageRaw -= amperageRaw / 8;
+                amperageRaw += adcGetChannel(ADC_EXTERNAL_CURRENT);
+                amperage = currentSensorToCentiamps(amperageRaw / 8);
+                mAhdrawnRaw += (amperage * vbatCycleTime) / 1000;
+                mAhdrawn = mAhdrawnRaw / (3600 * 100);
+                vbatCycleTime = 0;
+            }
+            
         }
         if ((vbat > batteryWarningVoltage) || (vbat < mcfg.vbatmincellvoltage)) { // VBAT ok, buzzer off
             buzzerFreq = 0;
@@ -177,7 +192,9 @@ void annexCode(void)
         if (f.ARMED)
             LED0_ON;
 
+#ifndef CJMCU
         checkTelemetryState();
+#endif
     }
 
 #ifdef LEDRING
@@ -202,9 +219,11 @@ void annexCode(void)
 
     serialCom();
 
+#ifndef CJMCU
     if (!cliMode && feature(FEATURE_TELEMETRY)) {
         handleTelemetry();
     }
+#endif
 
     if (sensors(SENSOR_GPS)) {
         static uint32_t GPSLEDTime;
@@ -229,36 +248,30 @@ uint16_t pwmReadRawRC(uint8_t chan)
 
 void computeRC(void)
 {
-    uint8_t chan;
+    uint16_t capture;
+    int i, chan;
 
     if (feature(FEATURE_SERIALRX)) {
         for (chan = 0; chan < 8; chan++)
             rcData[chan] = rcReadRawFunc(chan);
     } else {
-        static int16_t rcData4Values[8][4], rcDataMean[8];
-        static uint8_t rc4ValuesIndex = 0;
-        uint16_t capture;
-        uint8_t a;
+        static int16_t rcDataAverage[8][4];
+        static int rcAverageIndex = 0;
 
-        rc4ValuesIndex++;
         for (chan = 0; chan < 8; chan++) {
             capture = rcReadRawFunc(chan);
 
             // validate input
             if (capture < PULSE_MIN || capture > PULSE_MAX)
                 capture = mcfg.midrc;
-
-            rcData4Values[chan][rc4ValuesIndex % 4] = capture;
-            rcDataMean[chan] = 0;
-            for (a = 0; a < 4; a++)
-                rcDataMean[chan] += rcData4Values[chan][a];
-
-            rcDataMean[chan] = (rcDataMean[chan] + 2) / 4;
-            if (rcDataMean[chan] < rcData[chan] - 3)
-                rcData[chan] = rcDataMean[chan] + 2;
-            if (rcDataMean[chan] > rcData[chan] + 3)
-                rcData[chan] = rcDataMean[chan] - 2;
+            rcDataAverage[chan][rcAverageIndex % 4] = capture;
+            // clear this since we're not accessing it elsewhere. saves a temp var
+            rcData[chan] = 0;
+            for (i = 0; i < 4; i++)
+                rcData[chan] += rcDataAverage[chan][i];
+            rcData[chan] /= 4;
         }
+        rcAverageIndex++;
     }
 }
 
@@ -319,7 +332,7 @@ static void pidMultiWii(void)
             PTermGYRO = rcCommand[axis];
 
             errorGyroI[axis] = constrain(errorGyroI[axis] + error, -16000, +16000); // WindUp
-            if (abs(gyroData[axis]) > 640)
+            if ((abs(gyroData[axis]) > 640) || ((axis == YAW) && (abs(rcCommand[axis]) > 100)))
                 errorGyroI[axis] = 0;
             ITermGYRO = (errorGyroI[axis] / 125 * cfg.I8[axis]) >> 6;
         }
@@ -362,13 +375,11 @@ static void pidRewrite(void)
     // ----------PID controller----------
     for (axis = 0; axis < 3; axis++) {
         // -----Get the desired angle rate depending on flight mode
-        if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
-            // calculate error and limit the angle to max configured inclination
-            errorAngle = constrain((rcCommand[axis] << 1) + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis]; // 16 bits is ok here
-        }
         if (axis == 2) { // YAW is always gyro-controlled (MAG correction is applied to rcCommand)
-            AngleRateTmp = (((int32_t)(cfg.yawRate + 27) * rcCommand[2]) >> 5);
+            AngleRateTmp = (((int32_t)(cfg.yawRate + 27) * rcCommand[YAW]) >> 5);
         } else {
+            // calculate error and limit the angle to 50 degrees max inclination
+            errorAngle = (constrain(rcCommand[axis] + GPS_angle[axis], -500, +500) - angle[axis] + cfg.angleTrim[axis]) / 10.0f; // 16 bits is ok here
             if (!f.ANGLE_MODE) { //control is GYRO based (ACRO and HORIZON - direct sticks control is applied to rate PID
                 AngleRateTmp = ((int32_t)(cfg.rollPitchRate + 27) * rcCommand[axis]) >> 4;
                 if (f.HORIZON_MODE) {
@@ -443,7 +454,9 @@ void loop(void)
 #endif
     static uint32_t loopTime;
     uint16_t auxState = 0;
+#ifdef GPS
     static uint8_t GPSNavReset = 1;
+#endif
     bool isThrottleLow = false;
     bool rcReady = false;
 
@@ -532,12 +545,15 @@ void loop(void)
             errorGyroI[YAW] = 0;
             errorAngleI[ROLL] = 0;
             errorAngleI[PITCH] = 0;
-            if (cfg.activate[BOXARM] > 0) { // Arming/Disarming via ARM BOX
+            if (cfg.activate[BOXARM] > 0) { // Arming via ARM BOX
                 if (rcOptions[BOXARM] && f.OK_TO_ARM)
                     mwArm();
-                else if (f.ARMED)
-                    mwDisarm();
             }
+        }
+
+        if (cfg.activate[BOXARM] > 0) { // Disarming via ARM BOX
+            if (!rcOptions[BOXARM] && f.ARMED)
+                    mwDisarm();
         }
 
         if (rcDelayCommand == 20) {
@@ -553,8 +569,10 @@ void loop(void)
                 // GYRO calibration
                 if (rcSticks == THR_LO + YAW_LO + PIT_LO + ROL_CE) {
                     calibratingG = CALIBRATING_GYRO_CYCLES;
+#ifdef GPS
                     if (feature(FEATURE_GPS))
                         GPS_reset_home_position();
+#endif
                     if (sensors(SENSOR_BARO))
                         calibratingB = 10; // calibrate baro to new ground level (10 * 25 ms = ~250 ms non blocking)
                     if (!sensors(SENSOR_MAG))
@@ -682,7 +700,7 @@ void loop(void)
                     f.BARO_MODE = 1;
                     AltHold = EstAlt;
                     initialThrottleHold = rcCommand[THROTTLE];
-                    errorAltitudeI = 0;
+                    errorVelocityI = 0;
                     BaroPID = 0;
                 }
             } else {
@@ -724,6 +742,7 @@ void loop(void)
         }
 #endif
 
+#ifdef GPS
         if (sensors(SENSOR_GPS)) {
             if (f.GPS_FIX && GPS_numSat >= 5) {
                 // if both GPS_HOME & GPS_HOLD are checked => GPS_HOME is the priority
@@ -761,6 +780,7 @@ void loop(void)
                 nav_mode = NAV_MODE_NONE;
             }
         }
+#endif
 
         if (rcOptions[BOXPASSTHRU]) {
             f.PASSTHRU_MODE = 1;
@@ -797,10 +817,12 @@ void loop(void)
             // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
             // change this based on available hardware
             taskOrder++;
+#ifdef GPS
             if (feature(FEATURE_GPS)) {
                 gpsThread();
                 break;
             }
+#endif
         case 4:
             taskOrder = 0;
 #ifdef SONAR
@@ -819,12 +841,12 @@ void loop(void)
         loopTime = currentTime + mcfg.looptime;
 
         computeIMU();
-        annexCode();
         // Measure loop rate just afer reading the sensors
         currentTime = micros();
         cycleTime = (int32_t)(currentTime - previousTime);
         previousTime = currentTime;
-
+        // non IMU critical, temeperatur, serialcom
+         annexCode();
 #ifdef MAG
         if (sensors(SENSOR_MAG)) {
             if (abs(rcCommand[YAW]) < 70 && f.MAG_MODE) {
@@ -845,13 +867,12 @@ void loop(void)
         if (sensors(SENSOR_BARO)) {
             if (f.BARO_MODE) {
                 static uint8_t isAltHoldChanged = 0;
-                static int16_t AltHoldCorr = 0;
                 if (!f.FIXED_WING) {
                     // multirotor alt hold
                     if (cfg.alt_hold_fast_change) {
                         // rapid alt changes
                         if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
-                            errorAltitudeI = 0;
+                            errorVelocityI = 0;
                             isAltHoldChanged = 1;
                             rcCommand[THROTTLE] += (rcCommand[THROTTLE] > initialThrottleHold) ? -cfg.alt_hold_throttle_neutral : cfg.alt_hold_throttle_neutral;
                         } else {
@@ -859,22 +880,21 @@ void loop(void)
                                 AltHold = EstAlt;
                                 isAltHoldChanged = 0;
                             }
-                            rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle + 100, mcfg.maxthrottle);
+                            rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle, mcfg.maxthrottle);
                         }
                     } else {
                         // slow alt changes for apfags
                         if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
-                            // Slowly increase/decrease AltHold proportional to stick movement ( +100 throttle gives ~ +50 cm in 1 second with cycle time about 3-4ms)
-                            AltHoldCorr += rcCommand[THROTTLE] - initialThrottleHold;
-                            AltHold += AltHoldCorr / 2000;
-                            AltHoldCorr %= 2000;
+                            // set velocity proportional to stick movement +100 throttle gives ~ +50 cm/s
+                            setVelocity = (rcCommand[THROTTLE] - initialThrottleHold) / 2;
+                            velocityControl = 1;
                             isAltHoldChanged = 1;
                         } else if (isAltHoldChanged) {
                             AltHold = EstAlt;
-                            AltHoldCorr = 0;
+                            velocityControl = 0;
                             isAltHoldChanged = 0;
                         }
-                        rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle + 100, mcfg.maxthrottle);
+                        rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle, mcfg.maxthrottle);
                     }
                 } else {
                     // handle fixedwing-related althold. UNTESTED! and probably wrong
@@ -890,6 +910,7 @@ void loop(void)
             rcCommand[THROTTLE] += throttleAngleCorrection;
         }
 
+#ifdef GPS
         if (sensors(SENSOR_GPS)) {
             if ((f.GPS_HOME_MODE || f.GPS_HOLD_MODE) && f.GPS_FIX_HOME) {
                 float sin_yaw_y = sinf(heading * 0.0174532925f);
@@ -905,6 +926,7 @@ void loop(void)
                 }
             }
         }
+#endif
 
         // PID - note this is function pointer set by setPIDController()
         pid_controller();
