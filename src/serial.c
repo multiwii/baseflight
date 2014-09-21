@@ -315,7 +315,7 @@ void serialInit(uint32_t baudrate)
 // send MSP to OSD to disable serial
 void osdDisableMSP(void)
 {
-    headSerialReply(69);
+    headSerialReply(1);
     serialize8(0xFF);
     osdSilence = false;		
 }
