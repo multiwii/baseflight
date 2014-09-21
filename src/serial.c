@@ -313,14 +313,10 @@ void serialInit(uint32_t baudrate)
 }
 
 // send MSP to OSD to disable serial
-void osdDisableMSP()
+void osdDisableMSP(void)
 {
-    // Unsure how many times will be needed for OSD to get command
-    // Send 6 times?
-    for (int i=0; i < 6; i++) {
-        headSerialReply(69);
-        serialize8(0xFF);
-    }
+    headSerialReply(69);
+    serialize8(0xFF);
     osdSilence = false;		
 }
 
@@ -331,7 +327,8 @@ static void evaluateCommand(void)
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
 #endif
-    if (osdSilence) osdDisableMSP();
+    if (osdSilence)
+        osdDisableMSP();
     switch (currentPortState->cmdMSP) {
     case MSP_SET_RAW_RC:
         for (i = 0; i < 8; i++)
