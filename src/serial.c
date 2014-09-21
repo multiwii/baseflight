@@ -75,6 +75,7 @@
 #define MSP_CONFIG               66     //out message         baseflight-specific settings that aren't covered elsewhere
 #define MSP_SET_CONFIG           67     //in message          baseflight-specific settings save
 #define MSP_REBOOT               68     //in message          reboot settings
+#define MSP_SILENCE_OSD          69     //in message          disable mwosd serial
 
 #define INBUF_SIZE 64
 
@@ -153,6 +154,8 @@ typedef  struct mspPortState_t {
 static mspPortState_t ports[2];
 static mspPortState_t *currentPortState = &ports[0];
 static int numTelemetryPorts = 0;
+
+static bool osdSilence = false;
 
 // static uint8_t checksum, indRX, inBuf[INBUF_SIZE];
 // static uint8_t cmdMSP;
@@ -309,6 +312,14 @@ void serialInit(uint32_t baudrate)
     numberBoxItems = idx;
 }
 
+// send MSP to OSD to disable serial
+void osdDisableMSP(void)
+{
+    headSerialReply(1);
+    serialize8(0xFF);
+    osdSilence = false;		
+}
+
 static void evaluateCommand(void)
 {
     uint32_t i, j, tmp, junk;
@@ -316,7 +327,8 @@ static void evaluateCommand(void)
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
 #endif
-
+    if (osdSilence)
+        osdDisableMSP();
     switch (currentPortState->cmdMSP) {
     case MSP_SET_RAW_RC:
         for (i = 0; i < 8; i++)
@@ -728,7 +740,10 @@ static void evaluateCommand(void)
         headSerialReply(0);
         pendReboot = true;
         break;
-
+    case MSP_SILENCE_OSD:
+        headSerialReply(0);
+        osdSilence = true;
+        break;
     default:                   // we do not know how to handle the (valid) message, indicate error MSP $M!
         headSerialError(0);
         break;
