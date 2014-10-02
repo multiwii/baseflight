@@ -59,6 +59,14 @@ typedef enum GimbalFlags {
     GIMBAL_FORWARDAUX = 1 << 2,
 } GimbalFlags;
 
+typedef enum FlapsType {
+    FLAPS_DISABLED = 0,
+    FLAPS_ENABLED,
+    FLAPERONS_ENABLED,
+    FLAPERONS_INVERTED_ENABLED,
+    FLAPS_TYPE_MAX = FLAPERONS_INVERTED_ENABLED
+} FlapsType;
+
 /*********** RC alias *****************/
 enum {
     ROLL = 0,
@@ -281,7 +289,11 @@ typedef struct master_t {
     uint16_t maxcheck;                      // maximum rc end
     uint8_t retarded_arm;                   // allow disarsm/arm on throttle down + roll left/right
     uint8_t disarm_kill_switch;             // AUX disarm independently of throttle value
-    uint8_t flaps_speed;                    // airplane mode flaps, 0 = no flaps, > 0 = flap speed, larger = faster
+    uint8_t flaps;                          // airplane mode flaps, 0 = no flaps, 1 = flaps enabled, 2 = flaperons enabled, 3 = flaperons enabled reversed direction
+    uint8_t flaperon_channel;               // Flaperon channel
+    uint8_t flaps_speed;                    // airplane mode flaps speed, 0 = unlimited flaps speed, > 0 = flap speed, larger = faster
+    uint16_t minflaps;                      // Set the minimum flaps endpoint 1000..2000
+    uint16_t maxflaps;                      // Set the maximum flaps endpoint 1000..2000
     int8_t fixedwing_althold_dir;           // +1 or -1 for pitch/althold gain. later check if need more than just sign
 
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.

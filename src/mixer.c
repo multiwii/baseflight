@@ -328,7 +328,9 @@ void writeAllMotors(int16_t mc)
 
 static void airplaneMixer(void)
 {
-    int16_t flapperons[2] = { 0, 0 };
+    static int16_t currentFlaps = 0;
+    int16_t tmpFlaps = 0;
+    int16_t flaperons[2] = { 0, 0 };
     int i;
 
     if (!f.ARMED)
@@ -337,44 +339,59 @@ static void airplaneMixer(void)
         servo[7] = constrain(rcCommand[THROTTLE], mcfg.minthrottle, mcfg.maxthrottle);
     motor[0] = servo[7];
 
-#if 0
-    if (cfg.flaperons) {
-
-
-    }
-#endif
-
-    if (mcfg.flaps_speed) {
+    if (mcfg.flaps == FLAPERONS_ENABLED || mcfg.flaps == FLAPERONS_INVERTED_ENABLED) 
+        tmpFlaps = mcfg.midrc - constrain(rcData[mcfg.flaperon_channel], mcfg.minflaps, mcfg.maxflaps);
+    else if (mcfg.flaps == FLAPS_ENABLED)
         // configure SERVO3 middle point in GUI to using an AUX channel for FLAPS control
         // use servo min, servo max and servo rate for proper endpoints adjust
-        static int16_t slow_LFlaps;
-        int16_t lFlap = servoMiddle(2);
+        tmpFlaps = cfg.servoConf[2].middle - constrain(servoMiddle(2), cfg.servoConf[2].min, cfg.servoConf[2].max);
 
-        lFlap = constrain(lFlap, cfg.servoConf[2].min, cfg.servoConf[2].max);
-        lFlap = mcfg.midrc - lFlap; // shouldn't this be servoConf[2].middle?
-        if (slow_LFlaps < lFlap)
-            slow_LFlaps += mcfg.flaps_speed;
-        else if (slow_LFlaps > lFlap)
-            slow_LFlaps -= mcfg.flaps_speed;
-
-        servo[2] = ((int32_t)cfg.servoConf[2].rate * slow_LFlaps) / 100L;
+    
+    if (mcfg.flaps > 0) {
+        if (mcfg.flaps_speed) {
+            // to prevent constant oscillating limit the value to the target value if it has been reached, the currentFlaps parameter to the constrain function is just a dummy in each case
+            if (currentFlaps < tmpFlaps) {
+                currentFlaps = constrain(currentFlaps + mcfg.flaps_speed, currentFlaps, tmpFlaps);
+            }
+            else if (currentFlaps > tmpFlaps) {
+                currentFlaps = constrain(currentFlaps - mcfg.flaps_speed, tmpFlaps, currentFlaps);
+            }
+        }
+        else
+            currentFlaps = tmpFlaps;
+    }
+    
+    if (mcfg.flaps == FLAPERONS_ENABLED || mcfg.flaps == FLAPERONS_INVERTED_ENABLED) {
+        tmpFlaps = mcfg.midrc - constrain(mcfg.midrc - currentFlaps, mcfg.minflaps, mcfg.maxflaps);
+        
+        if (mcfg.flaps == FLAPERONS_INVERTED_ENABLED) {
+            flaperons[0] = tmpFlaps;
+            flaperons[1] = tmpFlaps * -1;
+        }
+        else {
+            flaperons[0] = tmpFlaps * -1;
+            flaperons[1] = tmpFlaps;
+        }
+    }
+    else if (mcfg.flaps == FLAPS_ENABLED) {
+        servo[2] = ((int32_t)cfg.servoConf[2].rate * currentFlaps) / 100;
         servo[2] += mcfg.midrc;
     }
 
     if (f.PASSTHRU_MODE) {   // Direct passthru from RX
-        servo[3] = rcCommand[ROLL] + flapperons[0];     // Wing 1
-        servo[4] = rcCommand[ROLL] + flapperons[1];     // Wing 2
+        servo[3] = rcCommand[ROLL] + flaperons[0];      // Wing 1
+        servo[4] = rcCommand[ROLL] + flaperons[1];      // Wing 2
         servo[5] = rcCommand[YAW];                      // Rudder
         servo[6] = rcCommand[PITCH];                    // Elevator
     } else {
         // Assisted modes (gyro only or gyro+acc according to AUX configuration in Gui
-        servo[3] = axisPID[ROLL] + flapperons[0];       // Wing 1
-        servo[4] = axisPID[ROLL] + flapperons[1];       // Wing 2
+        servo[3] = axisPID[ROLL] + flaperons[0];        // Wing 1
+        servo[4] = axisPID[ROLL] + flaperons[1];        // Wing 2
         servo[5] = axisPID[YAW];                        // Rudder
         servo[6] = axisPID[PITCH];                      // Elevator
     }
     for (i = 3; i < 7; i++) {
-        servo[i] = ((int32_t)cfg.servoConf[i].rate * servo[i]) / 100L; // servo rates
+        servo[i] = ((int32_t)cfg.servoConf[i].rate * servo[i]) / 100; // servo rates
         servo[i] += servoMiddle(i);
     }
 }
