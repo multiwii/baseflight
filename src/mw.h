@@ -220,6 +220,10 @@ typedef struct config_t {
     uint16_t nav_speed_min;                 // cm/sec
     uint16_t nav_speed_max;                 // cm/sec
     uint16_t ap_mode;                       // Temporarily Disables GPS_HOLD_MODE to be able to make it possible to adjust the Hold-position when moving the sticks, creating a deadspan for GPS
+
+    float fixedwing_rollrate;
+    float fixedwing_pitchrate;
+	uint8_t flaperonInvert;
 } config_t;
 
 // System-wide
@@ -283,7 +287,11 @@ typedef struct master_t {
     uint8_t disarm_kill_switch;             // AUX disarm independently of throttle value
     uint8_t flaps_speed;                    // airplane mode flaps, 0 = no flaps, > 0 = flap speed, larger = faster
     int8_t fixedwing_althold_dir;           // +1 or -1 for pitch/althold gain. later check if need more than just sign
-
+    uint8_t flaperons;                      // Enable/disable channel selection 0 - 16
+    uint8_t flaps;                          // Flaps activation
+	uint16_t flaperons_Min;                 // Endpoint for Flaperons
+	uint16_t flaperons_Max;                 // Endpoint for Flaperons
+		
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.
     uint8_t rssi_adc_channel;               // Read analog-rssi from RC-filter (RSSI-PWM to RSSI-Analog), RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), 0 to disable (disabled if rssi_aux_channel > 0 or rssi_adc_channel == power_adc_channel)
     uint16_t rssi_adc_max;                  // max input voltage defined by RC-filter (is RSSI never 100% reduce the value) (1...4095)
