@@ -350,12 +350,10 @@ static void airplaneMixer(void)
     if (mcfg.flaps > 0) {
         if (mcfg.flaps_speed) {
             // to prevent constant oscillating limit the value to the target value if it has been reached, the currentFlaps parameter to the constrain function is just a dummy in each case
-            if (currentFlaps < tmpFlaps) {
+            if (currentFlaps < tmpFlaps)
                 currentFlaps = constrain(currentFlaps + mcfg.flaps_speed, currentFlaps, tmpFlaps);
-            }
-            else if (currentFlaps > tmpFlaps) {
+            else if (currentFlaps > tmpFlaps)
                 currentFlaps = constrain(currentFlaps - mcfg.flaps_speed, tmpFlaps, currentFlaps);
-            }
         }
         else
             currentFlaps = tmpFlaps;
