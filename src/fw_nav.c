@@ -9,7 +9,7 @@
 
 // from gps.c
 extern int32_t nav_bearing;
-extern uint32_t wp_distance;
+extern int32_t wp_distance;
 extern PID_PARAM navPID_PARAM;
 extern PID_PARAM altPID_PARAM;
 
