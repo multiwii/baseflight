@@ -326,10 +326,23 @@ void writeAllMotors(int16_t mc)
     writeMotors();
 }
 
+static int16_t nextFlapsPosition(int16_t currentPosition, int16_t targetPosition) 
+{
+    int16_t nextFlaps = targetPosition;
+    if (mcfg.flaps_speed) {
+        // to prevent constant oscillating limit the value to the target value if it has been reached, the currentFlaps parameter to the constrain function is just a dummy in each case
+        if (currentPosition < targetPosition)
+            nextFlaps = constrain(currentPosition + mcfg.flaps_speed, currentPosition, targetPosition);
+        else if (currentPosition > targetPosition)
+            nextFlaps = constrain(currentPosition - mcfg.flaps_speed, targetPosition, currentPosition);
+    }
+    
+    return nextFlaps;
+}
+
 static void airplaneMixer(void)
 {
-    static int16_t currentFlaps = 0;
-    int16_t tmpFlaps = 0;
+    static int16_t currentFlaps, currentFlaperons = 0;
     int16_t flaperons[2] = { 0, 0 };
     int i;
 
@@ -337,32 +350,13 @@ static void airplaneMixer(void)
         servo[7] = mcfg.mincommand; // Kill throttle when disarmed
     else
         servo[7] = constrain(rcCommand[THROTTLE], mcfg.minthrottle, mcfg.maxthrottle);
-    motor[0] = servo[7];
-
-    if (mcfg.flaps == FLAPERONS_ENABLED || mcfg.flaps == FLAPERONS_INVERTED_ENABLED) 
-        tmpFlaps = mcfg.midrc - constrain(rcData[mcfg.flaperon_channel], mcfg.minflaps, mcfg.maxflaps);
-    else if (mcfg.flaps == FLAPS_ENABLED)
-        // configure SERVO3 middle point in GUI to using an AUX channel for FLAPS control
-        // use servo min, servo max and servo rate for proper endpoints adjust
-        tmpFlaps = cfg.servoConf[2].middle - constrain(servoMiddle(2), cfg.servoConf[2].min, cfg.servoConf[2].max);
-
+    motor[0] = servo[7];    
     
-    if (mcfg.flaps > 0) {
-        if (mcfg.flaps_speed) {
-            // to prevent constant oscillating limit the value to the target value if it has been reached, the currentFlaps parameter to the constrain function is just a dummy in each case
-            if (currentFlaps < tmpFlaps)
-                currentFlaps = constrain(currentFlaps + mcfg.flaps_speed, currentFlaps, tmpFlaps);
-            else if (currentFlaps > tmpFlaps)
-                currentFlaps = constrain(currentFlaps - mcfg.flaps_speed, tmpFlaps, currentFlaps);
-        }
-        else
-            currentFlaps = tmpFlaps;
-    }
-    
-    if (mcfg.flaps == FLAPERONS_ENABLED || mcfg.flaps == FLAPERONS_INVERTED_ENABLED) {
-        tmpFlaps = mcfg.midrc - constrain(mcfg.midrc - currentFlaps, mcfg.minflaps, mcfg.maxflaps);
+    if (mcfg.flaps_type == FLAPERONS_ENABLED || mcfg.flaps_type == FLAPERONS_INVERTED_ENABLED || mcfg.flaps_type == FLAPS_FLAPERONS_ENVABLED || mcfg.flaps_type == FLAPS_FLAPERONS_INVERTED_ENABLED) {
+        currentFlaperons = nextFlapsPosition(currentFlaperons, (mcfg.midrc - constrain(rcData[mcfg.flaperon_channel], mcfg.minflaperons, mcfg.maxflaperons)));
+        int16_t tmpFlaps = mcfg.midrc - constrain(mcfg.midrc - currentFlaperons, mcfg.minflaperons, mcfg.maxflaperons);
         
-        if (mcfg.flaps == FLAPERONS_INVERTED_ENABLED) {
+        if (mcfg.flaps_type == FLAPERONS_INVERTED_ENABLED || mcfg.flaps_type == FLAPS_FLAPERONS_INVERTED_ENABLED) {
             flaperons[0] = tmpFlaps;
             flaperons[1] = tmpFlaps * -1;
         }
@@ -371,7 +365,11 @@ static void airplaneMixer(void)
             flaperons[1] = tmpFlaps;
         }
     }
-    else if (mcfg.flaps == FLAPS_ENABLED) {
+    
+    if (mcfg.flaps_type == FLAPS_ENABLED) {
+        // configure SERVO3 middle point in GUI to using an AUX channel for FLAPS control
+        // use servo min, servo max and servo rate for proper endpoints adjust
+        currentFlaps = nextFlapsPosition(currentFlaps, (cfg.servoConf[2].middle - constrain(servoMiddle(2), cfg.servoConf[2].min, cfg.servoConf[2].max)));
         servo[2] = ((int32_t)cfg.servoConf[2].rate * currentFlaps) / 100;
         servo[2] += mcfg.midrc;
     }
