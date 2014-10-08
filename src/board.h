@@ -44,6 +44,13 @@
 #define U_ID_1 (*(uint32_t*)0x1FFFF7EC)
 #define U_ID_2 (*(uint32_t*)0x1FFFF7F0)
 
+
+typedef enum HardwareRevision {
+    NAZE32 = 1,                                         // Naze32 and compatible with 8MHz HSE
+    NAZE32_REV5,                                        // Naze32 and compatible with 12MHz HSE
+    NAZE32_SP                                           // Naze32 w/Sensor Platforms
+} HardwareRevision;
+
 typedef enum {
     SENSOR_GYRO = 1 << 0, // always present
     SENSOR_ACC = 1 << 1,
@@ -61,8 +68,16 @@ typedef enum AccelSensors {
     ACC_MPU6050 = 2,
     ACC_MMA8452 = 3,
     ACC_BMA280 = 4,
-    ACC_NONE = 5
+    ACC_MPU6500 = 5,
+    ACC_NONE = 6
 } AccelSensors;
+
+typedef enum CompassSensors {
+    MAG_DEFAULT = 0,
+    MAG_HMC5883L = 1,
+    MAG_AK8975 = 2,
+    MAG_NONE = 3
+} CompassSensors;
 
 typedef enum {
     FEATURE_PPM = 1 << 0,
@@ -225,12 +240,14 @@ typedef struct baro_t {
 #include "drv_bmp085.h"
 #include "drv_ms5611.h"
 #include "drv_hmc5883l.h"
+#include "drv_ak8975.h"
 #include "drv_i2c.h"
 #include "drv_spi.h"
 #include "drv_ledring.h"
 #include "drv_mma845x.h"
 #include "drv_mpu3050.h"
 #include "drv_mpu6050.h"
+#include "drv_mpu6500.h"
 #include "drv_l3g4200d.h"
 #include "drv_pwm.h"
 #include "drv_timer.h"

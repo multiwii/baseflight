@@ -69,13 +69,28 @@ static uint16_t failsafeThreshold = 985;
 // external vars (ugh)
 extern int16_t failsafeCnt;
 
+
 #ifdef CJMCU
 static const uint8_t multiPPM[] = {
     PWM1 | TYPE_IP,     // PPM input
-    PWM2 | TYPE_M,
-    PWM3 | TYPE_M,
-    PWM4 | TYPE_M,
-    PWM5 | TYPE_M,
+    PWM7 | TYPE_M,
+    PWM14 | TYPE_M,
+    PWM8 | TYPE_M,
+    PWM13 | TYPE_M,
+    0xFF
+};
+
+static const uint8_t multiPWM[] = {
+    PWM1 | TYPE_IW,     // PWM input
+    PWM2 | TYPE_IW,
+    PWM3 | TYPE_IW,
+    PWM4 | TYPE_IW,
+    PWM9 | TYPE_IW,
+    PWM10 | TYPE_IW,
+    PWM7 | TYPE_M,
+    PWM14 | TYPE_M,
+    PWM8 | TYPE_M,
+    PWM13 | TYPE_M,
     0xFF
 };
 #else
@@ -93,7 +108,6 @@ static const uint8_t multiPPM[] = {
     PWM8 | TYPE_M,      // Swap to servo if needed
     0xFF
 };
-#endif
 
 static const uint8_t multiPWM[] = {
     PWM1 | TYPE_IW,     // input #1
@@ -112,6 +126,7 @@ static const uint8_t multiPWM[] = {
     PWM14 | TYPE_M,     // motor #4 or #6
     0xFF
 };
+#endif
 
 static const uint8_t airPPM[] = {
     PWM1 | TYPE_IP,     // PPM input
@@ -274,6 +289,7 @@ static void failsafeCheck(uint8_t channel, uint16_t pulse)
 
 static void ppmCallback(uint8_t port, uint16_t capture)
 {
+    (void)port;
     uint16_t diff;
     static uint16_t now;
     static uint16_t last = 0;

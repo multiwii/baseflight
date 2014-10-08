@@ -167,6 +167,19 @@ static void sendVario(void)
 }
 
 /*
+ * Send voltage with ID_VOLTAGE_AMP
+ */
+static void sendVoltageAmp(void)
+{
+    uint16_t voltage = (vbat * 110) / 21;
+
+    sendDataHead(ID_VOLTAGE_AMP_BP);
+    serialize16(voltage / 100);
+    sendDataHead(ID_VOLTAGE_AMP_AP);
+    serialize16(((voltage % 100) + 5) / 10);
+}
+
+/*
  * Send voltage via ID_VOLT
  *
  * NOTE: This sends voltage divided by batteryCellCount. To get the real
@@ -210,17 +223,16 @@ static void sendVoltage(void)
     currentCell %= batteryCellCount;
 }
 
-/*
- * Send voltage with ID_VOLTAGE_AMP
- */
-static void sendVoltageAmp(void)
+static void sendAmperage(void)
 {
-    uint16_t voltage = (vbat * 110) / 21;
+    sendDataHead(ID_CURRENT);
+    serialize16((uint16_t)(amperage / 10));
+}
 
-    sendDataHead(ID_VOLTAGE_AMP_BP);
-    serialize16(voltage / 100);
-    sendDataHead(ID_VOLTAGE_AMP_AP);
-    serialize16(((voltage % 100) + 5) / 10);
+static void sendFuelLevel(void)
+{
+    sendDataHead(ID_FUEL_LEVEL);
+    serialize16((uint16_t)mAhdrawn);
 }
 
 static void sendHeading(void)
@@ -253,11 +265,6 @@ bool canSendFrSkyTelemetry(void)
     return serialTotalBytesWaiting(core.telemport) == 0;
 }
 
-bool hasEnoughTimeLapsedSinceLastTelemetryTransmission(uint32_t currentMillis)
-{
-    return currentMillis - lastCycleTime >= CYCLETIME;
-}
-
 void handleFrSkyTelemetry(void)
 {
     if (!canSendFrSkyTelemetry()) {
@@ -266,9 +273,8 @@ void handleFrSkyTelemetry(void)
 
     uint32_t now = millis();
 
-    if (!hasEnoughTimeLapsedSinceLastTelemetryTransmission(now)) {
+    if (now - lastCycleTime < CYCLETIME)
         return;
-    }
 
     lastCycleTime = now;
 
@@ -289,8 +295,10 @@ void handleFrSkyTelemetry(void)
         sendTemperature1();
 
         if (feature(FEATURE_VBAT)) {
-            sendVoltage();
             sendVoltageAmp();
+            sendVoltage();
+            sendAmperage();
+            sendFuelLevel();
         }
 
         if (sensors(SENSOR_GPS))

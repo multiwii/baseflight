@@ -24,7 +24,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 65;
+static const uint8_t EEPROM_CONF_VERSION = 69;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
@@ -118,7 +118,6 @@ void loadAndActivateConfig(void)
 void writeEEPROM(uint8_t b, uint8_t updateProfile)
 {
     FLASH_Status status;
-    int i, tries = 3;
     uint8_t chk = 0;
     const uint8_t *p;
 
@@ -142,12 +141,12 @@ void writeEEPROM(uint8_t b, uint8_t updateProfile)
 
     // write it
     FLASH_Unlock();
-    while (tries--) {
+    for (unsigned int tries = 3; tries; tries--) {
         FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_PGERR | FLASH_FLAG_WRPRTERR);
 
         FLASH_ErasePage(FLASH_WRITE_ADDR);
         status = FLASH_ErasePage(FLASH_WRITE_ADDR + FLASH_PAGE_SIZE);
-        for (i = 0; i < sizeof(master_t) && status == FLASH_COMPLETE; i += 4)
+        for (unsigned int i = 0; i < sizeof(master_t) && status == FLASH_COMPLETE; i += 4)
             status = FLASH_ProgramWord(FLASH_WRITE_ADDR + i, *(uint32_t *)((char *)&mcfg + i));
         if (status == FLASH_COMPLETE)
             break;
@@ -209,6 +208,7 @@ static void resetConf(void)
     mcfg.board_align_pitch = 0;
     mcfg.board_align_yaw = 0;
     mcfg.acc_hardware = ACC_DEFAULT;     // default/autodetect
+    mcfg.mag_hardware = MAG_DEFAULT;
     mcfg.max_angle_inclination = 500;    // 50 degrees
     mcfg.yaw_control_direction = 1;
     mcfg.moron_threshold = 32;
@@ -218,6 +218,7 @@ static void resetConf(void)
     mcfg.vbatmincellvoltage = 33;
     mcfg.power_adc_channel = 0;
     mcfg.serialrx_type = 0;
+    mcfg.sbus_offset = 988;
     mcfg.telemetry_provider = TELEMETRY_PROVIDER_FRSKY;
     mcfg.telemetry_port = TELEMETRY_PORT_UART;
     mcfg.telemetry_switch = 0;
@@ -225,7 +226,12 @@ static void resetConf(void)
     mcfg.mincheck = 1100;
     mcfg.maxcheck = 1900;
     mcfg.retarded_arm = 0;       // disable arm/disarm on roll left/right
-    mcfg.flaps_speed = 0;
+    mcfg.disarm_kill_switch = 1; // AUX disarm independently of throttle value
+    mcfg.flaps_type = 0; // flaps/flaperons disabled
+    mcfg.flaperon_channel = 4;
+    mcfg.flaps_speed = 3;
+    mcfg.minflaperons = 1500;
+    mcfg.maxflaperons = 1700;
     mcfg.fixedwing_althold_dir = 1;
     // Motor/ESC/Servo
     mcfg.minthrottle = 1150;
@@ -248,6 +254,7 @@ static void resetConf(void)
     mcfg.looptime = 3500;
     mcfg.emf_avoidance = 0;
     mcfg.rssi_aux_channel = 0;
+    mcfg.rssi_adc_max = 4095;
 
     cfg.pidController = 0;
     cfg.P8[ROLL] = 40;
@@ -298,6 +305,7 @@ static void resetConf(void)
     cfg.baro_noise_lpf = 0.6f;
     cfg.baro_cf_vel = 0.985f;
     cfg.baro_cf_alt = 0.965f;
+    cfg.accz_lpf_cutoff = 5.0f;
     cfg.acc_unarmedcal = 1;
     cfg.small_angle = 25;
 

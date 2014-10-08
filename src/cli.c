@@ -14,7 +14,9 @@ static void cliDefaults(char *cmdline);
 static void cliDump(char *cmdLine);
 static void cliExit(char *cmdline);
 static void cliFeature(char *cmdline);
+#ifdef GPS
 static void cliGpsPassthrough(char *cmdline);
+#endif
 static void cliHelp(char *cmdline);
 static void cliMap(char *cmdline);
 static void cliMixer(char *cmdline);
@@ -69,8 +71,14 @@ static const char * const sensorNames[] = {
     "GYRO", "ACC", "BARO", "MAG", "SONAR", "GPS", "GPS+MAG", NULL
 };
 
+// sync this with AccelSensors enum from board.h
 static const char * const accNames[] = {
-    "", "ADXL345", "MPU6050", "MMA845x", "BMA280", "None", NULL
+    "", "ADXL345", "MPU6050", "MMA845x", "BMA280", "MPU6500", "None", NULL
+};
+
+// sync this with HardwareRevision in board.h
+static const char * const hwNames[] = {
+    "", "Naze 32", "Naze32 rev.5", "Naze32 SP"
 };
 
 typedef struct {
@@ -87,7 +95,9 @@ const clicmd_t cmdTable[] = {
     { "dump", "print configurable settings in a pastable form", cliDump },
     { "exit", "", cliExit },
     { "feature", "list or -val or val", cliFeature },
+#ifdef GPS
     { "gpspassthrough", "passthrough gps to serial", cliGpsPassthrough },
+#endif
     { "help", "", cliHelp },
     { "map", "mapping of rc channel order", cliMap },
     { "mixer", "mixer name or list", cliMixer },
@@ -133,7 +143,12 @@ const clivalue_t valueTable[] = {
     { "motor_pwm_rate", VAR_UINT16, &mcfg.motor_pwm_rate, 50, 32000 },
     { "servo_pwm_rate", VAR_UINT16, &mcfg.servo_pwm_rate, 50, 498 },
     { "retarded_arm", VAR_UINT8, &mcfg.retarded_arm, 0, 1 },
+    { "disarm_kill_switch", VAR_UINT8, &mcfg.disarm_kill_switch, 0, 1 },
+    { "flaps_type", VAR_UINT8, &mcfg.flaps_type, 0, FLAPS_TYPE_MAX },
+    { "flaperon_channel", VAR_UINT8, &mcfg.flaperon_channel, 0, 8 },
     { "flaps_speed", VAR_UINT8, &mcfg.flaps_speed, 0, 100 },
+    { "minflaperons", VAR_UINT16, &mcfg.minflaperons, 1000, 2000 },
+    { "maxflaperons", VAR_UINT16, &mcfg.maxflaperons, 1000, 2000 },    
     { "fixedwing_althold_dir", VAR_INT8, &mcfg.fixedwing_althold_dir, -1, 1 },
     { "reboot_character", VAR_UINT8, &mcfg.reboot_character, 48, 126 },
     { "serial_baudrate", VAR_UINT32, &mcfg.serial_baudrate, 1200, 115200 },
@@ -142,7 +157,9 @@ const clivalue_t valueTable[] = {
     { "softserial_2_inverted", VAR_UINT8, &mcfg.softserial_2_inverted, 0, 1 },
     { "gps_type", VAR_UINT8, &mcfg.gps_type, 0, GPS_HARDWARE_MAX },
     { "gps_baudrate", VAR_INT8, &mcfg.gps_baudrate, 0, GPS_BAUD_MAX },
+    { "gps_ubx_sbas", VAR_UINT8, &mcfg.gps_ubx_sbas, 0, 4 },
     { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, SERIALRX_PROVIDER_MAX },
+    { "sbus_offset", VAR_UINT16, &mcfg.sbus_offset, 900, 1200 },
     { "telemetry_provider", VAR_UINT8, &mcfg.telemetry_provider, 0, TELEMETRY_PROVIDER_MAX },
     { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },
     { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
@@ -161,6 +178,7 @@ const clivalue_t valueTable[] = {
     { "align_board_yaw", VAR_INT16, &mcfg.board_align_yaw, -180, 360 },
     { "yaw_control_direction", VAR_INT8, &mcfg.yaw_control_direction, -1, 1 },
     { "acc_hardware", VAR_UINT8, &mcfg.acc_hardware, 0, 5 },
+    { "mag_hardware", VAR_UINT8, &mcfg.mag_hardware, 0, 2 },
     { "max_angle_inclination", VAR_UINT16, &mcfg.max_angle_inclination, 100, 900 },
     { "moron_threshold", VAR_UINT8, &mcfg.moron_threshold, 0, 128 },
     { "gyro_lpf", VAR_UINT16, &mcfg.gyro_lpf, 0, 256 },
@@ -186,6 +204,9 @@ const clivalue_t valueTable[] = {
     { "failsafe_throttle", VAR_UINT16, &cfg.failsafe_throttle, 1000, 2000 },
     { "failsafe_detect_threshold", VAR_UINT16, &cfg.failsafe_detect_threshold, 100, 2000 },
     { "rssi_aux_channel", VAR_INT8, &mcfg.rssi_aux_channel, 0, 4 },
+    { "rssi_adc_channel", VAR_INT8, &mcfg.rssi_adc_channel, 0, 9 },
+    { "rssi_adc_max", VAR_INT16, &mcfg.rssi_adc_max, 1, 4095 },
+    { "rssi_adc_offset", VAR_INT16, &mcfg.rssi_adc_offset, 0, 4095 },
     { "yaw_direction", VAR_INT8, &cfg.yaw_direction, -1, 1 },
     { "tri_unarmed_servo", VAR_INT8, &cfg.tri_unarmed_servo, 0, 1 },
     { "fixedwing_rollrate", VAR_FLOAT, &cfg.fixedwing_rollrate, 0, 1 },
@@ -195,13 +216,14 @@ const clivalue_t valueTable[] = {
     { "accxy_deadband", VAR_UINT8, &cfg.accxy_deadband, 0, 100 },
     { "accz_deadband", VAR_UINT8, &cfg.accz_deadband, 0, 100 },
     { "acc_unarmedcal", VAR_UINT8, &cfg.acc_unarmedcal, 0, 1 },
-    { "small_angle", VAR_UINT8, &cfg.small_angle, 0, 90 },
+    { "small_angle", VAR_UINT8, &cfg.small_angle, 0, 180 },
     { "acc_trim_pitch", VAR_INT16, &cfg.angleTrim[PITCH], -300, 300 },
     { "acc_trim_roll", VAR_INT16, &cfg.angleTrim[ROLL], -300, 300 },
     { "baro_tab_size", VAR_UINT8, &cfg.baro_tab_size, 0, BARO_TAB_SIZE_MAX },
     { "baro_noise_lpf", VAR_FLOAT, &cfg.baro_noise_lpf, 0, 1 },
     { "baro_cf_vel", VAR_FLOAT, &cfg.baro_cf_vel, 0, 1 },
     { "baro_cf_alt", VAR_FLOAT, &cfg.baro_cf_alt, 0, 1 },
+    { "accz_lpf_cutoff", VAR_FLOAT, &cfg.accz_lpf_cutoff, 1, 20 },
     { "mag_declination", VAR_INT16, &cfg.mag_declination, -18000, 18000 },
     { "gps_pos_p", VAR_UINT8, &cfg.P8[PIDPOS], 0, 200 },
     { "gps_pos_i", VAR_UINT8, &cfg.I8[PIDPOS], 0, 200 },
@@ -563,6 +585,7 @@ static void cliCMix(char *cmdline)
 
 static void cliDefaults(char *cmdline)
 {
+    (void)cmdline;
     cliPrint("Resetting to defaults...\r\n");
     checkFirstTime(true);
     cliPrint("Rebooting...");
@@ -572,12 +595,14 @@ static void cliDefaults(char *cmdline)
 
 static void cliDump(char *cmdline)
 {
-    int i;
+    (void)cmdline;
+    unsigned int i;
     char buf[16];
     float thr, roll, pitch, yaw;
     uint32_t mask;
     const clivalue_t *setval;
 
+    cliVersion(NULL);
     printf("Current Config: Copy everything below here...\r\n");
 
     // print out aux switches
@@ -709,20 +734,21 @@ static void cliFeature(char *cmdline)
     }
 }
 
+#ifdef GPS
 static void cliGpsPassthrough(char *cmdline)
 {
-#ifdef GPS
+    (void)cmdline;
+
     if (gpsSetPassthrough() == -1)
         cliPrint("Error: Enable and plug in GPS first\r\n");
     else
         cliPrint("Enabling GPS passthrough...\r\n");
-#else
-    cliPrint("GPS support is not built in\r\n");
-#endif /* GPS */
 }
+#endif
 
 static void cliHelp(char *cmdline)
 {
+    (void)cmdline;
     uint32_t i = 0;
 
     cliPrint("Available commands:\r\n");
@@ -872,6 +898,7 @@ static void cliProfile(char *cmdline)
 
 static void cliSave(char *cmdline)
 {
+    (void)cmdline;
     cliPrint("Saving...");
     writeEEPROM(0, true);
     cliPrint("\r\nRebooting...");
@@ -1011,6 +1038,7 @@ static void cliSet(char *cmdline)
 
 static void cliStatus(char *cmdline)
 {
+    (void)cmdline;
     uint8_t i;
     uint32_t mask;
 
@@ -1018,7 +1046,7 @@ static void cliStatus(char *cmdline)
         millis() / 1000, vbat, batteryCellCount);
     mask = sensorsMask();
 
-    printf("CPU %dMHz, detected sensors: ", (SystemCoreClock / 1000000));
+    printf("Hardware: %s @ %dMHz, detected sensors: ", hwNames[hw_revision], (SystemCoreClock / 1000000));
     for (i = 0; ; i++) {
         if (sensorNames[i] == NULL)
             break;
@@ -1037,7 +1065,8 @@ static void cliStatus(char *cmdline)
 
 static void cliVersion(char *cmdline)
 {
-    cliPrint("Afro32 CLI version 2.2 " __DATE__ " / " __TIME__);
+    (void)cmdline;
+    cliPrint("Afro32 CLI version 2.3 " __DATE__ " / " __TIME__);
 }
 
 void cliProcess(void)
@@ -1053,7 +1082,7 @@ void cliProcess(void)
         if (c == '\t' || c == '?') {
             // do tab completion
             const clicmd_t *cmd, *pstart = NULL, *pend = NULL;
-            int i = bufferIndex;
+            unsigned int i = bufferIndex;
             for (cmd = cmdTable; cmd < cmdTable + CMD_COUNT; cmd++) {
                 if (bufferIndex && (strncasecmp(cliBuffer, cmd->name, bufferIndex) != 0))
                     continue;

@@ -41,8 +41,7 @@ OBJECT_DIR	 = $(ROOT)/obj
 BIN_DIR		 = $(ROOT)/obj
 
 # Source files common to all targets
-COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
-		   buzzer.c \
+COMMON_SRC	 = buzzer.c \
 		   cli.c \
 		   config.c \
 		   imu.c \
@@ -61,14 +60,15 @@ COMMON_SRC	 = startup_stm32f10x_md_gcc.S \
 		   printf.c \
 		   utils.c \
 		   fw_nav.c \
+		   sbus.c \
+		   sumd.c \
+		   spektrum.c \
+		   startup_stm32f10x_md_gcc.S \
 		   $(CMSIS_SRC) \
 		   $(STDPERIPH_SRC)
 
 # Source files for full-featured systems
 HIGHEND_SRC	 = gps.c \
-		   sbus.c \
-		   sumd.c \
-		   spektrum.c \
 		   drv_softserial.c \
 		   telemetry_common.c \
 		   telemetry_frsky.c \
@@ -77,6 +77,7 @@ HIGHEND_SRC	 = gps.c \
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
 		   drv_adxl345.c \
+		   drv_ak8975.c \
 		   drv_bma280.c \
 		   drv_bmp085.c \
 		   drv_ms5611.c \
@@ -86,6 +87,7 @@ NAZE_SRC	 = drv_adc.c \
 		   drv_mma845x.c \
 		   drv_mpu3050.c \
 		   drv_mpu6050.c \
+		   drv_mpu6500.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
 		   drv_spi.c \
@@ -146,10 +148,24 @@ INCLUDE_DIRS	 = $(SRC_DIR) \
 		   $(CMSIS_DIR)/CM3/DeviceSupport/ST/STM32F10x \
 
 ARCH_FLAGS	 = -mthumb -mcpu=cortex-m3
-BASE_CFLAGS	 = $(ARCH_FLAGS) \
+
+ifeq ($(DEBUG),GDB)
+OPTIMIZE	 = -O0
+LTO_FLAGS	 = $(OPTIMIZE)
+else
+OPTIMIZE	 = -Os
+LTO_FLAGS	 = -flto -fuse-linker-plugin $(OPTIMIZE)
+endif
+
+DEBUG_FLAGS	 = -ggdb3
+
+CFLAGS		 = $(ARCH_FLAGS) \
+		   $(LTO_FLAGS) \
 		   $(addprefix -D,$(OPTIONS)) \
 		   $(addprefix -I,$(INCLUDE_DIRS)) \
-		   -Wall \
+		   $(DEBUG_FLAGS) \
+		   -std=gnu99 \
+		   -Wall -pedantic -Wextra -Wshadow -Wunsafe-loop-optimizations \
 		   -ffunction-sections \
 		   -fdata-sections \
 		   -DSTM32F10X_MD \
@@ -163,7 +179,13 @@ ASFLAGS		 = $(ARCH_FLAGS) \
 # XXX Map/crossref output?
 LD_SCRIPT	 = $(ROOT)/stm32_flash.ld
 LDFLAGS		 = -lm \
+		   -nostartfiles \
+		   --specs=nano.specs \
+		   -lc \
+		   -lnosys \
 		   $(ARCH_FLAGS) \
+		   $(LTO_FLAGS) \
+		   $(DEBUG_FLAGS) \
 		   -static \
 		   -Wl,-gc-sections,-Map,$(TARGET_MAP) \
 		   -T$(LD_SCRIPT)
@@ -177,15 +199,6 @@ LDFLAGS		 = -lm \
 #
 ifeq ($(filter $(TARGET),$(VALID_TARGETS)),)
 $(error Target '$(TARGET)' is not valid, must be one of $(VALID_TARGETS))
-endif
-
-ifeq ($(DEBUG),GDB)
-CFLAGS = $(BASE_CFLAGS) \
-	-ggdb \
-	-O0
-else
-CFLAGS = $(BASE_CFLAGS) \
-	-Os
 endif
 
 

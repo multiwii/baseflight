@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 
 // BMP085, Standard address 0x77
@@ -74,7 +78,7 @@ typedef struct {
 #define SMD500_PARAM_MH     -7357        //calibration parameter
 #define SMD500_PARAM_MI      3791        //calibration parameter
 
-static bmp085_t bmp085 = { { 0, } };
+static bmp085_t bmp085;
 static bool bmp085InitDone = false;
 static uint16_t bmp085_ut;  // static result of temperature measurement
 static uint32_t bmp085_up;  // static result of pressure measurement
@@ -94,10 +98,6 @@ bool bmp085Detect(baro_t *baro)
     EXTI_InitTypeDef EXTI_InitStructure;
     NVIC_InitTypeDef NVIC_InitStructure;
     uint8_t data;
-
-    // Not supported with this frequency
-    if (hse_value == 12000000)
-        return false;
 
     if (bmp085InitDone)
         return true;

@@ -22,24 +22,29 @@ extern float magneticDeclination;
 
 sensor_t acc;                       // acc access functions
 sensor_t gyro;                      // gyro access functions
+sensor_t mag;                       // mag access functions
 baro_t baro;                        // barometer access functions
 uint8_t accHardware = ACC_DEFAULT;  // which accel chip is used/detected
+uint8_t magHardware = MAG_DEFAULT;
 
 bool sensorsAutodetect(void)
 {
     int16_t deg, min;
 #ifndef CJMCU
     drv_adxl345_config_t acc_params;
+    bool haveMpu65 = false;
 #endif
     bool haveMpu6k = false;
 
-    // Autodetect gyro hardware. We have MPU3050 or MPU6050.
+    // Autodetect gyro hardware. We have MPU3050 or MPU6050 or MPU6500 on SPI
     if (mpu6050Detect(&acc, &gyro, mcfg.gyro_lpf, &core.mpu6050_scale)) {
         // this filled up  acc.* struct with init values
         haveMpu6k = true;
     } else
 #ifndef CJMCU
-        if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
+        if (hw_revision == NAZE32_SP && mpu6500Detect(&acc, &gyro, mcfg.gyro_lpf))
+            haveMpu65 = true;
+        else if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
         // well, we found our gyro
         ;
     } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf))
@@ -75,6 +80,14 @@ retry:
             }
             ; // fallthrough
 #ifdef NAZE
+        case ACC_MPU6500: // MPU6500
+            if (haveMpu65) {
+                mpu6500Detect(&acc, &gyro, mcfg.gyro_lpf); // yes, i'm rerunning it again.  re-fill acc struct
+                accHardware = ACC_MPU6500;
+                if (mcfg.acc_hardware == ACC_MPU6500)
+                    break;
+            }
+            ; // fallthrough
         case ACC_MMA8452: // MMA8452
             if (mma8452Detect(&acc)) {
                 accHardware = ACC_MMA8452;
@@ -123,8 +136,40 @@ retry:
     gyro.init(mcfg.gyro_align);
 
 #ifdef MAG
-    if (!hmc5883lDetect(mcfg.mag_align))
-        sensorsClear(SENSOR_MAG);
+    retryMag:
+    switch (mcfg.mag_hardware) {
+        case MAG_NONE: // disable MAG
+            sensorsClear(SENSOR_MAG);
+            break;
+        case MAG_DEFAULT: // autodetect
+
+        case MAG_HMC5883L:
+            if (hmc5883lDetect(&mag)) {
+              magHardware = MAG_HMC5883L;
+              if (mcfg.mag_hardware == MAG_HMC5883L)
+                break;
+          }
+        ; // fallthrough
+          
+        case MAG_AK8975:
+            if (ak8975detect(&mag)) {
+                magHardware = MAG_AK8975;
+                if (mcfg.mag_hardware == MAG_AK8975)
+                    break;
+            }
+    }
+    
+    // Found anything? Check if user fucked up or mag is really missing.
+    if (magHardware == MAG_DEFAULT) {
+        if (mcfg.mag_hardware > MAG_DEFAULT) {
+            // Nothing was found and we have a forced sensor type. Stupid user probably chose a sensor that isn't present.
+            mcfg.mag_hardware = MAG_DEFAULT;
+            goto retryMag;
+        } else {
+            // No mag present
+            sensorsClear(SENSOR_MAG);
+        }
+    }
 #endif
 
     // calculate magnetic declination
@@ -136,6 +181,24 @@ retry:
         magneticDeclination = 0.0f;
 
     return true;
+}
+
+uint16_t RSSI_getValue(void)
+{
+    uint16_t value = 0;
+
+    if (mcfg.rssi_aux_channel > 0) {
+        const int16_t rssiChannelData = rcData[AUX1 + mcfg.rssi_aux_channel - 1];
+        // Range of rssiChannelData is [1000;2000]. rssi should be in [0;1023];
+        value = (uint16_t)((constrain(rssiChannelData - 1000, 0, 1000) / 1000.0f) * 1023.0f);
+    } else if (mcfg.rssi_adc_channel > 0) {
+        const int16_t rssiData = (((int32_t)(adcGetChannel(ADC_RSSI) - mcfg.rssi_adc_offset)) * 1023L) / mcfg.rssi_adc_max;
+        // Set to correct range [0;1023]
+        value = constrain(rssiData, 0, 1023);
+    }
+
+    // return range [0;1023]
+    return value;
 }
 
 uint16_t batteryAdcToVoltage(uint16_t src)
@@ -399,7 +462,7 @@ void Mag_init(void)
 {
     // initialize and calibration. turn on led during mag calibration (calibration routine blinks it)
     LED1_ON;
-    hmc5883lInit();
+    mag.init(mcfg.mag_align);
     LED1_OFF;
     magInit = 1;
 }
@@ -416,7 +479,7 @@ int Mag_getADC(void)
     t = currentTime + 100000;
 
     // Read mag sensor
-    hmc5883lRead(magADC);
+    mag.read(magADC);
 
     if (f.CALIBRATE_MAG) {
         tCal = t;

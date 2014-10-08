@@ -8,16 +8,21 @@
 #include "telemetry_common.h"
 
 core_t core;
+int hw_revision = 0;
 
 extern rcReadRawDataPtr rcReadRawFunc;
 
 // receiver read function
 extern uint16_t pwmReadRawRC(uint8_t chan);
 
+// from system_stm32f10x.c
+void SetSysClock(bool overclock);
+
 #ifdef USE_LAME_PRINTF
 // gcc/GNU version
 static void _putc(void *p, char c)
 {
+    (void)p;
     serialWrite(core.mainport, c);
 }
 #else
@@ -34,6 +39,7 @@ int fputc(int c, FILE *f)
 int main(void)
 {
     uint8_t i;
+    int id;
     drv_pwm_config_t pwm_params;
     drv_adc_config_t adc_params;
     bool sensorsOK = false;
@@ -45,12 +51,31 @@ int main(void)
     initEEPROM();
     checkFirstTime(false);
     readEEPROM();
-    systemInit(mcfg.emf_avoidance);
+
+    // Configure clock, this figures out HSE for hardware autodetect
+    SetSysClock(mcfg.emf_avoidance);
+
+    // determine hardware revision
+    if (hse_value == 8000000)
+        hw_revision = NAZE32;
+    else if (hse_value == 12000000)
+        hw_revision = NAZE32_REV5;
+
+    systemInit();
 #ifdef USE_LAME_PRINTF
     init_printf(NULL, _putc);
 #endif
 
     activateConfig();
+
+#ifndef CJMCU
+    id = spiInit();
+    if (id == SPI_DEVICE_MPU && hw_revision == NAZE32_REV5)
+        hw_revision = NAZE32_SP;
+#endif
+
+    if (hw_revision != NAZE32_SP)
+        i2cInit(I2C_DEVICE);
 
     // configure power ADC
     if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9))
@@ -58,6 +83,13 @@ int main(void)
     else {
         adc_params.powerAdcChannel = 0;
         mcfg.power_adc_channel = 0;
+    }
+
+    if (mcfg.rssi_adc_channel > 0 && (mcfg.rssi_adc_channel == 1 || mcfg.rssi_adc_channel == 9) && mcfg.rssi_adc_channel != mcfg.power_adc_channel)
+        adc_params.rssiAdcChannel = mcfg.rssi_adc_channel;
+    else {
+        adc_params.rssiAdcChannel = 0;
+        mcfg.rssi_adc_channel = 0;
     }
 
     adcInit(&adc_params);
@@ -139,7 +171,6 @@ int main(void)
     rcReadRawFunc = pwmReadRawRC;
     core.numRCChannels = MAX_INPUTS;
 
-#ifndef CJMCU
     if (feature(FEATURE_SERIALRX)) {
         switch (mcfg.serialrx_type) {
             case SERIALRX_SPEKTRUM1024:
@@ -156,7 +187,9 @@ int main(void)
                 mspInit(&rcReadRawFunc);
                 break;
         }
-    } else { // spektrum and GPS are mutually exclusive
+    }
+#ifndef CJMCU
+    else { // spektrum and GPS are mutually exclusive
         // Optional GPS - available in both PPM and PWM input mode, in PWM input, reduces number of available channels by 2.
         // gpsInit will return if FEATURE_GPS is not enabled.
         gpsInit(mcfg.gps_baudrate);

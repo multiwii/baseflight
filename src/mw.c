@@ -346,7 +346,7 @@ static void pidMultiWii(void)
             PTermGYRO = rcCommand[axis];
 
             errorGyroI[axis] = constrain(errorGyroI[axis] + error, -16000, +16000); // WindUp
-            if ((abs(gyroData[axis]) > 640) || (abs(rcCommand[axis]) > 50))
+            if ((abs(gyroData[axis]) > 640) || ((axis == YAW) && (abs(rcCommand[axis]) > 100)))
                 errorGyroI[axis] = 0;
             ITermGYRO = (errorGyroI[axis] / 125 * cfg.I8[axis]) >> 6;
         }
@@ -474,7 +474,6 @@ void loop(void)
     bool isThrottleLow = false;
     bool rcReady = false;
 
-#ifndef CJMCU
     // calculate rc stuff from serial-based receivers (spek/sbus)
     if (feature(FEATURE_SERIALRX)) {
         switch (mcfg.serialrx_type) {
@@ -493,7 +492,6 @@ void loop(void)
                 break;
         }
     }
-#endif
 
     if (((int32_t)(currentTime - rcTime) >= 0) || rcReady) { // 50Hz or data driven
         rcReady = false;
@@ -506,13 +504,8 @@ void loop(void)
                 mwDisarm();
         }
 
-        // Read value of AUX channel as rssi
-        // 0 is disable, 1-4 is AUX{1..4}
-        if (mcfg.rssi_aux_channel > 0) {
-            const int16_t rssiChannelData = rcData[AUX1 + mcfg.rssi_aux_channel - 1];
-            // Range of rssiChannelData is [1000;2000]. rssi should be in [0;1023];
-            rssi = (uint16_t)((constrain(rssiChannelData - 1000, 0, 1000) / 1000.0f) * 1023.0f);
-        }
+        // Read rssi value
+        rssi = RSSI_getValue();
 
         // Failsafe routine
         if (feature(FEATURE_FAILSAFE) || feature(FEATURE_FAILSAFE_RTH)) {
@@ -568,8 +561,13 @@ void loop(void)
         }
 
         if (cfg.activate[BOXARM] > 0) { // Disarming via ARM BOX
-            if (!rcOptions[BOXARM] && f.ARMED)
+            if (!rcOptions[BOXARM] && f.ARMED) {
+                if (mcfg.disarm_kill_switch) {
                     mwDisarm();
+                } else if (isThrottleLow) {
+                    mwDisarm();
+                }
+            }
         }
 
         if (rcDelayCommand == 20) {
@@ -722,7 +720,7 @@ void loop(void)
                     f.BARO_MODE = 1;
                     AltHold = EstAlt;
                     initialThrottleHold = rcCommand[THROTTLE];
-                    errorAltitudeI = 0;
+                    errorVelocityI = 0;
                     BaroPID = 0;
                 }
             } else {
@@ -912,13 +910,12 @@ void loop(void)
         if (sensors(SENSOR_BARO)) {
             if (f.BARO_MODE) {
                 static uint8_t isAltHoldChanged = 0;
-                static int16_t AltHoldCorr = 0;
                 if (!f.FIXED_WING) {
                     // multirotor alt hold
                     if (cfg.alt_hold_fast_change) {
                         // rapid alt changes
                         if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
-                            errorAltitudeI = 0;
+                            errorVelocityI = 0;
                             isAltHoldChanged = 1;
                             rcCommand[THROTTLE] += (rcCommand[THROTTLE] > initialThrottleHold) ? -cfg.alt_hold_throttle_neutral : cfg.alt_hold_throttle_neutral;
                         } else {
@@ -926,22 +923,21 @@ void loop(void)
                                 AltHold = EstAlt;
                                 isAltHoldChanged = 0;
                             }
-                            rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle + 100, mcfg.maxthrottle);
+                            rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle, mcfg.maxthrottle);
                         }
                     } else {
                         // slow alt changes for apfags
                         if (abs(rcCommand[THROTTLE] - initialThrottleHold) > cfg.alt_hold_throttle_neutral) {
-                            // Slowly increase/decrease AltHold proportional to stick movement ( +100 throttle gives ~ +50 cm in 1 second with cycle time about 3-4ms)
-                            AltHoldCorr += rcCommand[THROTTLE] - initialThrottleHold;
-                            AltHold += AltHoldCorr / 2000;
-                            AltHoldCorr %= 2000;
+                            // set velocity proportional to stick movement +100 throttle gives ~ +50 cm/s
+                            setVelocity = (rcCommand[THROTTLE] - initialThrottleHold) / 2;
+                            velocityControl = 1;
                             isAltHoldChanged = 1;
                         } else if (isAltHoldChanged) {
                             AltHold = EstAlt;
-                            AltHoldCorr = 0;
+                            velocityControl = 0;
                             isAltHoldChanged = 0;
                         }
-                        rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle + 100, mcfg.maxthrottle);
+                        rcCommand[THROTTLE] = constrain(initialThrottleHold + BaroPID, mcfg.minthrottle, mcfg.maxthrottle);
                     }
                 } else {
                     // handle fixedwing-related althold. UNTESTED! and probably wrong
