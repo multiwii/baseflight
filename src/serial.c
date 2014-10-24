@@ -12,6 +12,7 @@
 // Multiwii Serial Protocol 0
 #define MSP_VERSION              0
 #define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
+#define CAP_BASEFLIGHT_CONFIG       ((uint32_t)1 << 30)
 #define CAP_DYNBALANCE              ((uint32_t)1 << 2)
 #define CAP_FLAPS                   ((uint32_t)1 << 3)
 
@@ -68,6 +69,14 @@
 #define MSP_SET_ACC_TRIM         239    //in message          set acc angle trim values
 #define MSP_GPSSVINFO            164    //out message         get Signal Strength (only U-Blox)
 
+// Additional private MSP for baseflight configurator
+#define MSP_RCMAP                64     //out message         get channel map (also returns number of channels total)
+#define MSP_SET_RCMAP            65     //in message          set rc map, numchannels to set comes from MSP_RCMAP
+#define MSP_CONFIG               66     //out message         baseflight-specific settings that aren't covered elsewhere
+#define MSP_SET_CONFIG           67     //in message          baseflight-specific settings save
+#define MSP_REBOOT               68     //in message          reboot settings
+#define MSP_BUILDINFO            69     //out message         build date as well as some space for future expansion
+
 #define INBUF_SIZE 64
 
 typedef struct box_t {
@@ -107,6 +116,8 @@ static uint8_t availableBoxes[CHECKBOXITEMS];
 static uint8_t numberBoxItems = 0;
 // from mixer.c
 extern int16_t motor_disarmed[MAX_MOTORS];
+// cause reboot after MSP processing complete
+static bool pendReboot = false;
 
 static const char pidnames[] =
     "ROLL;"
@@ -120,46 +131,56 @@ static const char pidnames[] =
     "MAG;"
     "VEL;";
 
-static uint8_t checksum, indRX, inBuf[INBUF_SIZE];
-static uint8_t cmdMSP;
+typedef enum serialState_t {
+    IDLE,
+    HEADER_START,
+    HEADER_M,
+    HEADER_ARROW,
+    HEADER_SIZE,
+    HEADER_CMD,
+} serialState_t;
+
+typedef  struct mspPortState_t {
+    serialPort_t *port;
+    uint8_t checksum;
+    uint8_t indRX;
+    uint8_t inBuf[INBUF_SIZE];
+    uint8_t cmdMSP;
+    uint8_t offset;
+    uint8_t dataSize;
+    serialState_t c_state;
+} mspPortState_t;
+
+static mspPortState_t ports[2];
+static mspPortState_t *currentPortState = &ports[0];
+static int numTelemetryPorts = 0;
+
+// static uint8_t checksum, indRX, inBuf[INBUF_SIZE];
+// static uint8_t cmdMSP;
+
+void serialize8(uint8_t a)
+{
+    serialWrite(currentPortState->port, a);
+    currentPortState->checksum ^= a;
+}
 
 void serialize32(uint32_t a)
 {
-    static uint8_t t;
-    t = a;
-    serialWrite(core.mainport, t);
-    checksum ^= t;
-    t = a >> 8;
-    serialWrite(core.mainport, t);
-    checksum ^= t;
-    t = a >> 16;
-    serialWrite(core.mainport, t);
-    checksum ^= t;
-    t = a >> 24;
-    serialWrite(core.mainport, t);
-    checksum ^= t;
+    serialize8(a & 0xFF);
+    serialize8((a >> 8) & 0xFF);
+    serialize8((a >> 16) & 0xFF);
+    serialize8((a >> 24) & 0xFF);
 }
 
 void serialize16(int16_t a)
 {
-    static uint8_t t;
-    t = a;
-    serialWrite(core.mainport, t);
-    checksum ^= t;
-    t = a >> 8 & 0xff;
-    serialWrite(core.mainport, t);
-    checksum ^= t;
-}
-
-void serialize8(uint8_t a)
-{
-    serialWrite(core.mainport, a);
-    checksum ^= a;
+    serialize8(a & 0xFF);
+    serialize8((a >> 8) & 0xFF);
 }
 
 uint8_t read8(void)
 {
-    return inBuf[indRX++] & 0xff;
+    return currentPortState->inBuf[currentPortState->indRX++] & 0xff;
 }
 
 uint16_t read16(void)
@@ -181,9 +202,9 @@ void headSerialResponse(uint8_t err, uint8_t s)
     serialize8('$');
     serialize8('M');
     serialize8(err ? '!' : '>');
-    checksum = 0;               // start calculating a new checksum
+    currentPortState->checksum = 0;               // start calculating a new checksum
     serialize8(s);
-    serialize8(cmdMSP);
+    serialize8(currentPortState->cmdMSP);
 }
 
 void headSerialReply(uint8_t s)
@@ -198,7 +219,7 @@ void headSerialError(uint8_t s)
 
 void tailSerialReply(void)
 {
-    serialize8(checksum);
+    serialize8(currentPortState->checksum);
 }
 
 void s_struct(uint8_t *cb, uint8_t siz)
@@ -244,7 +265,15 @@ void serialInit(uint32_t baudrate)
 {
     int idx;
 
+    numTelemetryPorts = 0;
     core.mainport = uartOpen(USART1, NULL, baudrate, MODE_RXTX);
+    ports[0].port = core.mainport;
+    numTelemetryPorts++;
+    if (hw_revision >= NAZE32_SP) {
+        core.flexport = uartOpen(USART3, NULL, baudrate, MODE_RXTX);
+        ports[1].port = core.flexport;
+        numTelemetryPorts++;
+    }
 
     // calculate used boxes based on features and fill availableBoxes[] array
     memset(availableBoxes, 0xFF, sizeof(availableBoxes));
@@ -289,8 +318,9 @@ static void evaluateCommand(void)
     uint8_t wp_no;
     int32_t lat = 0, lon = 0, alt = 0;
 #endif
+    const char *build = __DATE__;
 
-    switch (cmdMSP) {
+    switch (currentPortState->cmdMSP) {
     case MSP_SET_RAW_RC:
         for (i = 0; i < 8; i++)
             rcData[i] = read16();
@@ -302,6 +332,7 @@ static void evaluateCommand(void)
         cfg.angleTrim[ROLL]  = read16();
         headSerialReply(0);
         break;
+#ifdef GPS
     case MSP_SET_RAW_GPS:
         f.GPS_FIX = read8();
         GPS_numSat = read8();
@@ -312,6 +343,7 @@ static void evaluateCommand(void)
         GPS_update |= 2;        // New data signalisation to GPS functions
         headSerialReply(0);
         break;
+#endif
     case MSP_SET_PID:
         for (i = 0; i < PIDITEMS; i++) {
             cfg.P8[i] = read8();
@@ -336,13 +368,20 @@ static void evaluateCommand(void)
         headSerialReply(0);
         break;
     case MSP_SET_MISC:
-        read16(); // powerfailmeter
+        tmp = read16();
+        // sanity check
+        if (tmp < 1600 && tmp > 1400)
+            mcfg.midrc = tmp;
         mcfg.minthrottle = read16();
         mcfg.maxthrottle = read16();
         mcfg.mincommand = read16();
         cfg.failsafe_throttle = read16();
-        read16();
-        read32();
+        mcfg.gps_type = read8();
+        mcfg.gps_baudrate = read8();
+        mcfg.gps_ubx_sbas = read8();
+        mcfg.multiwiicurrentoutput = read8();
+        mcfg.rssi_aux_channel = read8();
+        read8();
         cfg.mag_declination = read16() * 10;
         mcfg.vbatscale = read8();           // actual vbatscale as intended
         mcfg.vbatmincellvoltage = read8();  // vbatlevel_warn1 in MWC2.3 GUI
@@ -374,7 +413,7 @@ static void evaluateCommand(void)
         serialize8(VERSION);                // multiwii version
         serialize8(mcfg.mixerConfiguration); // type of multicopter
         serialize8(MSP_VERSION);            // MultiWii Serial Protocol Version
-        serialize32(CAP_PLATFORM_32BIT | CAP_DYNBALANCE | (mcfg.flaps_speed ? CAP_FLAPS : 0));        // "capability"
+        serialize32(CAP_PLATFORM_32BIT | CAP_BASEFLIGHT_CONFIG | CAP_DYNBALANCE | (mcfg.flaps_speed ? CAP_FLAPS : 0));        // "capability"
         break;
     case MSP_STATUS:
         headSerialReply(11);
@@ -451,6 +490,7 @@ static void evaluateCommand(void)
         for (i = 0; i < 8; i++)
             serialize16(rcData[i]);
         break;
+#ifdef GPS
     case MSP_RAW_GPS:
         headSerialReply(16);
         serialize8(f.GPS_FIX);
@@ -467,6 +507,7 @@ static void evaluateCommand(void)
         serialize16(GPS_directionToHome);
         serialize8(GPS_update & 1);
         break;
+#endif
     case MSP_ATTITUDE:
         headSerialReply(6);
         for (i = 0; i < 2; i++)
@@ -530,13 +571,17 @@ static void evaluateCommand(void)
         break;
     case MSP_MISC:
         headSerialReply(2 * 6 + 4 + 2 + 4);
-        serialize16(0); // intPowerTrigger1 (aka useless trash)
+        serialize16(mcfg.midrc);
         serialize16(mcfg.minthrottle);
         serialize16(mcfg.maxthrottle);
         serialize16(mcfg.mincommand);
         serialize16(cfg.failsafe_throttle);
-        serialize16(0); // plog useless shit
-        serialize32(0); // plog useless shit
+        serialize8(mcfg.gps_type);
+        serialize8(mcfg.gps_baudrate);
+        serialize8(mcfg.gps_ubx_sbas);
+        serialize8(mcfg.multiwiicurrentoutput);
+        serialize8(mcfg.rssi_aux_channel);
+        serialize8(0);
         serialize16(cfg.mag_declination / 10); // TODO check this shit
         serialize8(mcfg.vbatscale);
         serialize8(mcfg.vbatmincellvoltage);
@@ -646,6 +691,57 @@ static void evaluateCommand(void)
                serialize8(GPS_svinfo_cno[i]);
             }
         break;
+
+    case MSP_SET_CONFIG:
+        headSerialReply(0);
+        mcfg.mixerConfiguration = read8(); // multitype
+        featureClearAll();
+        featureSet(read32()); // features bitmap
+        mcfg.serialrx_type = read8(); // serialrx_type
+        mcfg.board_align_roll = read16(); // board_align_roll
+        mcfg.board_align_pitch = read16(); // board_align_pitch
+        mcfg.board_align_yaw = read16(); // board_align_yaw
+        mcfg.currentscale = read16();
+        mcfg.currentoffset = read16();
+        /// ???
+        break;
+    case MSP_CONFIG:
+        headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 4);
+        serialize8(mcfg.mixerConfiguration);
+        serialize32(featureMask());
+        serialize8(mcfg.serialrx_type);
+        serialize16(mcfg.board_align_roll);
+        serialize16(mcfg.board_align_pitch);
+        serialize16(mcfg.board_align_yaw);
+        serialize16(mcfg.currentscale);
+        serialize16(mcfg.currentoffset);
+        /// ???
+        break;
+
+    case MSP_RCMAP:
+        headSerialReply(MAX_INPUTS); // TODO fix this
+        for (i = 0; i < MAX_INPUTS; i++)
+            serialize8(mcfg.rcmap[i]);
+        break;
+    case MSP_SET_RCMAP:
+        headSerialReply(0);
+        for (i = 0; i < MAX_INPUTS; i++)
+            mcfg.rcmap[i] = read8();
+        break;
+
+    case MSP_REBOOT:
+        headSerialReply(0);
+        pendReboot = true;
+        break;
+
+    case MSP_BUILDINFO:
+        headSerialReply(11 + 4 + 4);
+        for (i = 0; i < 11; i++)
+            serialize8(build[i]); // MMM DD YYYY as ascii, MMM = Jan/Feb... etc
+        serialize32(0); // future exp
+        serialize32(0); // future exp
+        break;
+
     default:                   // we do not know how to handle the (valid) message, indicate error MSP $M!
         headSerialError(0);
         break;
@@ -665,57 +761,55 @@ static void evaluateOtherData(uint8_t sr)
 void serialCom(void)
 {
     uint8_t c;
-    static uint8_t offset;
-    static uint8_t dataSize;
-    static enum _serial_state {
-        IDLE,
-        HEADER_START,
-        HEADER_M,
-        HEADER_ARROW,
-        HEADER_SIZE,
-        HEADER_CMD,
-    } c_state = IDLE;
+    int i;
 
-    // in cli mode, all serial stuff goes to here. enter cli mode by sending #
-    if (cliMode) {
-        cliProcess();
-        return;
-    }
+    for (i = 0; i < numTelemetryPorts; i++) {
+        currentPortState = &ports[i];
 
-    while (serialTotalBytesWaiting(core.mainport)) {
-        c = serialRead(core.mainport);
+        // in cli mode, all serial stuff goes to here. enter cli mode by sending #
+        if (cliMode) {
+            cliProcess();
+            return;
+        }
 
-        if (c_state == IDLE) {
-            c_state = (c == '$') ? HEADER_START : IDLE;
-            if (c_state == IDLE && !f.ARMED)
-                evaluateOtherData(c); // if not armed evaluate all other incoming serial data
-        } else if (c_state == HEADER_START) {
-            c_state = (c == 'M') ? HEADER_M : IDLE;
-        } else if (c_state == HEADER_M) {
-            c_state = (c == '<') ? HEADER_ARROW : IDLE;
-        } else if (c_state == HEADER_ARROW) {
-            if (c > INBUF_SIZE) {       // now we are expecting the payload size
-                c_state = IDLE;
-                continue;
+        if (pendReboot)
+            systemReset(false); // noreturn
+
+        while (serialTotalBytesWaiting(currentPortState->port)) {
+            c = serialRead(currentPortState->port);
+
+            if (currentPortState->c_state == IDLE) {
+                currentPortState->c_state = (c == '$') ? HEADER_START : IDLE;
+                if (currentPortState->c_state == IDLE && !f.ARMED)
+                    evaluateOtherData(c); // if not armed evaluate all other incoming serial data
+            } else if (currentPortState->c_state == HEADER_START) {
+                currentPortState->c_state = (c == 'M') ? HEADER_M : IDLE;
+            } else if (currentPortState->c_state == HEADER_M) {
+                currentPortState->c_state = (c == '<') ? HEADER_ARROW : IDLE;
+            } else if (currentPortState->c_state == HEADER_ARROW) {
+                if (c > INBUF_SIZE) {       // now we are expecting the payload size
+                    currentPortState->c_state = IDLE;
+                    continue;
+                }
+                currentPortState->dataSize = c;
+                currentPortState->offset = 0;
+                currentPortState->checksum = 0;
+                currentPortState->indRX = 0;
+                currentPortState->checksum ^= c;
+                currentPortState->c_state = HEADER_SIZE;      // the command is to follow
+            } else if (currentPortState->c_state == HEADER_SIZE) {
+                currentPortState->cmdMSP = c;
+                currentPortState->checksum ^= c;
+                currentPortState->c_state = HEADER_CMD;
+            } else if (currentPortState->c_state == HEADER_CMD && currentPortState->offset < currentPortState->dataSize) {
+                currentPortState->checksum ^= c;
+                currentPortState->inBuf[currentPortState->offset++] = c;
+            } else if (currentPortState->c_state == HEADER_CMD && currentPortState->offset >= currentPortState->dataSize) {
+                if (currentPortState->checksum == c) {        // compare calculated and transferred checksum
+                    evaluateCommand();      // we got a valid packet, evaluate it
+                }
+                currentPortState->c_state = IDLE;
             }
-            dataSize = c;
-            offset = 0;
-            checksum = 0;
-            indRX = 0;
-            checksum ^= c;
-            c_state = HEADER_SIZE;      // the command is to follow
-        } else if (c_state == HEADER_SIZE) {
-            cmdMSP = c;
-            checksum ^= c;
-            c_state = HEADER_CMD;
-        } else if (c_state == HEADER_CMD && offset < dataSize) {
-            checksum ^= c;
-            inBuf[offset++] = c;
-        } else if (c_state == HEADER_CMD && offset >= dataSize) {
-            if (checksum == c) {        // compare calculated and transferred checksum
-                evaluateCommand();      // we got a valid packet, evaluate it
-            }
-            c_state = IDLE;
         }
     }
 }

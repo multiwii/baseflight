@@ -76,6 +76,7 @@ HIGHEND_SRC	 = gps.c \
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
 		   drv_adxl345.c \
+		   drv_ak8975.c \
 		   drv_bma280.c \
 		   drv_bmp085.c \
 		   drv_ms5611.c \
@@ -85,6 +86,7 @@ NAZE_SRC	 = drv_adc.c \
 		   drv_mma845x.c \
 		   drv_mpu3050.c \
 		   drv_mpu6050.c \
+		   drv_mpu6500.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
 		   drv_spi.c \

@@ -25,7 +25,7 @@ void adcInit(drv_adc_config_t *init)
     adcConfig[ADC_BATTERY].dmaIndex = numChannels - 1;
 
     // optional ADC5 input on rev.5 hardware
-    if (hse_value == 12000000) {
+    if (hw_revision >= NAZE32_REV5) {
         numChannels++;
         adcConfig[ADC_EXTERNAL_PAD].adcChannel = ADC_Channel_5;
         adcConfig[ADC_EXTERNAL_PAD].dmaIndex = numChannels - 1;
@@ -35,6 +35,12 @@ void adcInit(drv_adc_config_t *init)
         numChannels++;
         adcConfig[ADC_EXTERNAL_CURRENT].adcChannel = init->powerAdcChannel;
         adcConfig[ADC_EXTERNAL_CURRENT].dmaIndex = numChannels - 1;
+    }
+
+    if (init->rssiAdcChannel > 0) {
+        numChannels++;
+        adcConfig[ADC_RSSI].adcChannel = init->rssiAdcChannel;
+        adcConfig[ADC_RSSI].dmaIndex = numChannels - 1;
     }
 
     // ADC driver assumes all the GPIO was already placed in 'AIN' mode

@@ -9,7 +9,7 @@
 #define VBATFREQ 6        // to read battery voltage - nth number of loop iterations
 #define BARO_TAB_SIZE_MAX   48
 
-#define  VERSION  230
+#define  VERSION  231
 
 #define LAT  0
 #define LON  1
@@ -244,6 +244,7 @@ typedef struct master_t {
     uint16_t deadband3d_throttle;           // default throttle deadband from MIDRC
     uint16_t motor_pwm_rate;                // The update rate of motor outputs (50-498Hz)
     uint16_t servo_pwm_rate;                // The update rate of servo outputs (50-498Hz)
+    uint8_t pwm_filter;                     // Hardware filter for incoming PWM pulses (larger = more filtering)
 
     // global sensor-related stuff
     sensor_align_e gyro_align;              // gyro alignment
@@ -254,6 +255,7 @@ typedef struct master_t {
     int16_t board_align_yaw;                // board alignment correction in yaw (deg)
     int8_t yaw_control_direction;           // change control direction of yaw (inverted, normal)
     uint8_t acc_hardware;                   // Which acc hardware to use on boards with more than one device
+    uint8_t mag_hardware;                   // Which mag hardware to use
     uint16_t gyro_lpf;                      // gyro LPF setting - values are driver specific, in case of invalid number, a reasonable default ~30-40HZ is chosen.
     uint16_t gyro_cmpf_factor;              // Set the Gyro Weight for Gyro/Acc complementary filter. Increasing this value would reduce and delay Acc influence on the output of the filter.
     uint16_t gyro_cmpfm_factor;             // Set the Gyro Weight for Gyro/Magnetometer complementary filter. Increasing this value would reduce and delay Magnetometer influence on the output of the filter
@@ -274,18 +276,24 @@ typedef struct master_t {
     // Radio/ESC-related configuration
     uint8_t rcmap[8];                       // mapping of radio channels to internal RPYTA+ order
     uint8_t serialrx_type;                  // type of UART-based receiver (0 = spek 10, 1 = spek 11, 2 = sbus). Must be enabled by FEATURE_SERIALRX first.
+    uint16_t sbus_offset;                   // offset for SBUS/Futaba serial receivers (default 988)
     uint16_t midrc;                         // Some radios have not a neutral point centered on 1500. can be changed here
     uint16_t mincheck;                      // minimum rc end
     uint16_t maxcheck;                      // maximum rc end
     uint8_t retarded_arm;                   // allow disarsm/arm on throttle down + roll left/right
+    uint8_t disarm_kill_switch;             // AUX disarm independently of throttle value
     uint8_t flaps_speed;                    // airplane mode flaps, 0 = no flaps, > 0 = flap speed, larger = faster
     int8_t fixedwing_althold_dir;           // +1 or -1 for pitch/althold gain. later check if need more than just sign
 
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.
+    uint8_t rssi_adc_channel;               // Read analog-rssi from RC-filter (RSSI-PWM to RSSI-Analog), RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), 0 to disable (disabled if rssi_aux_channel > 0 or rssi_adc_channel == power_adc_channel)
+    uint16_t rssi_adc_max;                  // max input voltage defined by RC-filter (is RSSI never 100% reduce the value) (1...4095)
+    uint16_t rssi_adc_offset;               // input offset defined by RC-filter (0...4095)
 
     // gps-related stuff
     uint8_t gps_type;                       // See GPSHardware enum.
     int8_t gps_baudrate;                    // See GPSBaudRates enum.
+    uint8_t gps_ubx_sbas;                   // UBX SBAS setting. 0 = AUTO, 1 = EGNOS, 2 = WAAS, 3 = MSAS, 4 = GAGAN (default = 0 = AUTO)
 
     uint32_t serial_baudrate;               // primary serial (MSP) port baudrate
 
@@ -307,6 +315,7 @@ typedef struct master_t {
 // Core runtime settings
 typedef struct core_t {
     serialPort_t *mainport;
+    serialPort_t *flexport;
     serialPort_t *gpsport;
     serialPort_t *telemport;
     serialPort_t *rcvrport;
@@ -437,6 +446,7 @@ void Mag_init(void);
 int Mag_getADC(void);
 void Sonar_init(void);
 void Sonar_update(void);
+uint16_t RSSI_getValue(void);
 
 // Output
 void mixerInit(void);
@@ -502,4 +512,3 @@ void GPS_reset_home_position(void);
 void GPS_reset_nav(void);
 void GPS_set_next_wp(int32_t* lat, int32_t* lon);
 int32_t wrap_18000(int32_t error);
-
