@@ -52,7 +52,7 @@ static const char * const mixerNames[] = {
     "TRI", "QUADP", "QUADX", "BI",
     "GIMBAL", "Y6", "HEX6",
     "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
-    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4", 
+    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4",
     "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
     "CUSTOM", NULL
 };
@@ -62,6 +62,7 @@ static const char * const featureNames[] = {
     "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SERIALRX", "MOTOR_STOP",
     "SERVO_TILT", "SOFTSERIAL", "LED_RING", "GPS",
     "FAILSAFE", "SONAR", "TELEMETRY", "POWERMETER", "VARIO", "3D",
+    "FAILSAFE_RTH",
     NULL
 };
 
@@ -211,6 +212,7 @@ const clivalue_t valueTable[] = {
     { "tri_unarmed_servo", VAR_INT8, &cfg.tri_unarmed_servo, 0, 1 },
     { "fixedwing_rollrate", VAR_FLOAT, &cfg.fixedwing_rollrate, 0, 1 },
     { "fixedwing_pitchrate", VAR_FLOAT, &cfg.fixedwing_pitchrate, 0, 1 },
+    { "vector_trust", VAR_UINT8, &cfg.vector_trust, 0, 1},
     { "gimbal_flags", VAR_UINT8, &cfg.gimbal_flags, 0, 255},
     { "acc_lpf_factor", VAR_UINT8, &cfg.acc_lpf_factor, 0, 250 },
     { "accxy_deadband", VAR_UINT8, &cfg.accxy_deadband, 0, 100 },
@@ -257,6 +259,14 @@ const clivalue_t valueTable[] = {
     { "p_vel", VAR_UINT8, &cfg.P8[PIDVEL], 0, 200 },
     { "i_vel", VAR_UINT8, &cfg.I8[PIDVEL], 0, 200 },
     { "d_vel", VAR_UINT8, &cfg.D8[PIDVEL], 0, 200 },
+    { "gps_maxcorr", VAR_INT16, &cfg.gps_maxcorr, -45, 45 },
+    { "gps_rudder", VAR_INT16, &cfg.gps_rudder,  -45, 45 },
+    { "gps_maxclimb", VAR_INT16, &cfg.gps_maxclimb,  -45, 45 },
+    { "gps_maxdive", VAR_INT16, &cfg.gps_maxdive,  -45, 45 },
+    { "climb_throttle", VAR_UINT16, &cfg.climb_throttle, 1000, 2000 },
+    { "cruice_throttle", VAR_UINT16, &cfg.cruice_throttle, 1000, 2000 },
+    { "idle_throttle", VAR_UINT16, &cfg.idle_throttle, 1000, 2000 },
+    { "scaler_throttle", VAR_UINT16, &cfg.scaler_throttle, 0, 15 },
 };
 
 #define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
@@ -804,6 +814,20 @@ static void cliMixer(char *cmdline)
         if (strncasecmp(cmdline, mixerNames[i], len) == 0) {
             mcfg.mixerConfiguration = i + 1;
             printf("Mixer set to %s\r\n", mixerNames[i]);
+            // Presets for planes. Not functional with current reset
+            // Really Ugly Hack
+            if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE)
+            {
+                cfg.dynThrPID    = 50;
+                cfg.rcExpo8      =  0;
+                cfg.P8[PIDALT]   = 30;
+                cfg.I8[PIDALT]   = 20;
+                cfg.D8[PIDALT]   = 45;
+                cfg.D8[PIDPOSR]  = 50; // RTH Alt
+                cfg.P8[PIDNAVR]  = 30;
+                cfg.I8 [PIDNAVR] = 20;
+                cfg.D8[PIDNAVR]  = 45;
+            }
             break;
         }
     }

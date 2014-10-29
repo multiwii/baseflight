@@ -349,7 +349,16 @@ static void resetConf(void)
     // fw stuff
     cfg.fixedwing_rollrate = 0.5f;
     cfg.fixedwing_pitchrate = 0.5f;
+		cfg.vector_trust = 0;
     cfg.flaperonInvert = 0;
+    cfg.gps_maxcorr = 20;
+    cfg.gps_rudder = 15;
+    cfg.gps_maxclimb = 15;
+    cfg.gps_maxdive = 15;
+    cfg.climb_throttle = 1900;
+    cfg.cruice_throttle = 1500;
+    cfg.idle_throttle = 1300;
+    cfg.scaler_throttle = 8;
 
     // control stuff
     mcfg.reboot_character = 'R';

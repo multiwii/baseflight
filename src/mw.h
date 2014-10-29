@@ -13,6 +13,7 @@
 
 #define LAT  0
 #define LON  1
+#define ALT  2
 
 #define RC_CHANS    (18)
 
@@ -145,6 +146,13 @@ typedef struct servoParam_t {
     int8_t rate;                            // range [-100;+100] ; can be used to ajust a rate 0-100% and a direction
 } servoParam_t;
 
+typedef struct {
+    float kP;
+    float kI;
+    float kD;
+    float Imax;
+} PID_PARAM;
+
 enum {
     ALIGN_GYRO = 0,
     ALIGN_ACCEL = 1,
@@ -223,7 +231,17 @@ typedef struct config_t {
 
     float fixedwing_rollrate;
     float fixedwing_pitchrate;
-	uint8_t flaperonInvert;
+		uint8_t vector_trust;
+	  uint8_t flaperonInvert;
+    int16_t gps_maxcorr;                   // Degrees banking Allowed by GPS.
+    int16_t gps_rudder;                     // Maximum Rudder
+    int16_t gps_maxclimb;                  // Degrees climbing . To much can stall the plane.
+    int16_t gps_maxdive;                   // Degrees Diving . To much can overspeed the plane.
+    uint16_t climb_throttle;                // Max allowed throttle in GPS modes.
+    uint16_t cruice_throttle;               // Throttle to set for cruisespeed.
+    uint16_t idle_throttle;                 // Lowest throttleValue during Descend
+    uint16_t scaler_throttle;               // Adjust to Match Power/Weight ratio of your model
+
 } config_t;
 
 // System-wide
@@ -350,6 +368,9 @@ typedef struct flags_t {
     uint8_t CALIBRATE_MAG;
     uint8_t VARIO_MODE;
     uint8_t FIXED_WING;                     // set when in flying_wing or airplane mode. currently used by althold selection code
+    uint8_t MOTORS_STOPPED;
+    uint8_t FAILSAFE_RTH_ENABLE;
+    uint8_t CLIMBOUT_FW;
 } flags_t;
 
 extern int16_t gyroZero[3];
@@ -404,14 +425,14 @@ extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for e
 
 // GPS stuff
 extern int32_t  GPS_coord[2];
-extern int32_t  GPS_home[2];
-extern int32_t  GPS_hold[2];
+extern int32_t  GPS_home[3];
+extern int32_t  GPS_hold[3];
 extern uint8_t  GPS_numSat;
 extern uint16_t GPS_distanceToHome;                          // distance to home or hold point in meters
 extern int16_t  GPS_directionToHome;                         // direction to home or hol point in degrees
 extern uint16_t GPS_altitude,GPS_speed;                      // altitude in 0.1m and speed in 0.1m/s
 extern uint8_t  GPS_update;                                  // it's a binary toogle to distinct a GPS position update
-extern int16_t  GPS_angle[2];                                // it's the angles that must be applied for GPS correction
+extern int16_t  GPS_angle[3];                                // it's the angles that must be applied for GPS correction
 extern uint16_t GPS_ground_course;                           // degrees*10
 extern int16_t  nav[2];
 extern int8_t   nav_mode;                                    // Navigation mode
@@ -421,7 +442,7 @@ extern uint8_t  GPS_svinfo_chn[16];                          // Channel number
 extern uint8_t  GPS_svinfo_svid[16];                         // Satellite ID
 extern uint8_t  GPS_svinfo_quality[16];                      // Bitfield Qualtity
 extern uint8_t  GPS_svinfo_cno[16];                          // Carrier to Noise Ratio (Signal Strength)
-
+  
 extern core_t core;
 extern master_t mcfg;
 extern config_t cfg;
@@ -519,3 +540,5 @@ void GPS_reset_home_position(void);
 void GPS_reset_nav(void);
 void GPS_set_next_wp(int32_t* lat, int32_t* lon);
 int32_t wrap_18000(int32_t error);
+void fw_nav(void);
+
