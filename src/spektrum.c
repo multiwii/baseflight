@@ -70,6 +70,10 @@ static void spektrumDataReceive(uint16_t c)
     if (spekFramePosition == SPEK_FRAME_SIZE - 1) {
         rcFrameComplete = true;
         failsafeCnt = 0;   // clear FailSafe counter
+        if(mcfg.spektrum_sat_bind != 0) {
+            mcfg.spektrum_sat_bind = 0;
+            writeEEPROM(0, true);
+        }
     } else {
         spekFramePosition++;
     }
