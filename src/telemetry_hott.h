@@ -88,26 +88,26 @@ typedef enum {
 typedef struct HoTTV4GPSModule_t {
     uint8_t startByte;               // Byte  1: 0x7C = Start byte data
     uint8_t sensorID;                // Byte  2: 0x8A = GPS Sensor
-    uint8_t alarmTone;               // Byte  3: 0…= warning beeps
+    uint8_t alarmTone;               // Byte  3: 0 = warning beeps
     uint8_t sensorTextID;            // Byte  4: 160 0xA0 Sensor ID Neu!
     uint8_t alarmInverse1;           // Byte  5: 01 inverse status
     uint8_t alarmInverse2;           // Byte  6: 00 inverse status status 1 = no GPS signal
-    uint8_t flightDirection;         // Byte  7: 119 = fly direction. 1 = 2°; 0° (North), 9 0° (East), 180° (South), 270° (West)
+    uint8_t flightDirection;         // Byte  7: 119 = fly direction. 1 = 2degree; 0degree (North), 9 0degree (East), 180degree (South), 270degree (West)
     uint8_t GPSSpeedLow;             // Byte  8: 8 = GPS speed low byte 8km/h
     uint8_t GPSSpeedHigh;            // Byte  9: 0 = GPS speed high byte
 
-    // Example: N 48°39'988"
+    // Example: N 48degree39'988"
     uint8_t LatitudeNS;              // Byte 10: 000 = N; 001 = S
-    //          0x12E7 = 4839 (48°30')
+    //          0x12E7 = 4839 (48degree30')
     uint8_t LatitudeMinLow;          // Byte 11: 231 = 0xE7
     uint8_t LatitudeMinHigh;         // Byte 12: 018 = 0x12
     //          0x03DC = 0988 (988")
     uint8_t LatitudeSecLow;          // Byte 13: 220 = 0xDC
     uint8_t LatitudeSecHigh;         // Byte 14: 003 = 0x03
 
-    // Example: E 9°25'9360"
+    // Example: E 9degree25'9360"
     uint8_t longitudeEW;             // Byte 15: 000 = E; 001 = W;
-    //          0x039D = 0925 (09°25')
+    //          0x039D = 0925 (09degree25')
     uint8_t longitudeMinLow;         // Byte 16: 157 = 0x9D
     uint8_t longitudeMinHigh;        // Byte 17: 003 = 0x03
     //          0x2490 = 9360 (9360")
@@ -146,7 +146,7 @@ typedef struct HoTTV4GPSModule_t {
 
 /**
  * EAM (Electric Air Module) 33620
- * EmpfängerElectric Sensor
+ * Receiver Electric Sensor
  * Byte 1: 80 = Receiver byte
  * Byte 2: 8E = Electric Sensor byte
  * 5ms Idle Line!
