@@ -75,7 +75,7 @@ int main(void)
                 // The rest of Spektrum initialization will happen later - via spektrumInit()
                 spektrumBind();
                 break;
-        }
+        
     }
 
     // sleep for 100ms
