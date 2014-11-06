@@ -92,7 +92,7 @@ int main(void)
     if (hw_revision != NAZE32_SP)
         i2cInit(I2C_DEVICE);
 
-    // configure power ADC
+    / configure power ADC
     if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9))
         adc_params.powerAdcChannel = mcfg.power_adc_channel;
     else {
