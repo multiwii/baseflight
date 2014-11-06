@@ -28,7 +28,7 @@ static void _putc(void *p, char c)
 #else
 // keil/armcc version
 int fputc(int c, FILE *f)
-{
+
     // let DMA catch up a bit when using set or dump, we're too fast.
     while (!isSerialTransmitBufferEmpty(core.mainport));
     serialWrite(core.mainport, c);
@@ -37,7 +37,7 @@ int fputc(int c, FILE *f)
 #endif
 
 int main(void)
-{
+
     uint8_t i;
     int id;
     drv_pwm_config_t pwm_params;
@@ -75,7 +75,7 @@ int main(void)
                 // The rest of Spektrum initialization will happen later - via spektrumInit()
                 spektrumBind();
                 break;
-        }
+        
     }
 
     // sleep for 100ms
@@ -92,7 +92,7 @@ int main(void)
     if (hw_revision != NAZE32_SP)
         i2cInit(I2C_DEVICE);
 
-    // configure power ADC
+    / configure power ADC
     if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9))
         adc_params.powerAdcChannel = mcfg.power_adc_channel;
     else {
@@ -105,7 +105,7 @@ int main(void)
     else {
         adc_params.rssiAdcChannel = 0;
         mcfg.rssi_adc_channel = 0;
-    }
+    
 
     adcInit(&adc_params);
     // Check battery type/voltage
