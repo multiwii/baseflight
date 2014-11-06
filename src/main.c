@@ -105,7 +105,7 @@ int main(void)
     else {
         adc_params.rssiAdcChannel = 0;
         mcfg.rssi_adc_channel = 0;
-    }
+    
 
     adcInit(&adc_params);
     // Check battery type/voltage
