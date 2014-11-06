@@ -37,7 +37,7 @@ int fputc(int c, FILE *f)
 #endif
 
 int main(void)
-{
+
     uint8_t i;
     int id;
     drv_pwm_config_t pwm_params;
