@@ -54,7 +54,7 @@ static const char * const mixerNames[] = {
     "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
     "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4", 
     "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
-    "CUSTOM", NULL
+    "ATAIL4", "CUSTOM", NULL
 };
 
 // sync this with AvailableFeatures enum from board.h
@@ -142,6 +142,7 @@ const clivalue_t valueTable[] = {
     { "deadband3d_throttle", VAR_UINT16, &mcfg.deadband3d_throttle, 0, 2000 },
     { "motor_pwm_rate", VAR_UINT16, &mcfg.motor_pwm_rate, 50, 32000 },
     { "servo_pwm_rate", VAR_UINT16, &mcfg.servo_pwm_rate, 50, 498 },
+    { "pwm_filter", VAR_UINT8, &mcfg.pwm_filter, 0, 15 },
     { "retarded_arm", VAR_UINT8, &mcfg.retarded_arm, 0, 1 },
     { "disarm_kill_switch", VAR_UINT8, &mcfg.disarm_kill_switch, 0, 1 },
     { "flaps_type", VAR_UINT8, &mcfg.flaps_type, 0, FLAPS_TYPE_MAX },
@@ -159,7 +160,8 @@ const clivalue_t valueTable[] = {
     { "gps_baudrate", VAR_INT8, &mcfg.gps_baudrate, 0, GPS_BAUD_MAX },
     { "gps_ubx_sbas", VAR_UINT8, &mcfg.gps_ubx_sbas, 0, 4 },
     { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, SERIALRX_PROVIDER_MAX },
-    { "sbus_offset", VAR_UINT16, &mcfg.sbus_offset, 900, 1200 },
+    { "spektrum_sat_bind", VAR_UINT8, &mcfg.spektrum_sat_bind, 0, 10 },
+    { "spektrum_sat_on_flexport", VAR_UINT8, &mcfg.spektrum_sat_on_flexport, 0, 1 },
     { "telemetry_provider", VAR_UINT8, &mcfg.telemetry_provider, 0, TELEMETRY_PROVIDER_MAX },
     { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },
     { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
@@ -177,8 +179,8 @@ const clivalue_t valueTable[] = {
     { "align_board_pitch", VAR_INT16, &mcfg.board_align_pitch, -180, 360 },
     { "align_board_yaw", VAR_INT16, &mcfg.board_align_yaw, -180, 360 },
     { "yaw_control_direction", VAR_INT8, &mcfg.yaw_control_direction, -1, 1 },
-    { "acc_hardware", VAR_UINT8, &mcfg.acc_hardware, 0, 5 },
-    { "mag_hardware", VAR_UINT8, &mcfg.mag_hardware, 0, 2 },
+    { "acc_hardware", VAR_UINT8, &mcfg.acc_hardware, 0, ACC_NONE },
+    { "mag_hardware", VAR_UINT8, &mcfg.mag_hardware, 0, MAG_NONE },
     { "max_angle_inclination", VAR_UINT16, &mcfg.max_angle_inclination, 100, 900 },
     { "moron_threshold", VAR_UINT8, &mcfg.moron_threshold, 0, 128 },
     { "gyro_lpf", VAR_UINT16, &mcfg.gyro_lpf, 0, 256 },

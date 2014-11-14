@@ -125,9 +125,6 @@ void systemInit(void)
 
     // SysTick
     SysTick_Config(SystemCoreClock / 1000);
-
-    // sleep for 100ms
-    delay(100);
 }
 
 #if 1
