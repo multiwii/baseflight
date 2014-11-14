@@ -24,7 +24,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 69;
+static const uint8_t EEPROM_CONF_VERSION = 71;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
@@ -218,7 +218,6 @@ static void resetConf(void)
     mcfg.vbatmincellvoltage = 33;
     mcfg.power_adc_channel = 0;
     mcfg.serialrx_type = 0;
-    mcfg.sbus_offset = 988;
     mcfg.telemetry_provider = TELEMETRY_PROVIDER_FRSKY;
     mcfg.telemetry_port = TELEMETRY_PORT_UART;
     mcfg.telemetry_switch = 0;
@@ -349,7 +348,16 @@ static void resetConf(void)
     // fw stuff
     cfg.fixedwing_rollrate = 0.5f;
     cfg.fixedwing_pitchrate = 0.5f;
+		cfg.vector_trust = 0;
     cfg.flaperonInvert = 0;
+    cfg.gps_maxcorr = 20;
+    cfg.gps_rudder = 15;
+    cfg.gps_maxclimb = 15;
+    cfg.gps_maxdive = 15;
+    cfg.climb_throttle = 1900;
+    cfg.cruice_throttle = 1500;
+    cfg.idle_throttle = 1300;
+    cfg.scaler_throttle = 8;
 
     // control stuff
     mcfg.reboot_character = 'R';

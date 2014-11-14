@@ -269,7 +269,9 @@ void serialInit(uint32_t baudrate)
     core.mainport = uartOpen(USART1, NULL, baudrate, MODE_RXTX);
     ports[0].port = core.mainport;
     numTelemetryPorts++;
-    if (hw_revision >= NAZE32_SP) {
+
+    // additional telemetry port available only if spektrum sat isn't already assigned there
+    if (hw_revision >= NAZE32_SP  && !mcfg.spektrum_sat_on_flexport) {
         core.flexport = uartOpen(USART3, NULL, baudrate, MODE_RXTX);
         ports[1].port = core.flexport;
         numTelemetryPorts++;
@@ -413,7 +415,7 @@ static void evaluateCommand(void)
         serialize8(VERSION);                // multiwii version
         serialize8(mcfg.mixerConfiguration); // type of multicopter
         serialize8(MSP_VERSION);            // MultiWii Serial Protocol Version
-        serialize32(CAP_PLATFORM_32BIT | CAP_BASEFLIGHT_CONFIG | CAP_DYNBALANCE | (mcfg.flaps_speed ? CAP_FLAPS : 0));        // "capability"
+        serialize32(CAP_PLATFORM_32BIT | CAP_BASEFLIGHT_CONFIG | CAP_DYNBALANCE | (mcfg.flaps ? CAP_FLAPS : 0));        // "capability"
         break;
     case MSP_STATUS:
         headSerialReply(11);

@@ -111,6 +111,13 @@ static const motorMixer_t mixerVtail4[] = {
     { 1.0f,  1.0f, -1.0f, -0.0f },          // FRONT_L
 };
 
+static const motorMixer_t mixerAtail4[] = {
+    { 1.0f,  0.0f,  1.0f,  1.0f },          // REAR_R
+    { 1.0f, -1.0f, -1.0f,  0.0f },          // FRONT_R
+    { 1.0f,  0.0f,  1.0f, -1.0f },          // REAR_L
+    { 1.0f,  1.0f, -1.0f, -0.0f },          // FRONT_L
+};
+
 static const motorMixer_t mixerHex6H[] = {
     { 1.0f, -1.0f,  1.0f, -1.0f },     // REAR_R
     { 1.0f, -1.0f, -1.0f,  1.0f },     // FRONT_R
@@ -122,7 +129,12 @@ static const motorMixer_t mixerHex6H[] = {
 
 static const motorMixer_t mixerDualcopter[] = {
     { 1.0f,  0.0f,  0.0f, -1.0f },          // LEFT
-    { 1.0f,  0.0f,  0.0f,  1.0f },          // RIGHT
+    { 1.0f,  0.0f,  0.0f,  1.0f },          // RIGHT	
+}
+
+;static const motorMixer_t mixerTrustVector[] = {
+    { 1.0f,  0.0f,  0.0f, -0.5f },          // LEFT
+    { 1.0f,  0.0f,  0.0f,  0.5f },          // RIGHT
 };
 
 // Keep this synced with MultiType struct in mw.h!
@@ -136,7 +148,8 @@ const mixer_t mixers[] = {
     { 0, 1, NULL },                // * MULTITYPE_GIMBAL
     { 6, 0, mixerY6 },             // MULTITYPE_Y6
     { 6, 0, mixerHex6P },          // MULTITYPE_HEX6
-    { 1, 1, NULL },                // * MULTITYPE_FLYING_WING
+    { 2, 1, mixerTrustVector },     // * MULTITYPE_FLYING_WING
+    //{ 1, 1, NULL },                // * MULTITYPE_FLYING_WING
     { 4, 0, mixerY4 },             // MULTITYPE_Y4
     { 6, 0, mixerHex6X },          // MULTITYPE_HEX6X
     { 8, 0, mixerOctoX8 },         // MULTITYPE_OCTOX8
@@ -150,6 +163,7 @@ const mixer_t mixers[] = {
     { 0, 1, NULL },                // * MULTITYPE_PPM_TO_SERVO
     { 2, 1, mixerDualcopter  },    // MULTITYPE_DUALCOPTER
     { 1, 1, NULL },                // MULTITYPE_SINGLECOPTER
+    { 4, 0, mixerAtail4 },         // MULTITYPE_ATAIL4
     { 0, 0, NULL },                // MULTITYPE_CUSTOM
 };
 
@@ -335,15 +349,16 @@ static void airplaneMixer(void)
         servo[7] = mcfg.mincommand; // Kill throttle when disarmed
     else
         servo[7] = constrain(rcCommand[THROTTLE], mcfg.minthrottle, mcfg.maxthrottle);
-    motor[0] = servo[7];
+        motor[0] = servo[7];
+        //motor[0] = rcCommand[THROTTLE]; // set motor_pwm_rate rate to 50 for servos
 
     if (mcfg.flaperons) {
-			  static int16_t temp_Flprns;
+        static int16_t temp_Flprns;
         int8_t flpDir = cfg.flaperonInvert;
-			  int16_t flpInput= constrain(rcData[mcfg.flaperons-1], mcfg.flaperons_Min, mcfg.flaperons_Max);
-			  flpInput = mcfg.midrc - flpInput;
+        int16_t flpInput= constrain(rcData[mcfg.flaperons-1], mcfg.flaperons_Min, mcfg.flaperons_Max);
+        flpInput = mcfg.midrc - flpInput;
         if(mcfg.flaps_speed == 0)
-					  temp_Flprns = flpInput;
+            temp_Flprns = flpInput;
         else if(temp_Flprns < flpInput)
             temp_Flprns = constrain(temp_Flprns + mcfg.flaps_speed,temp_Flprns , flpInput);
         else if(temp_Flprns > flpInput)
@@ -429,11 +444,19 @@ void mixTable(void)
             break;
 
         case MULTITYPE_FLYING_WING:
-            if (!f.ARMED)
-                servo[7] = mcfg.mincommand;
-            else
-                servo[7] = constrain(rcCommand[THROTTLE], mcfg.minthrottle, mcfg.maxthrottle);
-            motor[0] = servo[7];
+			      if(!cfg.vector_trust){
+                motor[0] = rcCommand[THROTTLE]; // set motor_pwm_rate rate to 50 for servos
+                motor[1] = rcCommand[THROTTLE];
+						}
+				
+            servo[7] = motor[0];
+            servo[6] = motor[1];
+            if (!f.ARMED){
+                servo[7] = mcfg.mincommand; // Kill throttle when disarmed
+                servo[6] = mcfg.mincommand; // Kill throttle when disarmed
+							}
+			   
+			
             if (f.PASSTHRU_MODE) {
                 // do not use sensors for correction, simple 2 channel mixing
                 servo[3] = (servoDirection(3, 1) * rcCommand[PITCH])*cfg.fixedwing_pitchrate + (servoDirection(3, 2) * rcCommand[ROLL])*cfg.fixedwing_rollrate;
@@ -514,6 +537,10 @@ void mixTable(void)
                     motor[i] = mcfg.minthrottle;
                 else
                     motor[i] = mcfg.mincommand;
+                    f.MOTORS_STOPPED=1;
+            }
+            else{
+            	f.MOTORS_STOPPED=0;
             }
         }
         if (!f.ARMED) {
