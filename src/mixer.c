@@ -130,9 +130,9 @@ static const motorMixer_t mixerHex6H[] = {
 static const motorMixer_t mixerDualcopter[] = {
     { 1.0f,  0.0f,  0.0f, -1.0f },          // LEFT
     { 1.0f,  0.0f,  0.0f,  1.0f },          // RIGHT	
-}
+};
 
-;static const motorMixer_t mixerTrustVector[] = {
+static const motorMixer_t mixerTrustVector[] = {
     { 1.0f,  0.0f,  0.0f, -0.5f },          // LEFT
     { 1.0f,  0.0f,  0.0f,  0.5f },          // RIGHT
 };
