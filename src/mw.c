@@ -670,7 +670,7 @@ void loop(void)
                 f.ANGLE_MODE = 1;
             }
             if(feature(FEATURE_FAILSAFE_RTH)) {
-            	if (failsafeCnt > 5*cfg.failsafe_delay && SENSOR_GPS) {
+            	if ((failsafeCnt > 5 * cfg.failsafe_delay) && sensors(SENSOR_GPS)) {
 					f.FAILSAFE_RTH_ENABLE = 1;
 				}
             }
@@ -752,7 +752,7 @@ void loop(void)
         if (sensors(SENSOR_GPS)) {
             if (f.GPS_FIX && GPS_numSat >= 5) {
                 // if both GPS_HOME & GPS_HOLD are checked => GPS_HOME is the priority
-                if (rcOptions[BOXGPSHOME]|| f.FAILSAFE_RTH_ENABLE ) {
+                if (rcOptions[BOXGPSHOME] || f.FAILSAFE_RTH_ENABLE ) {
                     if (!f.GPS_HOME_MODE) {
                         f.GPS_HOME_MODE = 1;
                         f.GPS_HOLD_MODE = 0;
@@ -793,7 +793,7 @@ void loop(void)
         }
 #endif
 
-        if (rcOptions[BOXPASSTHRU]&& !f.FAILSAFE_RTH_ENABLE ) {
+        if (rcOptions[BOXPASSTHRU] && !f.FAILSAFE_RTH_ENABLE) {
             f.PASSTHRU_MODE = 1;
         } else {
             f.PASSTHRU_MODE = 0;
@@ -802,8 +802,7 @@ void loop(void)
         if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
             f.HEADFREE_MODE = 0;
 
-        if( feature(FEATURE_FAILSAFE) &&
-			failsafeCnt > (6*cfg.failsafe_delay) )
+        if(feature(FEATURE_FAILSAFE) && failsafeCnt > (6*cfg.failsafe_delay))
            {
               f.PASSTHRU_MODE = 0;
               f.ANGLE_MODE = 1;

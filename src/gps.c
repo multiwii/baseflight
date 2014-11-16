@@ -371,8 +371,8 @@ typedef struct {
 
 static PID_PARAM posholdPID_PARAM;
 static PID_PARAM poshold_ratePID_PARAM;
-/*static*/ PID_PARAM navPID_PARAM;
-/*static*/ PID_PARAM altPID_PARAM;
+PID_PARAM navPID_PARAM;
+PID_PARAM altPID_PARAM;
 
 typedef struct {
     float integrator;          // integrator value
@@ -463,7 +463,7 @@ static int16_t crosstrack_error;
 // distance between plane and home in cm
 //static int32_t home_distance;
 // distance between plane and next_WP in cm
-/*static*/ int32_t wp_distance;
+int32_t wp_distance;
 
 // used for slow speed wind up when start navigation;
 static int16_t waypoint_speed_gov;
@@ -483,7 +483,7 @@ static uint16_t fraction3[2];
 
 // This is the angle from the copter to the "next_WP" location
 // with the addition of Crosstrack error in degrees * 100
-/*static*/ int32_t nav_bearing;
+int32_t nav_bearing;
 // saves the bearing at takeof (1deg = 1) used to rotate to takeoff direction when arrives at home
 static int16_t nav_takeoff_bearing;
 

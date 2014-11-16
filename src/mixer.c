@@ -354,8 +354,8 @@ static void airplaneMixer(void)
 
     if (mcfg.flaperons) {
         static int16_t temp_Flprns;
-        int8_t flpDir = cfg.flaperonInvert;
-        int16_t flpInput= constrain(rcData[mcfg.flaperons-1], mcfg.flaperons_Min, mcfg.flaperons_Max);
+        int8_t flpDir = cfg.flaperons_invert;
+        int16_t flpInput= constrain(rcData[mcfg.flaperons-1], mcfg.flaperons_min, mcfg.flaperons_max);
         flpInput = mcfg.midrc - flpInput;
         if(mcfg.flaps_speed == 0)
             temp_Flprns = flpInput;
