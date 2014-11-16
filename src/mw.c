@@ -760,7 +760,7 @@ void loop(void)
                         GPS_set_next_wp(&GPS_home[LAT], &GPS_home[LON]);
                         nav_mode = NAV_MODE_WP;
                         GPS_hold[ALT] = GPS_altitude;
-                        f.CLIMBOUT_FW =1 ;
+                        f.CLIMBOUT_FW = 1;
                     }
                 } else {
                     f.GPS_HOME_MODE = 0;

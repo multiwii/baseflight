@@ -348,7 +348,7 @@ static void resetConf(void)
     // fw stuff
     cfg.fixedwing_rollrate = 0.5f;
     cfg.fixedwing_pitchrate = 0.5f;
-		cfg.vector_trust = 0;
+    cfg.vector_trust = 0;
     cfg.flaperons_invert = 0;
     cfg.gps_maxcorr = 20;
     cfg.gps_rudder = 15;
