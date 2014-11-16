@@ -818,17 +818,16 @@ static void cliMixer(char *cmdline)
             printf("Mixer set to %s\r\n", mixerNames[i]);
             // Presets for planes. Not functional with current reset
             // Really Ugly Hack
-            if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE)
-            {
-                cfg.dynThrPID    = 50;
-                cfg.rcExpo8      =  0;
-                cfg.P8[PIDALT]   = 30;
-                cfg.I8[PIDALT]   = 20;
-                cfg.D8[PIDALT]   = 45;
-                cfg.D8[PIDPOSR]  = 50; // RTH Alt
-                cfg.P8[PIDNAVR]  = 30;
-                cfg.I8 [PIDNAVR] = 20;
-                cfg.D8[PIDNAVR]  = 45;
+            if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
+                cfg.dynThrPID = 50;
+                cfg.rcExpo8 = 0;
+                cfg.P8[PIDALT] = 30;
+                cfg.I8[PIDALT] = 20;
+                cfg.D8[PIDALT] = 45;
+                cfg.D8[PIDPOSR] = 50; // RTH Alt
+                cfg.P8[PIDNAVR] = 30;
+                cfg.I8[PIDNAVR] = 20;
+                cfg.D8[PIDNAVR] = 45;
             }
             break;
         }
