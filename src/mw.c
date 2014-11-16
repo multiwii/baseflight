@@ -773,7 +773,7 @@ void loop(void)
                             GPS_set_next_wp(&GPS_hold[LAT], &GPS_hold[LON]);
                             nav_mode = NAV_MODE_POSHOLD;
                             GPS_hold[ALT] = GPS_altitude;
-                            f.CLIMBOUT_FW = 0 ;
+                            f.CLIMBOUT_FW = 0;
                         }
                     } else {
                         f.GPS_HOLD_MODE = 0;
@@ -781,7 +781,7 @@ void loop(void)
                         if (GPSNavReset == 0) {
                             GPSNavReset = 1;
                             GPS_reset_nav();
-                            f.CLIMBOUT_FW = 0 ;
+                            f.CLIMBOUT_FW = 0;
                         }
                     }
                 }
