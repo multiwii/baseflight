@@ -1138,7 +1138,7 @@ static bool gpsNewFrameNMEA(char c)
                                 GPS_numSat = gps_msg.numSat;
                                 GPS_altitude = gps_msg.altitude;
                                 if(!sensors(SENSOR_BARO) && f.FIXED_WING)
-                                    EstAlt = (GPS_altitude - GPS_home[ALT])*100;    // Use values Based on GPS
+                                    EstAlt = (GPS_altitude - GPS_home[ALT]) * 100;    // Use values Based on GPS
                             }
                             break;
 
@@ -1387,7 +1387,7 @@ static bool UBLOX_parse_gps(void)
         f.GPS_FIX = next_fix;
         _new_position = true;
         if(!sensors(SENSOR_BARO) && f.FIXED_WING)
-            EstAlt = (GPS_altitude - GPS_home[ALT])*100;    // Use values Based on GPS
+            EstAlt = (GPS_altitude - GPS_home[ALT]) * 100;    // Use values Based on GPS
         break;
     case MSG_STATUS:
         next_fix = (_buffer.status.fix_status & NAV_STATUS_FIX_VALID) && (_buffer.status.fix_type == FIX_3D);
@@ -1406,8 +1406,8 @@ static bool UBLOX_parse_gps(void)
         GPS_speed = _buffer.velned.speed_2d;    // cm/s
         GPS_ground_course = (uint16_t) (_buffer.velned.heading_2d / 10000);     // Heading 2D deg * 100000 rescaled to deg * 10
         _new_speed = true;
-        if(!sensors(SENSOR_MAG) && f.FIXED_WING && GPS_speed > 100){
-            heading = GPS_ground_course/10;    // Use values Based on GPS if we are moving.
+        if(!sensors(SENSOR_MAG) && f.FIXED_WING && GPS_speed > 100) {
+            heading = GPS_ground_course / 10;    // Use values Based on GPS if we are moving.
             if (heading <= - 180)
                 heading += 360;
             if (heading >=  180)
