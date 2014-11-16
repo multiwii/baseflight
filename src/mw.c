@@ -670,14 +670,14 @@ void loop(void)
                 f.ANGLE_MODE = 1;
             }
             if(feature(FEATURE_FAILSAFE_RTH)) {
-            	if ((failsafeCnt > 5 * cfg.failsafe_delay) && sensors(SENSOR_GPS)) {
-					f.FAILSAFE_RTH_ENABLE = 1;
-				}
+                if ((failsafeCnt > 5 * cfg.failsafe_delay) && sensors(SENSOR_GPS)) {
+                    f.FAILSAFE_RTH_ENABLE = 1;
+                }
             }
         } else {
             f.ANGLE_MODE = 0;        // failsafe support
-			f.FAILSAFE_RTH_ENABLE = 0;
-        }
+            f.FAILSAFE_RTH_ENABLE = 0;
+          }
 
         if (rcOptions[BOXHORIZON]) {
             f.ANGLE_MODE = 0;
@@ -801,24 +801,21 @@ void loop(void)
 
         if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
             f.HEADFREE_MODE = 0;
-
-        if(feature(FEATURE_FAILSAFE) && failsafeCnt > (6*cfg.failsafe_delay))
-           {
-              f.PASSTHRU_MODE = 0;
-              f.ANGLE_MODE = 1;
-              for(i=0; i<3; i++) rcData[i] = mcfg.midrc;
-              rcData[THROTTLE] = cfg.failsafe_throttle;
-
-              // No GPS?  Force a soft left turn.
-              if(!f.GPS_FIX && GPS_numSat <= 5)
-              {
-                f.FAILSAFE_RTH_ENABLE = 0;
-                rcData[ROLL]=mcfg.midrc-50;
-              }
-           }
-
-
+            if(feature(FEATURE_FAILSAFE) && failsafeCnt > (6 * cfg.failsafe_delay))
+            {
+                f.PASSTHRU_MODE = 0;
+                f.ANGLE_MODE = 1;
+                for(i = 0; i < 3; i++) 
+                    rcData[i] = mcfg.midrc;
+                rcData[THROTTLE] = cfg.failsafe_throttle;
+                // No GPS?  Force a soft left turn.
+                if(!f.GPS_FIX && GPS_numSat <= 5) {
+                    f.FAILSAFE_RTH_ENABLE = 0;
+                    rcData[ROLL] = mcfg.midrc - 50;
+                }
+            }
         }
+				
     } else {                    // not in rc loop
         static int taskOrder = 0;    // never call all function in the same loop, to avoid high delay spikes
         switch (taskOrder) {
@@ -953,9 +950,7 @@ void loop(void)
                         GPS_angle[ROLL] = (nav[LON] * cos_yaw_x - nav[LAT] * sin_yaw_y) / 10;
                         GPS_angle[PITCH] = (nav[LON] * sin_yaw_y + nav[LAT] * cos_yaw_x) / 10;
                 	}
-                } else {
-				    fw_nav();
-				}
+                } else fw_nav();
             } else {
             	GPS_angle[ROLL] = 0;
             	GPS_angle[PITCH] = 0;
