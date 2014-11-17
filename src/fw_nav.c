@@ -7,15 +7,14 @@ extern int32_t wp_distance;
 extern PID_PARAM navPID_PARAM;
 extern PID_PARAM altPID_PARAM;
 
-#define GPS_UPD_HZ             5        // Set loop time for NavUpdate 5 Hz is enough
-#define PITCH_COMP             0.5f     // Compensate throttle relative angle of attack
+#define GPS_UPD_HZ 5            // Set loop time for NavUpdate 5 Hz is enough
+#define PITCH_COMP 0.5f         // Compensate throttle relative angle of attack
 // Candidates for CLI
-#define SAFE_NAV_ALT        20  // Safe Altitude during climbouts Wings Level below this Alt. (ex. trees & buildings..)
-#define SAFE_DECSCEND_ZONE  50  // Radius around home where descending is OK
-#define CIRCLE     false        // Simple test to fly a Theoretical circle in Hold Mode function Not verified yet
+#define SAFE_NAV_ALT 20         // Safe Altitude during climbouts Wings Level below this Alt. (ex. trees & buildings..)
+#define SAFE_DECSCEND_ZONE 50   // Radius around home where descending is OK
 // For speedBoost
-#define GPS_MINSPEED  500       // 500= ~18km/h
-#define I_TERM        0.1f
+#define GPS_MINSPEED 500        // 500= ~18km/h
+#define I_TERM 0.1f
 
 float navErrorI;
 float altErrorI;
@@ -108,9 +107,6 @@ void fw_nav(void)
         // Climb out before RTH
         if (f.GPS_HOME_MODE) {
             if (f.CLIMBOUT_FW) {
-                // Accelerate for ground takeoff Untested feature.....
-                // #define TAKEOFF_SPEED 10  // 10 m/s ~36km/h
-                // if(currAlt < 2 && GPS_speed < TAKEOFF_SPEED*100 ){GPS_AltErr = 0;}
                 GPS_AltErr = -(cfg.gps_maxclimb * 10);  // Max climbAngle
                 NAV_Thro = cfg.climb_throttle;          // Max Allowed Throttle
                 if (currAlt < SAFE_NAV_ALT)
@@ -127,9 +123,6 @@ void fw_nav(void)
             f.CLIMBOUT_FW = 0;                  // Abort Climbout
             GPS_hold[ALT] = GPS_home[ALT] + 5;  // Come down
         }
-
-        if (f.GPS_HOLD_MODE && (wp_distance < 20 * 100 && CIRCLE))
-            navDiff = 0;    // Theoretical circle
 
         // Filtering of navDiff around home to stop nervous servos
         if (GPS_distanceToHome < 10)
@@ -212,9 +205,9 @@ void fw_nav(void)
         GPS_angle[YAW] = constrain(navDiff / 10, -cfg.gps_rudder * 10, cfg.gps_rudder * 10) + NAV_deltaSum;
 
         // Elevator compensation depending on behaviour.
-        // Prevent stall with Disarmed motor  New TEST
-        if (f.MOTORS_STOPPED)
-            GPS_angle[PITCH] = constrain(GPS_angle[PITCH], 0, cfg.gps_maxdive * 10);
+        // Prevent stall with Disarmed motor
+        if (!f.CLIMBOUT_FW)
+            GPS_angle[PITCH] -= (abs(angle[ROLL]) *cfg.roll_comp);
 
         // Add elevator compared with rollAngle
         GPS_angle[PITCH] -= abs(angle[ROLL]);

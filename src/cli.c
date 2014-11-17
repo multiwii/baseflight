@@ -269,6 +269,7 @@ const clivalue_t valueTable[] = {
     { "cruice_throttle", VAR_UINT16, &cfg.cruice_throttle, 1000, 2000 },
     { "idle_throttle", VAR_UINT16, &cfg.idle_throttle, 1000, 2000 },
     { "scaler_throttle", VAR_UINT16, &cfg.scaler_throttle, 0, 15 },
+    { "roll_comp", VAR_FLOAT, &cfg.roll_comp, 0, 2 },
 };
 
 #define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
@@ -816,7 +817,7 @@ static void cliMixer(char *cmdline)
         if (strncasecmp(cmdline, mixerNames[i], len) == 0) {
             mcfg.mixerConfiguration = i + 1;
             printf("Mixer set to %s\r\n", mixerNames[i]);
-            
+
             // Presets for planes. Not functional with current reset
             // Really Ugly Hack
             if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {

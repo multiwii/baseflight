@@ -360,14 +360,6 @@ int32_t leadFilter_getPosition(LeadFilter_PARAM *param, int32_t pos, int16_t vel
 
 LeadFilter_PARAM xLeadFilter;
 LeadFilter_PARAM yLeadFilter;
-/*
-typedef struct {
-    float kP;
-    float kI;
-    float kD;
-    float Imax;
-} PID_PARAM;
-*/
 
 static PID_PARAM posholdPID_PARAM;
 static PID_PARAM poshold_ratePID_PARAM;
@@ -619,7 +611,7 @@ void GPS_reset_nav(void)
         reset_PID(&navPID[i]);
     }
 
-    if(f.FIXED_WING)
+    if (f.FIXED_WING)
         fw_nav_reset();
 
 }
@@ -641,7 +633,7 @@ void gpsSetPIDs(void)
     navPID_PARAM.kD = (float)cfg.D8[PIDNAVR] / 1000.0f;
     navPID_PARAM.Imax = POSHOLD_RATE_IMAX * 100;
 
-    if(f.FIXED_WING) {
+    if (f.FIXED_WING) {
       altPID_PARAM.kP   = (float)cfg.P8[PIDALT] / 10.0f;
       altPID_PARAM.kI   = (float)cfg.I8[PIDALT] / 100.0f;
       altPID_PARAM.kD   = (float)cfg.D8[PIDALT] / 1000.0f;
@@ -1129,7 +1121,7 @@ static bool gpsNewFrameNMEA(char c)
                                 GPS_coord[LON] = gps_msg.longitude;
                                 GPS_numSat = gps_msg.numSat;
                                 GPS_altitude = gps_msg.altitude;
-                                if(!sensors(SENSOR_BARO) && f.FIXED_WING)
+                                if (!sensors(SENSOR_BARO) && f.FIXED_WING)
                                     EstAlt = (GPS_altitude - GPS_home[ALT]) * 100;    // Use values Based on GPS
                             }
                             break;
@@ -1378,7 +1370,7 @@ static bool UBLOX_parse_gps(void)
         GPS_altitude = _buffer.posllh.altitude_msl / 10 / 100;  //alt in m
         f.GPS_FIX = next_fix;
         _new_position = true;
-        if(!sensors(SENSOR_BARO) && f.FIXED_WING)
+        if (!sensors(SENSOR_BARO) && f.FIXED_WING)
             EstAlt = (GPS_altitude - GPS_home[ALT]) * 100;    // Use values Based on GPS
         break;
     case MSG_STATUS:
@@ -1398,7 +1390,7 @@ static bool UBLOX_parse_gps(void)
         GPS_speed = _buffer.velned.speed_2d;    // cm/s
         GPS_ground_course = (uint16_t) (_buffer.velned.heading_2d / 10000);     // Heading 2D deg * 100000 rescaled to deg * 10
         _new_speed = true;
-        if(!sensors(SENSOR_MAG) && f.FIXED_WING && GPS_speed > 100) {
+        if (!sensors(SENSOR_MAG) && f.FIXED_WING && GPS_speed > 100) {
             heading = GPS_ground_course / 10;    // Use values Based on GPS if we are moving.
             if (heading <= - 180)
                 heading += 360;

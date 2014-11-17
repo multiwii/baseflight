@@ -50,7 +50,7 @@ uint16_t GPS_distanceToHome;        // distance to home point in meters
 int16_t GPS_directionToHome;        // direction to home or hol point in degrees
 uint16_t GPS_altitude, GPS_speed;   // altitude in 0.1m and speed in 0.1m/s
 uint8_t GPS_update = 0;             // it's a binary toogle to distinct a GPS position update
-int16_t GPS_angle[3] = { 0, 0, 0 };    // it's the angles that must be applied for GPS correction
+int16_t GPS_angle[3] = { 0, 0, 0 }; // it's the angles that must be applied for GPS correction
 uint16_t GPS_ground_course = 0;     // degrees * 10
 int16_t nav[2];
 int16_t nav_rated[2];               // Adding a rate controller to the navigation to make it smoother
@@ -669,13 +669,13 @@ void loop(void)
                 errorAngleI[PITCH] = 0;
                 f.ANGLE_MODE = 1;
             }
-            if(feature(FEATURE_FAILSAFE_RTH)) {
+            if (feature(FEATURE_FAILSAFE_RTH)) {
                 if ((failsafeCnt > 5 * cfg.failsafe_delay) && sensors(SENSOR_GPS)) {
                     f.FAILSAFE_RTH_ENABLE = 1;
                 }
             }
         } else {
-            f.ANGLE_MODE = 0;        // failsafe support
+            f.ANGLE_MODE = 0;   // failsafe support
             f.FAILSAFE_RTH_ENABLE = 0;
           }
 
@@ -801,22 +801,22 @@ void loop(void)
 
         if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
             f.HEADFREE_MODE = 0;
-            if(feature(FEATURE_FAILSAFE) && failsafeCnt > (6 * cfg.failsafe_delay)) {
+            if (feature(FEATURE_FAILSAFE) && failsafeCnt > (6 * cfg.failsafe_delay)) {
                 f.PASSTHRU_MODE = 0;
                 f.ANGLE_MODE = 1;
-                for(i = 0; i < 3; i++) 
+                for (i = 0; i < 3; i++) 
                     rcData[i] = mcfg.midrc;
                 rcData[THROTTLE] = cfg.failsafe_throttle;
                 // No GPS?  Force a soft left turn.
-                if(!f.GPS_FIX && GPS_numSat <= 5) {
+                if (!f.GPS_FIX && GPS_numSat <= 5) {
                     f.FAILSAFE_RTH_ENABLE = 0;
                     rcData[ROLL] = mcfg.midrc - 50;
                 }
             }
         }
 				
-    } else {                    // not in rc loop
-        static int taskOrder = 0;    // never call all function in the same loop, to avoid high delay spikes
+    } else {                        // not in rc loop
+        static int taskOrder = 0;   // never call all function in the same loop, to avoid high delay spikes
         switch (taskOrder) {
         case 0:
             taskOrder++;

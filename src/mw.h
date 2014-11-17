@@ -234,14 +234,15 @@ typedef struct config_t {
     float fixedwing_pitchrate;
     uint8_t vector_trust;
     uint8_t flaperons_invert;
-    int16_t gps_maxcorr;                   // Degrees banking Allowed by GPS.
+    int16_t gps_maxcorr;                    // Degrees banking Allowed by GPS.
     int16_t gps_rudder;                     // Maximum Rudder
-    int16_t gps_maxclimb;                  // Degrees climbing . To much can stall the plane.
-    int16_t gps_maxdive;                   // Degrees Diving . To much can overspeed the plane.
+    int16_t gps_maxclimb;                   // Degrees climbing . To much can stall the plane.
+    int16_t gps_maxdive;                    // Degrees Diving . To much can overspeed the plane.
     uint16_t climb_throttle;                // Max allowed throttle in GPS modes.
     uint16_t cruice_throttle;               // Throttle to set for cruisespeed.
     uint16_t idle_throttle;                 // Lowest throttleValue during Descend
     uint16_t scaler_throttle;               // Adjust to Match Power/Weight ratio of your model
+    float roll_comp;
 
 } config_t;
 

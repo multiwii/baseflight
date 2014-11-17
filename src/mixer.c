@@ -129,7 +129,7 @@ static const motorMixer_t mixerHex6H[] = {
 
 static const motorMixer_t mixerDualcopter[] = {
     { 1.0f,  0.0f,  0.0f, -1.0f },          // LEFT
-    { 1.0f,  0.0f,  0.0f,  1.0f },          // RIGHT	
+    { 1.0f,  0.0f,  0.0f,  1.0f },          // RIGHT
 };
 
 static const motorMixer_t mixerTrustVector[] = {
@@ -149,7 +149,6 @@ const mixer_t mixers[] = {
     { 6, 0, mixerY6 },             // MULTITYPE_Y6
     { 6, 0, mixerHex6P },          // MULTITYPE_HEX6
     { 2, 1, mixerTrustVector },     // * MULTITYPE_FLYING_WING
-    //{ 1, 1, NULL },                // * MULTITYPE_FLYING_WING
     { 4, 0, mixerY4 },             // MULTITYPE_Y4
     { 6, 0, mixerHex6X },          // MULTITYPE_HEX6X
     { 8, 0, mixerOctoX8 },         // MULTITYPE_OCTOX8
@@ -355,7 +354,7 @@ static void airplaneMixer(void)
     if (mcfg.flaperons) {
         static int16_t temp_Flprns;
         int8_t flpDir = cfg.flaperons_invert;
-        int16_t flpInput= constrain(rcData[mcfg.flaperons-1], mcfg.flaperons_min, mcfg.flaperons_max);
+        int16_t flpInput = constrain(rcData[mcfg.flaperons-1], mcfg.flaperons_min, mcfg.flaperons_max);
         flpInput = mcfg.midrc - flpInput;
         
         if (mcfg.flaps_speed == 0)
@@ -365,8 +364,8 @@ static void airplaneMixer(void)
         else if (temp_Flprns > flpInput)
             temp_Flprns = constrain(temp_Flprns - mcfg.flaps_speed, flpInput, temp_Flprns);
         
-        flapperons[0]=   temp_Flprns;
-        flapperons[1]= - temp_Flprns;
+        flapperons[0] = temp_Flprns;
+        flapperons[1] = -temp_Flprns;
         if(flpDir == 1 || flpDir == 3)
             flapperons[0] *= -1;
         if(flpDir >= 2)
@@ -446,7 +445,7 @@ void mixTable(void)
             break;
 
         case MULTITYPE_FLYING_WING:
-            if(!cfg.vector_trust) {
+            if (!cfg.vector_trust) {
                 motor[0] = rcCommand[THROTTLE]; // set motor_pwm_rate rate to 50 for servos
                 motor[1] = rcCommand[THROTTLE];
             }
@@ -536,11 +535,11 @@ void mixTable(void)
             if ((rcData[THROTTLE]) < mcfg.mincheck) {
                 if (!feature(FEATURE_MOTOR_STOP))
                     motor[i] = mcfg.minthrottle;
-                else
+                else { 
                     motor[i] = mcfg.mincommand;
                     f.MOTORS_STOPPED = 1;
-            }
-            else {
+                }
+            } else {
                 f.MOTORS_STOPPED = 0;
             }
         }
