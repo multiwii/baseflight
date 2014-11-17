@@ -97,7 +97,8 @@ void fw_nav(void)
         // Deadpan for throttle at correct Alt.
         if (abs(GPS_AltErr) < 1) // Just cruise along in deadpan.
             NAV_Thro = cfg.cruice_throttle;
-        else // Add AltitudeError  and scale up with a factor to throttle
+        else 
+            // Add AltitudeError  and scale up with a factor to throttle
             NAV_Thro = constrain(cfg.cruice_throttle - (GPS_AltErr * cfg.scaler_throttle), cfg.idle_throttle, cfg.climb_throttle);
 
         // Reset Climbout Flag when Alt have been reached

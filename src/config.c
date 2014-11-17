@@ -353,7 +353,7 @@ static void resetConf(void)
     cfg.cruice_throttle = 1500;
     cfg.idle_throttle = 1300;
     cfg.scaler_throttle = 8;
-    cfg.roll_comp = 0;
+    cfg.roll_comp = 1;
     // control stuff
     mcfg.reboot_character = 'R';
 
