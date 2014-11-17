@@ -226,11 +226,8 @@ static void resetConf(void)
     mcfg.maxcheck = 1900;
     mcfg.retarded_arm = 0;       // disable arm/disarm on roll left/right
     mcfg.disarm_kill_switch = 1; // AUX disarm independently of throttle value
-    mcfg.flaps_speed = 0;
-    mcfg.flaperons = 0;
     mcfg.flaperons_min = 1000;
     mcfg.flaperons_max = 2000;
-    mcfg.flaps = 0;
     mcfg.fixedwing_althold_dir = 1;
     // Motor/ESC/Servo
     mcfg.minthrottle = 1150;
@@ -348,8 +345,6 @@ static void resetConf(void)
     // fw stuff
     cfg.fixedwing_rollrate = 0.5f;
     cfg.fixedwing_pitchrate = 0.5f;
-    cfg.vector_trust = 0;
-    cfg.flaperons_invert = 0;
     cfg.gps_maxcorr = 20;
     cfg.gps_rudder = 15;
     cfg.gps_maxclimb = 15;

@@ -599,7 +599,8 @@ void GPS_reset_home_position(void)
         GPS_home[LON] = GPS_coord[LON];
         GPS_calc_longitude_scaling(GPS_coord[LAT]); // need an initial value for distance and bearing calc
         nav_takeoff_bearing = heading;              // save takeoff heading
-        GPS_home[ALT] = GPS_altitude;  //Set ground altitude
+        //Set ground altitude
+        GPS_home[ALT] = GPS_altitude;
         f.GPS_FIX_HOME = 1;
     }
 }
@@ -641,9 +642,9 @@ void gpsSetPIDs(void)
     navPID_PARAM.Imax = POSHOLD_RATE_IMAX * 100;
 
     if(f.FIXED_WING) {
-      altPID_PARAM.kP   = (float)cfg.P8[PIDALT]/10.0f;
-      altPID_PARAM.kI   = (float)cfg.I8[PIDALT]/100.0f;
-      altPID_PARAM.kD   = (float)cfg.D8[PIDALT]/1000.0f;
+      altPID_PARAM.kP   = (float)cfg.P8[PIDALT] / 10.0f;
+      altPID_PARAM.kI   = (float)cfg.I8[PIDALT] / 100.0f;
+      altPID_PARAM.kD   = (float)cfg.D8[PIDALT] / 1000.0f;
     }
 }
 
@@ -1012,15 +1013,6 @@ static uint32_t grab_fields(char *src, uint8_t mult)
     }
     return tmp;
 }
-// Not Used anywhere causes CompilerWarning
-//static uint8_t hex_c(uint8_t n)
-//{                               // convert '0'..'9','A'..'F' to 0..15
-//    n -= '0';
-//    if (n > 9)
-//        n -= 7;
-//    n &= 0x0F;
-//    return n;
-//}
 
 /* This is a light implementation of a GPS frame decoding
    This should work with most of modern GPS devices configured to output NMEA frames.
