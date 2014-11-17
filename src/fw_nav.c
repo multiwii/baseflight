@@ -24,7 +24,7 @@ static int16_t speedBoost;
 static int16_t altHist[GPS_UPD_HZ];     // shift register
 static int16_t navDif[GPS_UPD_HZ];      // shift register
 
-void fw_nav_reset()
+void fw_nav_reset(void)
 {
     uint8_t i;
     navErrorI = 0;
