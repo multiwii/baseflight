@@ -70,11 +70,8 @@ void fw_nav(void)
         GPS_hold[ALT] = GPS_home[ALT] + RTH_Alt;
 
     // Wrap GPS_Heading 1800
-    if (GPS_Heading > 1800)
-        GPS_Heading -= 3600;
-    if (GPS_Heading < -1800)
-        GPS_Heading += 3600;
-
+    GPS_Heading = wrap_18000(GPS_Heading * 10) / 10;
+    
     // Only use MAG if Mag and GPS_Heading aligns
     if (sensors(SENSOR_MAG)) {
         if (abs(heading - (GPS_Heading / 10)) > 10 && GPS_speed > 200)
@@ -130,10 +127,7 @@ void fw_nav(void)
             navDiff *= 0.1;
 
         // Wrap Heading 180
-        if (navDiff <= -180)
-            navDiff += 360;
-        if (navDiff >= +180)
-            navDiff -= 360;
+        navDiff = wrap_18000(navDiff * 100) / 100;
         if (abs(navDiff) > 170)
             navDiff = 175;      // Forced turn.
 
