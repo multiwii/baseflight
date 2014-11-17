@@ -816,6 +816,7 @@ static void cliMixer(char *cmdline)
         if (strncasecmp(cmdline, mixerNames[i], len) == 0) {
             mcfg.mixerConfiguration = i + 1;
             printf("Mixer set to %s\r\n", mixerNames[i]);
+            
             // Presets for planes. Not functional with current reset
             // Really Ugly Hack
             if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {

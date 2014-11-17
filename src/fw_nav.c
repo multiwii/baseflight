@@ -41,18 +41,18 @@ void fw_nav_reset()
 
 void fw_nav(void)
 {
-    int16_t GPS_Heading = GPS_ground_course;   // Store current bearing
-    int16_t Current_Heading;    // Store current bearing
+    int16_t GPS_Heading = GPS_ground_course;    // Store current bearing
+    int16_t Current_Heading;                    // Store current bearing
     int16_t altDiff = 0;
-    int16_t RTH_Alt = cfg.D8[PIDPOSR];  // conf.pid[PIDALT].D8;
-    int16_t delta[2] = { 0, 0 };        // D-Term
+    int16_t RTH_Alt = cfg.D8[PIDPOSR];          // conf.pid[PIDALT].D8;
+    int16_t delta[2] = { 0, 0 };                // D-Term
     static int16_t NAV_deltaSum = 0;
     static int16_t ALT_deltaSum = 0;
-    static int16_t GPS_FwTarget = 0;    // Gps correction for Fixed wing
+    static int16_t GPS_FwTarget = 0;            // Gps correction for Fixed wing
     static int16_t GPS_AltErr = 0;
     static int16_t NAV_Thro = 0;
-    int16_t TX_Thro = rcData[THROTTLE]; // Read and store Throttle pos.
-    int16_t navDiff;                    // Navigation error
+    int16_t TX_Thro = rcData[THROTTLE];         // Read and store Throttle pos.
+    int16_t navDiff;                            // Navigation error
     float navDT;
     static uint32_t nav_loopT;
     int16_t groundSpeed;
@@ -63,7 +63,7 @@ void fw_nav(void)
     static uint16_t gpsFreq = 1000 / GPS_UPD_HZ;    // 5HZ 200ms DT
 
     // Calculated Altitude over home in meters
-    int16_t currAlt = GPS_altitude - GPS_home[ALT];    // GPS
+    int16_t currAlt = GPS_altitude - GPS_home[ALT];         // GPS
     int16_t navTargetAlt = GPS_hold[ALT] - GPS_home[ALT];   // Diff from homeAlt.
 
     // Handles ReSetting RTH alt if rth is enabled to low!
@@ -88,11 +88,9 @@ void fw_nav(void)
     // Calculate Navigation errors
     GPS_FwTarget = nav_bearing / 100;
     navDiff = GPS_FwTarget - Current_Heading;   // Navigation Error
-    GPS_AltErr = currAlt - navTargetAlt;       //  Altitude error Negative means you're to low
+    GPS_AltErr = currAlt - navTargetAlt;        // Altitude error Negative means you're to low
 
-    //
     // Start of NavTimer
-    //
     if (millis() - gpsTimer >= gpsFreq) {
         gpsTimer = millis();
 
@@ -111,12 +109,12 @@ void fw_nav(void)
         if (f.GPS_HOME_MODE) {
             if (f.CLIMBOUT_FW) {
                 // Accelerate for ground takeoff Untested feature.....
-                //#define TAKEOFF_SPEED 10  // 10 m/s ~36km/h
-                //if(currAlt < 2 && GPS_speed < TAKEOFF_SPEED*100 ){GPS_AltErr = 0;}
+                // #define TAKEOFF_SPEED 10  // 10 m/s ~36km/h
+                // if(currAlt < 2 && GPS_speed < TAKEOFF_SPEED*100 ){GPS_AltErr = 0;}
                 GPS_AltErr = -(cfg.gps_maxclimb * 10);  // Max climbAngle
-                NAV_Thro = cfg.climb_throttle;  // Max Allowed Throttle
+                NAV_Thro = cfg.climb_throttle;          // Max Allowed Throttle
                 if (currAlt < SAFE_NAV_ALT)
-                    navDiff = 0;    // Force climb with Level Wings below safe Alt
+                    navDiff = 0;                        // Force climb with Level Wings below safe Alt
             }
 
             if ((GPS_distanceToHome < SAFE_DECSCEND_ZONE) && currAlt > RTH_Alt)
@@ -126,8 +124,8 @@ void fw_nav(void)
         // Always DISARM when Home is within 10 meters if FC is in failsafe.
         if (f.FAILSAFE_RTH_ENABLE && (GPS_distanceToHome < 10)) {
             f.ARMED = 0;
-            f.CLIMBOUT_FW = 0;      // Abort Climbout
-            GPS_hold[ALT] = GPS_home[ALT] + 5;      // Come down
+            f.CLIMBOUT_FW = 0;                  // Abort Climbout
+            GPS_hold[ALT] = GPS_home[ALT] + 5;  // Come down
         }
 
         if (f.GPS_HOLD_MODE && (wp_distance < 20 * 100 && CIRCLE))
@@ -156,7 +154,7 @@ void fw_nav(void)
 
         GPS_AltErr *= 10;
         altErrorI += (GPS_AltErr * altPID_PARAM.kI) * navDT;    // Acumulate I from PIDPOSR
-        altErrorI = constrain(altErrorI, -500, 500);    // limits I term influence
+        altErrorI = constrain(altErrorI, -500, 500);            // limits I term influence
 
         delta[0] = (GPS_AltErr - lastAltDiff);
         lastAltDiff = GPS_AltErr;
@@ -177,9 +175,7 @@ void fw_nav(void)
         altDiff = GPS_AltErr * altPID_PARAM.kP; // Add P in Elevator compensation.
         altDiff += (altErrorI); // Add I
 
-        //
         // Start of NavPID
-        //
         if (abs(navDiff) <= 3)
             navErrorI *= navDT; // Remove I-Term in deadspan
 
@@ -204,13 +200,11 @@ void fw_nav(void)
         for (i = 0; i < GPS_UPD_HZ; i++)
             NAV_deltaSum += navDif[i];
 
-        NAV_deltaSum = (NAV_deltaSum * navPID_PARAM.kD) / navDT;        // Add D
+        NAV_deltaSum = (NAV_deltaSum * navPID_PARAM.kD) / navDT;    // Add D
 
-        navDiff *= navPID_PARAM.kP;     // Add P
-        navDiff += navErrorI;   // Add I
-        //
+        navDiff *= navPID_PARAM.kP;                                 // Add P
+        navDiff += navErrorI;                                       // Add I
         // End of NavPID 
-        //
 
         // Limit outputs
         GPS_angle[PITCH] = constrain(altDiff / 10, -cfg.gps_maxclimb * 10, cfg.gps_maxdive * 10) + ALT_deltaSum;
@@ -225,7 +219,7 @@ void fw_nav(void)
         // Add elevator compared with rollAngle
         GPS_angle[PITCH] -= abs(angle[ROLL]);
 
-        // Throttle compensation depending on behaviour. //
+        // Throttle compensation depending on behaviour.
         // Compensate throttle with pitch Angle
         NAV_Thro -= constrain(angle[PITCH] * PITCH_COMP, 0, 450);
         NAV_Thro = constrain(NAV_Thro, cfg.idle_throttle, cfg.climb_throttle);
@@ -240,9 +234,7 @@ void fw_nav(void)
         speedBoost = constrain(speedBoost, 0, 500);
         NAV_Thro += speedBoost;
     }
-    //
     // End of NavTimer
-    //
 
     // PassThru for throttle In AcroMode
     if ((!f.ANGLE_MODE && !f.HORIZON_MODE) || (f.PASSTHRU_MODE && !f.FAILSAFE_RTH_ENABLE)) {
