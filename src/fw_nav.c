@@ -55,6 +55,7 @@ void fw_nav(void)
     int16_t groundSpeed;
     int spDiff;
     uint8_t i;
+    
     // Nav timer
     static uint32_t gpsTimer = 0;
     static uint16_t gpsFreq = 1000 / GPS_UPD_HZ;    // 5HZ 200ms DT
