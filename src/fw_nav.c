@@ -21,8 +21,8 @@ float altErrorI;
 static int16_t lastAltDiff;
 static int16_t lastnavDiff;
 static int16_t speedBoost;
-static int16_t altHist[GPS_UPD_HZ];     // shift register
-static int16_t navDif[GPS_UPD_HZ];      // shift register
+static int16_t altHist[GPS_UPD_HZ + 1];     // shift register
+static int16_t navDif[GPS_UPD_HZ + 1];      // shift register
 
 void fw_nav_reset(void)
 {
