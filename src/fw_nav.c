@@ -27,11 +27,13 @@ static int16_t navDif[GPS_UPD_HZ + 1];      // shift register
 void fw_nav_reset(void)
 {
     uint8_t i;
+
     navErrorI = 0;
     altErrorI = 0;
     lastAltDiff = 0;
     lastnavDiff = 0;
     speedBoost = 0;
+
     for (i = 0; i < GPS_UPD_HZ; i++) {
         altHist[i] = 0;
         navDif[i] = 0;
@@ -45,11 +47,7 @@ void fw_nav(void)
     int16_t altDiff = 0;
     int16_t RTH_Alt = cfg.D8[PIDPOSR];          // conf.pid[PIDALT].D8;
     int16_t delta[2] = { 0, 0 };                // D-Term
-    static int16_t NAV_deltaSum = 0;
-    static int16_t ALT_deltaSum = 0;
-    static int16_t GPS_FwTarget = 0;            // Gps correction for Fixed wing
-    static int16_t GPS_AltErr = 0;
-    static int16_t NAV_Thro = 0;
+    static int16_t NAV_deltaSum, ALT_deltaSum, GPS_FwTarget, GPS_AltErr, NAV_Thro;
     int16_t TX_Thro = rcData[THROTTLE];         // Read and store Throttle pos.
     int16_t navDiff;                            // Navigation error
     float navDT;
