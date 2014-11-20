@@ -164,7 +164,7 @@ static int32_t bmp085_get_temperature(uint32_t ut)
     x1 = (((int32_t)ut - (int32_t)bmp085.cal_param.ac6) * (int32_t)bmp085.cal_param.ac5) >> 15;
     x2 = ((int32_t)bmp085.cal_param.mc << 11) / (x1 + bmp085.cal_param.md);
     bmp085.param_b5 = x1 + x2;
-    temperature = ((bmp085.param_b5 * 10 + 8) >> 4);  // temperature in 0.01°C (make same as MS5611)
+    temperature = ((bmp085.param_b5 * 10 + 8) >> 4);  // temperature in 0.01 degree Celsius (make same as MS5611)
 
     return temperature;
 }

@@ -3,7 +3,7 @@
  * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
  *
  * DMA UART routines idea lifted from AutoQuad
- * Copyright © 2011  Bill Nesbitt
+ * Copyright (C) 2011  Bill Nesbitt
 */
 #include "board.h"
 
