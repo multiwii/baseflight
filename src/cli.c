@@ -270,6 +270,7 @@ const clivalue_t valueTable[] = {
     { "fw_idle_throttle", VAR_UINT16, &cfg.fw_idle_throttle, 1000, 2000 },
     { "fw_scaler_throttle", VAR_UINT16, &cfg.fw_scaler_throttle, 0, 15 },
     { "fw_roll_comp", VAR_FLOAT, &cfg.fw_roll_comp, 0, 2 },
+    { "sonar_pins", VAR_UINT8, &mcfg.sonar_pins, 0, 1 },
 };
 
 #define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
