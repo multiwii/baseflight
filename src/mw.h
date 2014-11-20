@@ -319,6 +319,9 @@ typedef struct master_t {
     uint16_t rssi_adc_max;                  // max input voltage defined by RC-filter (is RSSI never 100% reduce the value) (1...4095)
     uint16_t rssi_adc_offset;               // input offset defined by RC-filter (0...4095)
 
+    // Sonar configuration, 0 = rc7/8, 1 = pwm5/6
+    uint8_t sonar_pins;
+
     // gps-related stuff
     uint8_t gps_type;                       // See GPSHardware enum.
     int8_t gps_baudrate;                    // See GPSBaudRates enum.
