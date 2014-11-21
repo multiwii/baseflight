@@ -68,12 +68,12 @@ static const uint8_t ubloxSbasMode[] = {
 };
 
 enum {
+    SBAS_DISABLED,
     SBAS_AUTO,
     SBAS_EGNOS,
     SBAS_WAAS,
     SBAS_MSAS,
     SBAS_GAGAN,
-    SBAS_DISABLED,
     SBAS_LAST
 };
 
