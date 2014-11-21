@@ -427,9 +427,17 @@ void softSerialWriteByte(serialPort_t *s, uint8_t ch)
 
 void softSerialSetBaudRate(serialPort_t *s, uint32_t baudRate)
 {
-    (void)s;
-    (void)baudRate;
-    // not implemented.
+    uint32_t newbaudRate;
+
+    if (baudRate > SOFT_SERIAL_MAX_BAUD_RATE)
+        newbaudRate = SOFT_SERIAL_MAX_BAUD_RATE;
+    else
+        newbaudRate = baudRate;
+    s->baudRate = newbaudRate;
+
+    // Dummy implementation. Whole soft serial should be redesigned with faster&separate baud rates per port.
+    softSerial_t *softSerial = &(softSerialPorts[0]);
+    setupSoftSerialPrimary(newbaudRate, softSerial->isInverted);
 }
 
 void softSerialSetMode(serialPort_t *instance, portMode_t mode)
@@ -440,6 +448,14 @@ void softSerialSetMode(serialPort_t *instance, portMode_t mode)
 bool isSoftSerialTransmitBufferEmpty(serialPort_t *instance)
 {
     return instance->txBufferHead == instance->txBufferTail;
+}
+
+void softSerialPrint(serialPort_t *instance, const char *str)
+{
+    uint8_t ch;
+    while ((ch = *(str++)) != 0) {
+        softSerialWriteByte(instance, ch);
+    }
 }
 
 const struct serialPortVTable softSerialVTable[] = {
