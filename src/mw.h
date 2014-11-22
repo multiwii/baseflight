@@ -295,7 +295,7 @@ typedef struct master_t {
     // gps-related stuff
     uint8_t gps_type;                       // See GPSHardware enum.
     int8_t gps_baudrate;                    // See GPSBaudRates enum.
-    uint8_t gps_ubx_sbas;                    // UBX SBAS setting.  0 = disabled, 1 = AUTO, 2 = EGNOS, 3 = WAAS, 4 = MSAS, 6 = GAGAN (default = 1 = AUTO)
+    int8_t gps_ubx_sbas;                    // UBX SBAS setting.  -1 = disabled, 0 = AUTO, 1 = EGNOS, 2 = WAAS, 3 = MSAS, 4 = GAGAN (default = 0 = AUTO)
 
     uint32_t serial_baudrate;               // primary serial (MSP) port baudrate
 

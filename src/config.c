@@ -241,7 +241,6 @@ static void resetConf(void)
     // gps/nav stuff
     mcfg.gps_type = GPS_NMEA;
     mcfg.gps_baudrate = GPS_BAUD_115200;
-    mcfg.gps_ubx_sbas = 1;
     // serial (USART1) baudrate
     mcfg.serial_baudrate = 115200;
     mcfg.softserial_baudrate = 9600;
