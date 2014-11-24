@@ -51,5 +51,4 @@ uint8_t softSerialTotalBytesWaiting(serialPort_t *instance);
 uint8_t softSerialReadByte(serialPort_t *instance);
 void softSerialSetBaudRate(serialPort_t *s, uint32_t baudRate);
 bool isSoftSerialTransmitBufferEmpty(serialPort_t *s);
-void softSerialPrint(serialPort_t *instance, const char *str);
 

@@ -55,10 +55,6 @@ static uint8_t ubloxSbasInit[] = {
     //                                                          ^ from here will be overwritten by below config
 };
 
-static const uint8_t ubloxSbasDisabled[] = {
-    0xB5, 0x62, 0x06, 0x16, 0x08, 0x00, 0x02, 0x07, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0xDD
-};
-
 static const uint8_t ubloxSbasMode[] = {
     0x00, 0x00, 0x00, 0x00, 0x31, 0xE5, // Auto
     0x51, 0x08, 0x00, 0x00, 0x8A, 0x41, // EGNOS
@@ -68,7 +64,6 @@ static const uint8_t ubloxSbasMode[] = {
 };
 
 enum {
-    SBAS_DISABLED = -1,
     SBAS_AUTO,
     SBAS_EGNOS,
     SBAS_WAAS,
@@ -122,14 +117,6 @@ static void gpsNewData(uint16_t c);
 static bool gpsNewFrameNMEA(char c);
 static bool gpsNewFrameUBLOX(uint8_t data);
 
-// To simplify GPS code using serial and soft serial function calls we use these pointers
-static void (*gps_serialSetBaudRate)(serialPort_t *instance, uint32_t baudRate);
-static bool (*gps_isSerialTransmitBufferEmpty)(serialPort_t *instance);
-static void (*gps_serialPrint)(serialPort_t *instance, const char *str);
-static void (*gps_serialWrite)(serialPort_t *instance, uint8_t ch);
-static uint8_t (*gps_serialTotalBytesWaiting)(serialPort_t *instance);
-static uint8_t (*gps_serialRead)(serialPort_t *instance);
-
 static void gpsSetState(uint8_t state)
 {
     gpsData.state = state;
@@ -161,53 +148,31 @@ void gpsInit(uint8_t baudrateIndex)
     if (feature(FEATURE_SERIALRX) && feature(FEATURE_SOFTSERIAL) && !mcfg.spektrum_sat_on_flexport) {
         if (gpsInitData[baudrateIndex].baudrate > SOFT_SERIAL_MAX_BAUD_RATE) {
             mcfg.softserial_baudrate = SOFT_SERIAL_MAX_BAUD_RATE;
-            for (i = 0; i < GPS_INIT_ENTRIES; i++) {
+            for (i = 0; i < GPS_INIT_ENTRIES; i++)
                 if (SOFT_SERIAL_MAX_BAUD_RATE == gpsInitData[i].baudrate)
                     mcfg.gps_baudrate = gpsInitData[i].index;
-            }
         }
-        else {
-
+        else
             mcfg.softserial_baudrate = gpsInitData[baudrateIndex].baudrate;
-        }
-        // Set correct function calls for soft serial
-        gps_serialSetBaudRate = softSerialSetBaudRate;
-        gps_isSerialTransmitBufferEmpty = isSoftSerialTransmitBufferEmpty;
-        gps_serialPrint = softSerialPrint;
-        gps_serialWrite = softSerialWriteByte;
-        gps_serialTotalBytesWaiting = softSerialTotalBytesWaiting;
-        gps_serialRead = softSerialReadByte;
         // If SerialRX is in use then use soft serial ports for GPS (pin 5 & 6)
         core.gpsport = &(softSerialPorts[0].port);
     }
     else
-    {
-        // Set correct function calls for normal serial
-        gps_serialSetBaudRate = serialSetBaudRate;
-        gps_isSerialTransmitBufferEmpty = isSerialTransmitBufferEmpty;
-        gps_serialPrint = serialPrint;
-        gps_serialWrite = serialWrite;
-        gps_serialTotalBytesWaiting = serialTotalBytesWaiting;
-        gps_serialRead = serialRead;
         // Open GPS UART, no callback - buffer will be read out in gpsThread()
         core.gpsport = uartOpen(USART2, NULL, gpsInitData[baudrateIndex].baudrate, mode);
-    }
     // signal GPS "thread" to initialize when it gets to it
     gpsSetState(GPS_INITIALIZING);
 
     // copy ubx sbas config string to use
     if (mcfg.gps_ubx_sbas >= SBAS_LAST)
         mcfg.gps_ubx_sbas = SBAS_AUTO;
-    if (mcfg.gps_ubx_sbas != SBAS_DISABLED)
-        memcpy(ubloxSbasInit + 10, ubloxSbasMode + (mcfg.gps_ubx_sbas * 6), 6);
-    else
-        memcpy(ubloxSbasInit, ubloxSbasDisabled, sizeof(ubloxSbasInit));
+    memcpy(ubloxSbasInit + 10, ubloxSbasMode + (mcfg.gps_ubx_sbas * 6), 6);
 }
 
 static void gpsInitNmea(void)
 {
     // nothing to do, just set baud rate and try receiving some stuff and see if it parses
-    gps_serialSetBaudRate(core.gpsport, gpsInitData[gpsData.baudrateIndex].baudrate);
+    serialSetBaudRate(core.gpsport, gpsInitData[gpsData.baudrateIndex].baudrate);
     gpsSetState(GPS_RECEIVINGDATA);
 }
 
@@ -218,7 +183,7 @@ static void gpsInitUblox(void)
 
     // UBX will run at mcfg.gps_baudrate, it shouldn't be "autodetected". So here we force it to that rate
     // Wait until GPS transmit buffer is empty
-    if (!gps_isSerialTransmitBufferEmpty(core.gpsport))
+    if (!isSerialTransmitBufferEmpty(core.gpsport))
         return;
 
     switch (gpsData.state) {
@@ -238,9 +203,9 @@ static void gpsInitUblox(void)
                     }
                 }
                 // try different speed to INIT
-                gps_serialSetBaudRate(core.gpsport, gpsInitData[gpsData.state_position].baudrate);
+                serialSetBaudRate(core.gpsport, gpsInitData[gpsData.state_position].baudrate);
                 // but print our FIXED init string for the baudrate we want to be at
-                gps_serialPrint(core.gpsport, gpsInitData[gpsData.baudrateIndex].ubx);
+                serialPrint(core.gpsport, gpsInitData[gpsData.baudrateIndex].ubx);
 
                 gpsData.state_position++;
                 gpsData.state_ts = m;
@@ -251,7 +216,7 @@ static void gpsInitUblox(void)
             break;
 
         case GPS_SETBAUD:
-            gps_serialSetBaudRate(core.gpsport, gpsInitData[gpsData.baudrateIndex].baudrate);
+            serialSetBaudRate(core.gpsport, gpsInitData[gpsData.baudrateIndex].baudrate);
             gpsSetState(GPS_CONFIGURATION);
             break;
 
@@ -266,7 +231,7 @@ static void gpsInitUblox(void)
 
                 case UBX_INIT_RUN:
                     if (gpsData.state_position < gpsData.init_length) {
-                        gps_serialWrite(core.gpsport, gpsData.init_ptr[gpsData.state_position]); // send ubx init binary
+                        serialWrite(core.gpsport, gpsData.init_ptr[gpsData.state_position]); // send ubx init binary
                         gpsData.state_position++;
                     } else {
                         // move to next config set
@@ -314,8 +279,8 @@ void gpsThread(void)
 {
     // read out available GPS bytes
     if (core.gpsport) {
-        while (gps_serialTotalBytesWaiting(core.gpsport))
-            gpsNewData(gps_serialRead(core.gpsport));
+        while (serialTotalBytesWaiting(core.gpsport))
+            gpsNewData(serialRead(core.gpsport));
     }
 
     switch (gpsData.state) {
@@ -330,9 +295,12 @@ void gpsThread(void)
 
         case GPS_LOSTCOMMS:
             gpsData.errors++;
-            // try another rate (Removed because if connection is lost we want reconnect, not lower the baud rate)
-            //gpsData.baudrateIndex++;
-            //gpsData.baudrateIndex %= GPS_INIT_ENTRIES;
+            // try another rate (Only if autobauding is enabled)
+            if (mcfg.gps_autobaud)
+            {
+                gpsData.baudrateIndex++;
+                gpsData.baudrateIndex %= GPS_INIT_ENTRIES;
+            }
             gpsData.lastMessage = millis();
             // TODO - move some / all of these into gpsData
             GPS_numSat = 0;

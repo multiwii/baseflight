@@ -450,14 +450,6 @@ bool isSoftSerialTransmitBufferEmpty(serialPort_t *instance)
     return instance->txBufferHead == instance->txBufferTail;
 }
 
-void softSerialPrint(serialPort_t *instance, const char *str)
-{
-    uint8_t ch;
-    while ((ch = *(str++)) != 0) {
-        softSerialWriteByte(instance, ch);
-    }
-}
-
 const struct serialPortVTable softSerialVTable[] = {
     {
         softSerialWriteByte,
