@@ -32,8 +32,9 @@ static const gpsInitData_t gpsInitData[] = {
     { GPS_BAUD_57600,   57600, "$PUBX,41,1,0003,0001,57600,0*2D\r\n", "$PMTK251,57600*2C\r\n" },
     { GPS_BAUD_38400,   38400, "$PUBX,41,1,0003,0001,38400,0*26\r\n", "$PMTK251,38400*27\r\n" },
     { GPS_BAUD_19200,   19200, "$PUBX,41,1,0003,0001,19200,0*23\r\n", "$PMTK251,19200*22\r\n" },
-    // 9600 is not enough for 5Hz updates - leave for compatibility to dumb NMEA that only runs at this speed
-    { GPS_BAUD_9600,     9600, "", "" }
+    // 9600 and 4800 is not enough for 5Hz updates - leave for compatibility to dumb NMEA that only runs at this speed
+    { GPS_BAUD_9600,     9600, "", "" },
+    { GPS_BAUD_4800,     4800, "", "" },
 };
 
 static const uint8_t ubloxInit[] = {
