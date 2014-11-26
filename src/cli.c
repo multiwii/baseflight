@@ -162,6 +162,7 @@ const clivalue_t valueTable[] = {
     { "gps_ubx_sbas", VAR_UINT8, &mcfg.gps_ubx_sbas, 0, 4 },
     { "serialrx_type", VAR_UINT8, &mcfg.serialrx_type, 0, SERIALRX_PROVIDER_MAX },
     { "spektrum_sat_bind", VAR_UINT8, &mcfg.spektrum_sat_bind, 0, 10 },
+    { "hardware_bind_plug", VAR_UINT8, &mcfg.hardware_bind_plug, 0, 1 },
     { "spektrum_sat_on_flexport", VAR_UINT8, &mcfg.spektrum_sat_on_flexport, 0, 1 },
     { "telemetry_provider", VAR_UINT8, &mcfg.telemetry_provider, 0, TELEMETRY_PROVIDER_MAX },
     { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },

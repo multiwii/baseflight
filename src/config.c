@@ -24,7 +24,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 71;
+static const uint8_t EEPROM_CONF_VERSION = 72;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
@@ -192,6 +192,10 @@ static void resetConf(void)
 #else
     featureSet(FEATURE_VBAT);
 #endif
+#ifdef ALIENWII32
+    featureSet(FEATURE_SERIALRX);
+    featureSet(FEATURE_MOTOR_STOP);
+#endif
 
     // global settings
     mcfg.current_profile = 0;       // default profile
@@ -217,7 +221,15 @@ static void resetConf(void)
     mcfg.vbatmaxcellvoltage = 43;
     mcfg.vbatmincellvoltage = 33;
     mcfg.power_adc_channel = 0;
+#ifndef ALIENWII32
     mcfg.serialrx_type = 0;
+    mcfg.hardware_bind_plug = 0;     // bind plug hardware not present
+    mcfg.spektrum_sat_bind = 0;
+#else
+    mcfg.serialrx_type = 1;
+    mcfg.hardware_bind_plug = 1;     // bind plug hardware is present
+    mcfg.spektrum_sat_bind = 5;
+#endif
     mcfg.telemetry_provider = TELEMETRY_PROVIDER_FRSKY;
     mcfg.telemetry_port = TELEMETRY_PORT_UART;
     mcfg.telemetry_switch = 0;
@@ -230,8 +242,13 @@ static void resetConf(void)
     mcfg.fw_flaperons_max = 2000;
     mcfg.fw_althold_dir = 1;
     // Motor/ESC/Servo
+#ifndef ALIENWII32
     mcfg.minthrottle = 1150;
     mcfg.maxthrottle = 1850;
+#else
+    mcfg.minthrottle = 1000;
+    mcfg.maxthrottle = 2000;
+#endif
     mcfg.mincommand = 1000;
     mcfg.deadband3d_low = 1406;
     mcfg.deadband3d_high = 1514;
@@ -281,10 +298,16 @@ static void resetConf(void)
     cfg.P8[PIDVEL] = 120;
     cfg.I8[PIDVEL] = 45;
     cfg.D8[PIDVEL] = 1;
-    cfg.rcRate8 = 90;
     cfg.rcExpo8 = 65;
+#ifndef ALIENWII32
+    cfg.rcRate8 = 90;
     cfg.rollPitchRate = 0;
     cfg.yawRate = 0;
+#else
+    cfg.rcRate8 = 130;
+    cfg.rollPitchRate = 20;
+    cfg.yawRate = 60;
+#endif
     cfg.dynThrPID = 0;
     cfg.tpa_breakpoint = 1500;
     cfg.thrMid8 = 50;
@@ -306,7 +329,11 @@ static void resetConf(void)
     cfg.small_angle = 25;
 
     // Radio
+#ifndef ALIENWII32
     parseRcChannels("AETR1234");
+#else
+    parseRcChannels("TAER1234");
+#endif
     cfg.deadband = 0;
     cfg.yawdeadband = 0;
     cfg.alt_hold_throttle_neutral = 40;
