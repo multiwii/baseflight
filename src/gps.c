@@ -151,13 +151,11 @@ void gpsInit(uint8_t baudrateIndex)
             for (i = 0; i < GPS_INIT_ENTRIES; i++)
                 if (SOFT_SERIAL_MAX_BAUD_RATE == gpsInitData[i].baudrate)
                     mcfg.gps_baudrate = gpsInitData[i].index;
-        }
-        else
+        } else
             mcfg.softserial_baudrate = gpsInitData[baudrateIndex].baudrate;
         // If SerialRX is in use then use soft serial ports for GPS (pin 5 & 6)
         core.gpsport = &(softSerialPorts[0].port);
-    }
-    else
+    } else
         // Open GPS UART, no callback - buffer will be read out in gpsThread()
         core.gpsport = uartOpen(USART2, NULL, gpsInitData[baudrateIndex].baudrate, mode);
     // signal GPS "thread" to initialize when it gets to it
@@ -209,8 +207,7 @@ static void gpsInitUblox(void)
 
                 gpsData.state_position++;
                 gpsData.state_ts = m;
-            }
-            else {
+            } else {
                 // we're now (hopefully) at the correct rate, next state will switch to it
                 gpsSetState(GPS_SETBAUD);
             }
@@ -234,8 +231,7 @@ static void gpsInitUblox(void)
                     if (gpsData.state_position < gpsData.init_length) {
                         serialWrite(core.gpsport, gpsData.init_ptr[gpsData.state_position]); // send ubx init binary
                         gpsData.state_position++;
-                    }
-                    else {
+                    } else {
                         // move to next config set
                         gpsData.config_position++;
                         gpsData.state_position = 0;
