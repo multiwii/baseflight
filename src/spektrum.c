@@ -17,8 +17,10 @@ static bool rcFrameComplete = false;
 static bool spekHiRes = false;
 static bool spekDataIncoming = false;
 static GPIO_TypeDef *spekBindPort = NULL;
+static GPIO_TypeDef *hwBindPort = NULL;
 static USART_TypeDef *spekUart = NULL;
 static uint16_t spekBindPin = 0;
+static uint16_t hwBindPin = 0;
 
 volatile uint8_t spekFrame[SPEK_FRAME_SIZE];
 static void spektrumDataReceive(uint16_t c);
@@ -116,8 +118,20 @@ static uint16_t spektrumReadRawRC(uint8_t chan)
 void spektrumBind(void)
 {
     int i;
+    bool bind_active = false;
     gpio_config_t gpio;
 
+    // Check status of bind plug if present
+    if (HARDWARE_BIND_PLUG) {
+        hwBindPort = GPIOB;
+        hwBindPin = Pin_5;
+        gpio.speed = Speed_2MHz;
+        gpio.pin = hwBindPin;
+        gpio.mode = Mode_IPU;
+        gpioInit(hwBindPort, &gpio);
+        if (!digitalIn(hwBindPort, hwBindPin))
+            bind_active = true;
+    }
     if (mcfg.spektrum_sat_on_flexport) {
         // USART3, PB11
         spekBindPort = GPIOB;
@@ -133,6 +147,9 @@ void spektrumBind(void)
     // don't try to bind if: here after soft reset or bind flag is out of range
     if (rccReadBkpDr() == BKP_SOFTRESET || mcfg.spektrum_sat_bind == 0 || mcfg.spektrum_sat_bind > 10)
         return;
+    // Return if bind plug is is present but not active
+    if (HARDWARE_BIND_PLUG && bind_active == false)
+    	return;
 
     gpio.speed = Speed_2MHz;
     gpio.pin = spekBindPin;
@@ -153,7 +170,8 @@ void spektrumBind(void)
     }
 
     // If we came here as a result of hard  reset (power up, with mcfg.spektrum_sat_bind set), then reset it back to zero and write config
-    if (rccReadBkpDr() != BKP_SOFTRESET) {
+    // Don't reset if hardware bind plug is present
+    if (rccReadBkpDr() != BKP_SOFTRESET && !HARDWARE_BIND_PLUG) {
         mcfg.spektrum_sat_bind = 0;
         writeEEPROM(1, true);
     }
