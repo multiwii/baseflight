@@ -24,7 +24,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 71;
+static const uint8_t EEPROM_CONF_VERSION = 72;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
@@ -218,6 +218,7 @@ static void resetConf(void)
     mcfg.vbatmincellvoltage = 33;
     mcfg.power_adc_channel = 0;
     mcfg.serialrx_type = 0;
+    mcfg.spektrum_sat_bind = 0;
     mcfg.telemetry_provider = TELEMETRY_PROVIDER_FRSKY;
     mcfg.telemetry_port = TELEMETRY_PORT_UART;
     mcfg.telemetry_switch = 0;
@@ -226,8 +227,6 @@ static void resetConf(void)
     mcfg.maxcheck = 1900;
     mcfg.retarded_arm = 0;       // disable arm/disarm on roll left/right
     mcfg.disarm_kill_switch = 1; // AUX disarm independently of throttle value
-    mcfg.fw_flaperons_min = 1000;
-    mcfg.fw_flaperons_max = 2000;
     mcfg.fw_althold_dir = 1;
     // Motor/ESC/Servo
     mcfg.minthrottle = 1150;
@@ -360,6 +359,20 @@ static void resetConf(void)
     // custom mixer. clear by defaults.
     for (i = 0; i < MAX_MOTORS; i++)
         mcfg.customMixer[i].throttle = 0.0f;
+
+    // alternative defaults AlienWii32 (activate via OPTIONS="ALIENWII32" during make for NAZE target)
+#ifdef ALIENWII32
+    featureSet(FEATURE_SERIALRX);
+    featureSet(FEATURE_MOTOR_STOP);
+    mcfg.serialrx_type = 1;
+    mcfg.spektrum_sat_bind = 5;
+    mcfg.minthrottle = 1000;
+    mcfg.maxthrottle = 2000;
+    cfg.rcRate8 = 130;
+    cfg.rollPitchRate = 20;
+    cfg.yawRate = 60;
+    parseRcChannels("TAER1234");
+#endif
 
     // copy default config into all 3 profiles
     for (i = 0; i < 3; i++)
