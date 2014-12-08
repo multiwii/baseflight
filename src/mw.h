@@ -289,7 +289,7 @@ typedef struct master_t {
     int16_t magZero[3];
 
     // Battery/ADC stuff
-    uint16_t currentscale;                  // scale the current sensor output voltage to milliamps. Value in 1/10th mV/A
+    int16_t currentscale;                  // scale the current sensor output voltage to milliamps. Value in 1/10th mV/A
     uint16_t currentoffset;                 // offset of the current sensor in millivolt steps
     uint8_t multiwiicurrentoutput;          // if set to 1 output the amperage in milliamp steps instead of 0.01A steps via msp
     uint8_t vbatscale;                      // adjust this to match battery voltage to reported value
