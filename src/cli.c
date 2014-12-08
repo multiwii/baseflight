@@ -167,7 +167,7 @@ const clivalue_t valueTable[] = {
     { "telemetry_port", VAR_UINT8, &mcfg.telemetry_port, 0, TELEMETRY_PORT_MAX },
     { "telemetry_switch", VAR_UINT8, &mcfg.telemetry_switch, 0, 1 },
     { "vbatscale", VAR_UINT8, &mcfg.vbatscale, 10, 200 },
-    { "currentscale", VAR_INT16, &mcfg.currentscale, 1, 10000 },
+    { "currentscale", VAR_INT16, &mcfg.currentscale, -10000, 10000 },
     { "currentoffset", VAR_UINT16, &mcfg.currentoffset, 0, 3000 },
     { "multiwiicurrentoutput", VAR_UINT8, &mcfg.multiwiicurrentoutput, 0, 1 },
     { "vbatmaxcellvoltage", VAR_UINT8, &mcfg.vbatmaxcellvoltage, 10, 50 },
