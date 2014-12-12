@@ -842,18 +842,14 @@ void loop(void)
         // When armed and motors aren't spinning. Make warning beeps so that accidentally won't lose fingers...
         // Also disarm board after 5 sec so users without buzzer won't lose fingers.
         if (feature(FEATURE_MOTOR_STOP) && f.ARMED) {
-            if (isThrottleLow)
-            {
+            if (isThrottleLow) {
                 if (disarmTime == 0)
                     disarmTime = millis() + 5000;
                 else if (disarmTime < millis())
                     mwDisarm();
                 buzzer(BUZZER_ARMED);
-            }
-            else {
-                if (disarmTime != 0)
-                    disarmTime = 0;
-            }
+            } else if (disarmTime != 0)
+                disarmTime = 0;
         }
     } else {                        // not in rc loop
         static int taskOrder = 0;   // never call all function in the same loop, to avoid high delay spikes
