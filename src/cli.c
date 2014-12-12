@@ -171,6 +171,7 @@ const clivalue_t valueTable[] = {
     { "vbatmincellvoltage", VAR_UINT8, &mcfg.vbatmincellvoltage, 10, 50 },
     { "vbatwarningcellvoltage", VAR_UINT8, &mcfg.vbatwarningcellvoltage, 10, 50 },
     { "power_adc_channel", VAR_UINT8, &mcfg.power_adc_channel, 0, 9 },
+    { "auto_disarm_board", VAR_UINT8, &mcfg.auto_disarm_board, 0, 60 },
     { "align_gyro", VAR_UINT8, &mcfg.gyro_align, 0, 8 },
     { "align_acc", VAR_UINT8, &mcfg.acc_align, 0, 8 },
     { "align_mag", VAR_UINT8, &mcfg.mag_align, 0, 8 },

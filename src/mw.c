@@ -841,11 +841,11 @@ void loop(void)
         }
         // When armed and motors aren't spinning. Make warning beeps so that accidentally won't lose fingers...
         // Also disarm board after 5 sec so users without buzzer won't lose fingers.
-        if (feature(FEATURE_MOTOR_STOP) && f.ARMED) {
+        if (feature(FEATURE_MOTOR_STOP) && f.ARMED && !f.FIXED_WING) {
             if (isThrottleLow) {
                 if (disarmTime == 0)
-                    disarmTime = millis() + 5000;
-                else if (disarmTime < millis())
+                    disarmTime = millis() + 1000 * mcfg.auto_disarm_board;
+                else if (disarmTime < millis() && mcfg.auto_disarm_board != 0)
                     mwDisarm();
                 buzzer(BUZZER_ARMED);
             } else if (disarmTime != 0)
