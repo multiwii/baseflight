@@ -361,20 +361,6 @@ static void resetConf(void)
     for (i = 0; i < MAX_MOTORS; i++)
         mcfg.customMixer[i].throttle = 0.0f;
 
-    // alternative defaults AlienWii32 (activate via OPTIONS="ALIENWII32" during make for NAZE target)
-#ifdef ALIENWII32
-    featureSet(FEATURE_SERIALRX);
-    featureSet(FEATURE_MOTOR_STOP);
-    mcfg.serialrx_type = 1;
-    mcfg.spektrum_sat_bind = 5;
-    mcfg.minthrottle = 1000;
-    mcfg.maxthrottle = 2000;
-    cfg.rcRate8 = 130;
-    cfg.rollPitchRate = 20;
-    cfg.yawRate = 60;
-    parseRcChannels("TAER1234");
-#endif
-
     // copy default config into all 3 profiles
     for (i = 0; i < 3; i++)
         memcpy(&mcfg.profile[i], &cfg, sizeof(config_t));
