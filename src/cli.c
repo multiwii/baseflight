@@ -204,6 +204,7 @@ const clivalue_t valueTable[] = {
     { "failsafe_off_delay", VAR_UINT8, &cfg.failsafe_off_delay, 0, 200 },
     { "failsafe_throttle", VAR_UINT16, &cfg.failsafe_throttle, 1000, 2000 },
     { "failsafe_detect_threshold", VAR_UINT16, &cfg.failsafe_detect_threshold, 100, 2000 },
+    { "auto_disarm_board", VAR_UINT8, &mcfg.auto_disarm_board, 0, 60 },
     { "rssi_aux_channel", VAR_INT8, &mcfg.rssi_aux_channel, 0, 4 },
     { "rssi_adc_channel", VAR_INT8, &mcfg.rssi_adc_channel, 0, 9 },
     { "rssi_adc_max", VAR_INT16, &mcfg.rssi_adc_max, 1, 4095 },

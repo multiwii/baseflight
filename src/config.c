@@ -24,7 +24,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 72;
+static const uint8_t EEPROM_CONF_VERSION = 73;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
@@ -239,6 +239,8 @@ static void resetConf(void)
     mcfg.deadband3d_throttle = 50;
     mcfg.motor_pwm_rate = MOTOR_PWM_RATE;
     mcfg.servo_pwm_rate = 50;
+    // safety features
+    mcfg.auto_disarm_board = 5; // auto disarm after 5 sec if motors not started or disarmed
     // gps/nav stuff
     mcfg.gps_type = GPS_NMEA;
     mcfg.gps_baudrate = GPS_BAUD_115200;
