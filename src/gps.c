@@ -1325,13 +1325,16 @@ static bool _new_position;
 static bool _new_speed;
 
 // Receive buffer
+
+#define UBLOX_BUFFER_SIZE 200
+
 static union {
     ubx_nav_posllh posllh;
     ubx_nav_status status;
     ubx_nav_solution solution;
     ubx_nav_velned velned;
     ubx_nav_svinfo svinfo;
-    uint8_t bytes[200];
+    uint8_t bytes[UBLOX_BUFFER_SIZE];
 } _buffer;
 
 void _update_checksum(uint8_t *data, uint8_t len, uint8_t *ck_a, uint8_t *ck_b)
@@ -1376,7 +1379,7 @@ static bool gpsNewFrameUBLOX(uint8_t data)
             _step++;
             _ck_b += (_ck_a += data);       // checksum byte
             _payload_length += (uint16_t)(data << 8);
-            if (_payload_length > 512) {
+            if (_payload_length > UBLOX_BUFFER_SIZE) {
                 _payload_length = 0;
                 _step = 0;
             }
@@ -1384,7 +1387,7 @@ static bool gpsNewFrameUBLOX(uint8_t data)
             break;
         case 6:
             _ck_b += (_ck_a += data);       // checksum byte
-            if (_payload_counter < sizeof(_buffer)) {
+            if (_payload_counter < UBLOX_BUFFER_SIZE) {
                 _buffer.bytes[_payload_counter] = data;
             }
             if (++_payload_counter == _payload_length)
