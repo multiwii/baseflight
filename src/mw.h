@@ -341,6 +341,9 @@ typedef struct master_t {
     int16_t accZero[3];
     int16_t magZero[3];
 
+    // Safety features
+    uint8_t auto_disarm_board;              // Disarm board when motors not spinning at armed enabled (0 = disabled, 1 - 60 seconds when to automatically disarm)
+
     // Battery/ADC stuff
     uint16_t currentscale;                  // scale the current sensor output voltage to milliamps. Value in 1/10th mV/A
     uint16_t currentoffset;                 // offset of the current sensor in millivolt steps
