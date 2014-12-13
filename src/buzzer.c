@@ -2,6 +2,7 @@
  * This file is part of baseflight
  * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
  */
+
 #include "board.h"
 #include "mw.h"
 #include "buzzer.h"
@@ -83,6 +84,7 @@ void buzzer(uint8_t mode)
     // Just return if same or higher priority sound is active.
     if (buzzerMode <= mode)
         return;
+
     switch (mode) {
         case BUZZER_STOP:
             buzzerMode = BUZZER_STOPPED;
@@ -152,9 +154,9 @@ void buzzer(uint8_t mode)
             buzzerPtr = buzz_shortBeep;
             buzzerMode = mode;
             break;
+
         default:
             return;
-            break;
     }
     buzzerPos = 0;
 }
@@ -165,9 +167,10 @@ void buzzer(uint8_t mode)
 void buzzerUpdate(void)
 {
     // If beeper option from AUX switch has been selected
-    if (rcOptions[BOXBEEPERON])
+    if (rcOptions[BOXBEEPERON]) {
         if (buzzerMode > BUZZER_TX_SET)
             buzzer(BUZZER_TX_SET);
+    }
 
     // Buzzer routine doesn't need to update if there aren't any sounds ongoing
     if (buzzerMode == BUZZER_STOPPED || buzzerPtr == NULL)
@@ -191,16 +194,16 @@ void buzzerUpdate(void)
  */
 void buzzerCalculations(void)
 {
-    // If sequence is 0xFE then repeat from start
-    if (buzzerPtr[buzzerPos] == 0xFE)
+    if (buzzerPtr[buzzerPos] == 0xFE) {
+        // If sequence is 0xFE then repeat from start
         buzzerPos = 0;
-    // If sequence is 0xFF then stop
-    else if (buzzerPtr[buzzerPos] == 0xFF) {
+    } else if (buzzerPtr[buzzerPos] == 0xFF) {
+        // If sequence is 0xFF then stop
         buzzerMode = BUZZER_STOPPED;
         BEEP_OFF;
         buzzerIsOn = 0;
-    // Otherwise advance the sequence and calculate next toggle time
     } else {
+        // Otherwise advance the sequence and calculate next toggle time
         buzzerNextToggleTime = millis() + 10 * buzzerPtr[buzzerPos];
         buzzerPos++;
     }
