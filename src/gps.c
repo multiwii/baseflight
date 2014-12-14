@@ -1167,6 +1167,10 @@ static bool gpsNewFrameNMEA(char c)
                         case FRAME_RMC:
                             GPS_speed = gps_msg.speed;
                             GPS_ground_course = gps_msg.ground_course;
+                            if (!sensors(SENSOR_MAG) && GPS_speed > 100) {
+                                GPS_ground_course = wrap_18000(GPS_ground_course * 10) / 10;
+                                heading = GPS_ground_course / 10;    // Use values Based on GPS if we are moving.
+                            }
                             break;
                     }
                 }
@@ -1439,12 +1443,9 @@ static bool UBLOX_parse_gps(void)
         GPS_speed = _buffer.velned.speed_2d;    // cm/s
         GPS_ground_course = (uint16_t) (_buffer.velned.heading_2d / 10000);     // Heading 2D deg * 100000 rescaled to deg * 10
         _new_speed = true;
-        if (!sensors(SENSOR_MAG) && f.FIXED_WING && GPS_speed > 100) {
+        if (!sensors(SENSOR_MAG) && GPS_speed > 100) {
+            GPS_ground_course = wrap_18000(GPS_ground_course * 10) / 10;
             heading = GPS_ground_course / 10;    // Use values Based on GPS if we are moving.
-            if (heading <= - 180)
-                heading += 360;
-            if (heading >=  180)
-                heading -= 360;
         }
         break;
     case MSG_SVINFO:
