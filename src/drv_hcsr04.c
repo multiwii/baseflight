@@ -66,8 +66,8 @@ void hcsr04_init(sonar_config_t config)
 
     switch (config) {
         case sonar_pwm56:
-            trigger_pin = Pin_8;   // PWM5 (PB8) - 5v tolerant
-            echo_pin = Pin_9;      // PWM6 (PB9) - 5v tolerant
+            trigger_pin = Pin_5;   // PWM5 (PB8) - 5v tolerant
+            echo_pin = Pin_6;      // PWM6 (PB9) - 5v tolerant
             exti_line = EXTI_Line9;
             exti_pin_source = GPIO_PinSource9;
             exti_irqn = EXTI9_5_IRQn;
