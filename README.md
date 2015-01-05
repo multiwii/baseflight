@@ -19,6 +19,6 @@ When in doubt use baseflight-configurator to flash the latest stable firmware re
 license
 =======
 
-baseflight is licensed under *GPL V3* (just like MultiWii code it originated from), with all the conditions GPL V3 implies,
+baseflight is licensed under *GPL V3* (just like MultiWii code it originated from), with all the conditions GPL V3 implies.
 
 
