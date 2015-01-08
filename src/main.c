@@ -6,6 +6,7 @@
 #include "mw.h"
 
 #include "telemetry_common.h"
+#include "blackbox.h"
 
 core_t core;
 int hw_revision = 0;
@@ -235,6 +236,10 @@ int main(void)
 
     if (feature(FEATURE_TELEMETRY))
         initTelemetry();
+
+    if (feature(FEATURE_BLACKBOX))
+        initBlackbox();
+
 #endif
 
     previousTime = micros();
