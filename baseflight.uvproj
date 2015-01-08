@@ -143,7 +143,6 @@
             <RestoreToolbox>1</RestoreToolbox>
             <RestoreTracepoints>0</RestoreTracepoints>
             <RestoreSysVw>1</RestoreSysVw>
-            <UsePdscDebugDescription>1</UsePdscDebugDescription>
           </Target>
           <RunDebugAfterBuild>0</RunDebugAfterBuild>
           <TargetSelection>6</TargetSelection>
@@ -358,11 +357,11 @@
             <wLevel>2</wLevel>
             <uThumb>0</uThumb>
             <uSurpInc>0</uSurpInc>
-            <uC99>0</uC99>
+            <uC99>1</uC99>
             <useXO>0</useXO>
             <VariousControls>
               <MiscControls>--c99 --gnu</MiscControls>
-              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER,NAZE</Define>
+              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER,NAZE,USE_LAME_PRINTF</Define>
               <Undefine></Undefine>
               <IncludePath>lib\CMSIS\CM3\CoreSupport;lib\CMSIS\CM3\DeviceSupport\ST\STM32F10x;lib\STM32F10x_StdPeriph_Driver\inc</IncludePath>
             </VariousControls>
@@ -511,6 +510,11 @@
               <FileName>fw_nav.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\fw_nav.c</FilePath>
+            </File>
+            <File>
+              <FileName>blackbox.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\blackbox.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -913,7 +917,6 @@
             <RestoreToolbox>1</RestoreToolbox>
             <RestoreTracepoints>0</RestoreTracepoints>
             <RestoreSysVw>1</RestoreSysVw>
-            <UsePdscDebugDescription>1</UsePdscDebugDescription>
           </Target>
           <RunDebugAfterBuild>0</RunDebugAfterBuild>
           <TargetSelection>6</TargetSelection>
@@ -1277,6 +1280,16 @@
               <FileType>1</FileType>
               <FilePath>.\src\rxmsp.c</FilePath>
             </File>
+            <File>
+              <FileName>fw_nav.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\fw_nav.c</FilePath>
+            </File>
+            <File>
+              <FileName>blackbox.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\blackbox.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1618,7 +1631,6 @@
             <RestoreToolbox>1</RestoreToolbox>
             <RestoreTracepoints>0</RestoreTracepoints>
             <RestoreSysVw>1</RestoreSysVw>
-            <UsePdscDebugDescription>1</UsePdscDebugDescription>
           </Target>
           <RunDebugAfterBuild>0</RunDebugAfterBuild>
           <TargetSelection>6</TargetSelection>
@@ -2282,6 +2294,16 @@
               <FileName>rxmsp.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\rxmsp.c</FilePath>
+            </File>
+            <File>
+              <FileName>fw_nav.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\fw_nav.c</FilePath>
+            </File>
+            <File>
+              <FileName>blackbox.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\blackbox.c</FilePath>
             </File>
           </Files>
         </Group>
