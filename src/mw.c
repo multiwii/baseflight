@@ -319,7 +319,7 @@ static void mwDisarm(void)
 
         if (feature(FEATURE_BLACKBOX))
         	finishBlackbox();
-	}
+
         // Beep for inform about disarming
         buzzer(BUZZER_DISARMING);
         // Reset disarm time so that it works next time we arm the board.
