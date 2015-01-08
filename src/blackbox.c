@@ -1,5 +1,6 @@
 #include "board.h"
 #include "mw.h"
+#include "buzzer.h"
 
 #include "blackbox_fielddefs.h"
 #include "blackbox.h"
