@@ -1023,14 +1023,7 @@ static void blackboxPlaySyncBeep()
 {
     uint32_t now = micros();
 
-    /*
-     * The regular beep routines aren't going to work for us, because they queue up the beep to be executed later.
-     * Our beep is timing sensitive, so start beeping now without setting the beeperIsOn flag.
-     */
-    BEEP_ON;
-
-    // Have the regular beeper code turn off the beep for us eventually, since that's not timing-sensitive
-    toggleBeep = 1;
+    buzzer(BUZZER_READY_BEEP);
 
     blackboxWrite('E');
     blackboxWrite(FLIGHT_LOG_EVENT_SYNC_BEEP);
