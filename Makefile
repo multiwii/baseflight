@@ -72,7 +72,8 @@ HIGHEND_SRC	 = gps.c \
 		   drv_softserial.c \
 		   telemetry_common.c \
 		   telemetry_frsky.c \
-		   telemetry_hott.c
+		   telemetry_hott.c \
+		   blackbox.c		   
 
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \

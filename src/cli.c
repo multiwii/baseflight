@@ -63,7 +63,7 @@ static const char * const featureNames[] = {
     "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SERIALRX", "MOTOR_STOP",
     "SERVO_TILT", "SOFTSERIAL", "LED_RING", "GPS",
     "FAILSAFE", "SONAR", "TELEMETRY", "POWERMETER", "VARIO", "3D",
-    "FW_FAILSAFE_RTH",
+    "FW_FAILSAFE_RTH", "BLACKBOX",
     NULL
 };
 
@@ -270,6 +270,8 @@ const clivalue_t valueTable[] = {
     { "fw_scaler_throttle", VAR_UINT16, &cfg.fw_scaler_throttle, 0, 15 },
     { "fw_roll_comp", VAR_FLOAT, &cfg.fw_roll_comp, 0, 2 },
     { "fw_rth_alt", VAR_UINT8, &cfg.D8[PIDPOSR], 0, 200 },
+    { "blackbox_rate_num", VAR_UINT8, &mcfg.blackbox_rate_num, 1, 32 },
+    { "blackbox_rate_denom", VAR_UINT8, &mcfg.blackbox_rate_denom, 1, 32 },
 };
 
 #define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
