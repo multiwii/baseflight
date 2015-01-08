@@ -31,6 +31,8 @@
 
 #include "board.h"
 #include "mw.h"
+#include "printf.h" 
+
 #ifdef USE_LAME_PRINTF
 #define PRINTF_LONG_SUPPORT
 
