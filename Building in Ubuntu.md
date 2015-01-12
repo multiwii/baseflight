@@ -5,10 +5,10 @@ which they are downstreaming from Debian, is not compatible with Baseflight. We 
 alternative PPA from Terry Guo, found here:
 https://launchpad.net/~terry.guo/+archive/ubuntu/gcc-arm-embedded
 
-This PPA has several compiler versions and platforms available. For many hardware platforms (notably Naze)
-the 4.9.3 compiler will work fine. For some, older compiler 4.8 (notably Sparky) is more appropriate. We
-suggest you build with 4.9.3 first, and try to see if you can connect to the CLI or run the Configurator.
-If you cannot, please see the section below for further hints on what you might do.
+This PPA has several compiler versions and platforms available. For our hardware platform (Naze) the 4.9.3
+compiler will work fine. For some, older compiler 4.8 is more appropriate. We suggest you build with
+4.9.3 first, and try to see if you can connect to the CLI or run the Configurator.  If you cannot,
+please see the section below for further hints on what you might do.
 
 ## Setup GNU ARM Toolchain
 
