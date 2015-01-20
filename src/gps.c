@@ -1425,6 +1425,9 @@ static bool UBLOX_parse_gps(void)
         _new_position = true;
         if (!sensors(SENSOR_BARO) && f.FIXED_WING)
             EstAlt = (GPS_altitude - GPS_home[ALT]) * 100;    // Use values Based on GPS
+        // Update GPS update rate table.
+        GPS_update_rate[0] = GPS_update_rate[1];
+        GPS_update_rate[1] = millis();
         break;
     case MSG_STATUS:
         next_fix = (_buffer.status.fix_status & NAV_STATUS_FIX_VALID) && (_buffer.status.fix_type == FIX_3D);
