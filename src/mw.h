@@ -498,6 +498,7 @@ extern uint8_t  GPS_svinfo_chn[16];                          // Channel number
 extern uint8_t  GPS_svinfo_svid[16];                         // Satellite ID
 extern uint8_t  GPS_svinfo_quality[16];                      // Bitfield Qualtity
 extern uint8_t  GPS_svinfo_cno[16];                          // Carrier to Noise Ratio (Signal Strength)
+extern uint32_t GPS_update_rate[2];                          // GPS coordinates updating rate
 extern core_t core;
 extern master_t mcfg;
 extern config_t cfg;

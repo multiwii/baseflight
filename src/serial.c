@@ -68,6 +68,7 @@
 #define MSP_ACC_TRIM             240    //out message         get acc angle trim values
 #define MSP_SET_ACC_TRIM         239    //in message          set acc angle trim values
 #define MSP_GPSSVINFO            164    //out message         get Signal Strength (only U-Blox)
+#define MSP_GPSDEBUGINFO         166    //out message         get GPS debugging data (only U-Blox)
 
 // Additional private MSP for baseflight configurator
 #define MSP_RCMAP                64     //out message         get channel map (also returns number of channels total)
@@ -846,6 +847,16 @@ static void evaluateCommand(void)
                serialize8(GPS_svinfo_cno[i]);
             }
         break;
+#ifdef GPS
+    case MSP_GPSDEBUGINFO:
+        headSerialReply(5);
+        if (sensors(SENSOR_GPS))
+            serialize32(GPS_update_rate[1] - GPS_update_rate[0]);
+        else
+            serialize32(0);
+        serialize8(rcOptions[BOXGPSHOLD]);
+        break;
+#endif /* GPS */
 
     case MSP_SET_CONFIG:
         headSerialReply(0);
