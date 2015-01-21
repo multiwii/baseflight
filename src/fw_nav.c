@@ -201,11 +201,11 @@ void fw_nav(void)
         // Elevator compensation depending on behaviour.
         // Prevent stall with Disarmed motor
         if(f.MOTORS_STOPPED)
-            GPS_angle[PITCH]=constrain(GPS_angle[PITCH],0, cfg.fw_gps_maxdive*10);
+            GPS_angle[PITCH]=constrain(GPS_angle[PITCH],0, cfg.fw_gps_maxdive * 10);
 
         // Add elevator compared with rollAngle
         if (!f.CLIMBOUT_FW)
-            GPS_angle[PITCH] -= (abs(angle[ROLL]) *cfg.fw_roll_comp);
+            GPS_angle[PITCH] -= (abs(angle[ROLL]) * cfg.fw_roll_comp);
 
         // Throttle compensation depending on behaviour.
         // Compensate throttle with pitch Angle
