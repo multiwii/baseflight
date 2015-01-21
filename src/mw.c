@@ -479,12 +479,7 @@ void pidMultiWii23(void)
 
         if (f.ANGLE_MODE || f.HORIZON_MODE) {   // axis relying on ACC
             // 50 degrees max inclination
-//#ifdef GPS
             errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis];
-//#else
-//            errorAngle = constrain(2 * rcCommand[axis], -((int) max_angle_inclination),
-//                +max_angle_inclination) - inclination.raw[axis] + angleTrim->raw[axis];
-//#endif
 
             errorAngleI[axis]  = constrain(errorAngleI[axis] + errorAngle, -10000, +10000);                                                // WindUp     //16 bits is ok here
 
@@ -514,7 +509,11 @@ void pidMultiWii23(void)
 
     //YAW
     rc = (int32_t)rcCommand[YAW] * (2 * cfg.yawRate + 30)  >> 5;
+#ifdef ALIENWII32
+    error = rc - gyroData[YAW];
+#else
     error = rc - (gyroData[YAW] / 4);
+#endif
     errorGyroI[YAW]  += (int32_t)error * cfg.I8[YAW];
     errorGyroI[YAW]  = constrain(errorGyroI[YAW], 2 - ((int32_t)1 << 28), -2 + ((int32_t)1 << 28));
     if (abs(rc) > 50) errorGyroI[YAW] = 0;
