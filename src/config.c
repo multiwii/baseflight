@@ -373,9 +373,12 @@ static void resetConf(void)
     mcfg.spektrum_sat_bind = 5;
     mcfg.minthrottle = 1000;
     mcfg.maxthrottle = 2000;
+    cfg.pidController = 2;
+    cfg.P8[ROLL] = 36;
+	cfg.P8[PITCH] = 36;
     cfg.rcRate8 = 130;
     cfg.rollPitchRate = 20;
-    cfg.yawRate = 60;
+    cfg.yawRate = 125;
     parseRcChannels("TAER1234");
 
     //  { 1.0f, -0.5f,  1.0f, -1.0f },          // REAR_R

@@ -453,6 +453,86 @@ static void pidRewrite(void)
     }
 }
 
+#define GYRO_P_MAX 300
+
+void pidMultiWii23(void)
+{
+    int axis, prop = 0;
+    int32_t rc, error, errorAngle;
+    int32_t PTerm, ITerm, PTermACC, ITermACC, DTerm;
+    static int16_t lastGyro[2] = { 0, 0 };
+    static int32_t delta1[2] = { 0, 0 }, delta2[2] = { 0, 0 };
+    int32_t delta;
+
+    if (f.HORIZON_MODE) prop = min(max(abs(rcCommand[PITCH]), abs(rcCommand[ROLL])), 512);
+
+    // PITCH & ROLL
+    for (axis = 0; axis < 2; axis++) {
+        rc = rcCommand[axis] << 1;
+        error = rc - (gyroData[axis] / 4);
+        errorGyroI[axis]  = constrain(errorGyroI[axis] + error, -16000, +16000);   // WindUp   16 bits is ok here
+        if (abs(gyroData[axis]) > (640 * 4)) errorGyroI[axis] = 0;
+
+        ITerm = (errorGyroI[axis] >> 7) * cfg.I8[axis] >> 6;   // 16 bits is ok here 16000/125 = 128 ; 128*250 = 32000
+
+        PTerm = (int32_t)rc * cfg.P8[axis] >> 6;
+
+        if (f.ANGLE_MODE || f.HORIZON_MODE) {   // axis relying on ACC
+            // 50 degrees max inclination
+//#ifdef GPS
+            errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis];
+//#else
+//            errorAngle = constrain(2 * rcCommand[axis], -((int) max_angle_inclination),
+//                +max_angle_inclination) - inclination.raw[axis] + angleTrim->raw[axis];
+//#endif
+
+            errorAngleI[axis]  = constrain(errorAngleI[axis] + errorAngle, -10000, +10000);                                                // WindUp     //16 bits is ok here
+
+            PTermACC = ((int32_t)errorAngle * cfg.P8[PIDLEVEL]) >> 7;   // 32 bits is needed for calculation: errorAngle*P8 could exceed 32768   16 bits is ok for result
+
+            int16_t limit = cfg.D8[PIDLEVEL] * 5;
+            PTermACC = constrain(PTermACC, -limit, +limit);
+
+            ITermACC = ((int32_t)errorAngleI[axis] * cfg.I8[PIDLEVEL]) >> 12;  // 32 bits is needed for calculation:10000*I8 could exceed 32768   16 bits is ok for result
+
+            ITerm = ITermACC + ((ITerm - ITermACC) * prop >> 9);
+            PTerm = PTermACC + ((PTerm - PTermACC) * prop >> 9);
+        }
+
+        PTerm -= ((int32_t)(gyroData[axis] / 4) * dynP8[axis]) >> 6;   // 32 bits is needed for calculation
+
+        delta = (gyroData[axis] - lastGyro[axis]) / 4;   // 16 bits is ok here, the dif between 2 consecutive gyro reads is limited to 800
+        lastGyro[axis] = gyroData[axis];
+        DTerm = delta1[axis] + delta2[axis] + delta;
+        delta2[axis] = delta1[axis];
+        delta1[axis] = delta;
+
+        DTerm = ((int32_t)DTerm * dynD8[axis]) >> 5;   // 32 bits is needed for calculation
+
+        axisPID[axis] = PTerm + ITerm - DTerm;
+    }
+
+    //YAW
+    rc = (int32_t)rcCommand[YAW] * (2 * cfg.yawRate + 30)  >> 5;
+    error = rc - (gyroData[YAW] / 4);
+    errorGyroI[YAW]  += (int32_t)error * cfg.I8[YAW];
+    errorGyroI[YAW]  = constrain(errorGyroI[YAW], 2 - ((int32_t)1 << 28), -2 + ((int32_t)1 << 28));
+    if (abs(rc) > 50) errorGyroI[YAW] = 0;
+
+    PTerm = (int32_t)error * cfg.P8[YAW] >> 6;
+
+    // Constrain YAW by D value if not servo driven in that case servolimits apply
+//    if(numMotors > 3) {
+        int16_t limit = GYRO_P_MAX - cfg.D8[YAW];
+        PTerm = constrain(PTerm, -limit, +limit);
+//    }
+
+    ITerm = constrain((int16_t)(errorGyroI[YAW] >> 13), -GYRO_I_MAX, +GYRO_I_MAX);
+
+    axisPID[YAW] =  PTerm + ITerm;
+}
+
+
 void setPIDController(int type)
 {
     switch (type) {
@@ -462,6 +542,9 @@ void setPIDController(int type)
             break;
         case 1:
             pid_controller = pidRewrite;
+            break;
+        case 2:
+            pid_controller = pidMultiWii23;
             break;
     }
 }
