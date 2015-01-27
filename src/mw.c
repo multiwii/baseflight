@@ -521,16 +521,15 @@ void pidMultiWii23(void)
     PTerm = (int32_t)error * cfg.P8[YAW] >> 6;
 
     // Constrain YAW by D value if not servo driven in that case servolimits apply
-//    if(numMotors > 3) {
+    if(numMotors > 3) {
         int16_t limit = GYRO_P_MAX - cfg.D8[YAW];
         PTerm = constrain(PTerm, -limit, +limit);
-//    }
+    }
 
     ITerm = constrain((int16_t)(errorGyroI[YAW] >> 13), -GYRO_I_MAX, +GYRO_I_MAX);
 
     axisPID[YAW] =  PTerm + ITerm;
 }
-
 
 void setPIDController(int type)
 {
