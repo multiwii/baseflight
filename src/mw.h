@@ -577,6 +577,10 @@ bool sbusFrameComplete(void);
 void sumdInit(rcReadRawDataPtr *callback);
 bool sumdFrameComplete(void);
 
+// ibus
+void ibusInit(rcReadRawDataPtr *callback);
+bool ibusFrameComplete(void);
+
 // rxmsp
 void mspInit(rcReadRawDataPtr *callback);
 bool mspFrameComplete(void);
