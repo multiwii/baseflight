@@ -60,6 +60,7 @@ COMMON_SRC	 = buzzer.c \
 		   printf.c \
 		   utils.c \
 		   fw_nav.c \
+		   ibus.c \
 		   sbus.c \
 		   sumd.c \
 		   spektrum.c \
