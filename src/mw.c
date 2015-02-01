@@ -521,14 +521,120 @@ void pidMultiWii23(void)
     PTerm = (int32_t)error * cfg.P8[YAW] >> 6;
 
     // Constrain YAW by D value if not servo driven in that case servolimits apply
-    if(numMotors > 3) {
+//    if(numMotors > 3) {
         int16_t limit = GYRO_P_MAX - cfg.D8[YAW];
         PTerm = constrain(PTerm, -limit, +limit);
-    }
+//    }
 
     ITerm = constrain((int16_t)(errorGyroI[YAW] >> 13), -GYRO_I_MAX, +GYRO_I_MAX);
 
     axisPID[YAW] =  PTerm + ITerm;
+}
+
+
+#define RCconstPI   0.159154943092f // 0.5f / M_PI;
+#define MAIN_CUT_HZ 12.0f // (default 12Hz, Range 1-50Hz)
+#define OLD_YAW	0 // [0/1] 0 = multiwii 2.3 yaw, 1 = older yaw.
+
+void pidHarakiri(void)
+{
+    float delta, RCfactor, rcCommandAxis, MainDptCut;
+    float PTerm = 0, ITerm = 0, DTerm = 0, PTermACC = 0, ITermACC = 0, ITermGYRO = 0, error = 0, prop = 0;
+    static float lastGyro[2] = {0, 0}, lastDTerm[2] = {0, 0};
+    float tmp0flt;
+    int32_t tmp0;
+    uint8_t axis;
+    float ACCDeltaTimeINS = 0;
+    float FLOATcycleTime = 0;
+
+//    MainDptCut = RCconstPI / (float)cfg.maincuthz;                           // Initialize Cut off frequencies for mainpid D
+    MainDptCut = RCconstPI / MAIN_CUT_HZ;                                      // maincuthz (default 12Hz, Range 1-50Hz), hardcoded for now
+    FLOATcycleTime  = (float)constrain(cycleTime, 1, 100000);                  // 1us - 100ms
+    ACCDeltaTimeINS = FLOATcycleTime * 0.000001f;                              // ACCDeltaTimeINS is in seconds now
+    RCfactor = ACCDeltaTimeINS / (MainDptCut + ACCDeltaTimeINS);               // used for pt1 element
+
+    if (f.HORIZON_MODE) {
+        prop = (float)min(max(abs(rcCommand[PITCH]), abs(rcCommand[ROLL])), 450) / 450.0f;
+    }
+
+    for (axis = 0; axis < 2; axis++) {
+        rcCommandAxis = (float)rcCommand[axis];                                // Calculate common values for pid controllers
+        if (f.ANGLE_MODE || f.HORIZON_MODE) {
+            error = constrain(2.0f * rcCommandAxis + GPS_angle[axis], -((int) mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis];
+            PTermACC = error * (float)cfg.P8[PIDLEVEL] * 0.008f;
+            tmp0flt = (float)cfg.D8[PIDLEVEL] * 5.0f;
+            PTermACC = constrain(PTermACC, -tmp0flt, +tmp0flt);
+            errorAngleI[axis] = constrain(errorAngleI[axis] + error * ACCDeltaTimeINS, -30.0f, +30.0f);
+            ITermACC = errorAngleI[axis] * (float)cfg.I8[PIDLEVEL] * 0.08f;
+        }
+
+        if (!f.ANGLE_MODE) {
+            if (abs((int16_t)gyroData[axis]) > 2560) {
+                errorGyroI[axis] = 0.0f;
+            } else {
+                error = (rcCommandAxis * 320.0f / (float)cfg.P8[axis]) - gyroData[axis];
+                errorGyroI[axis] = constrain(errorGyroI[axis] + error * ACCDeltaTimeINS, -192.0f, +192.0f);
+            }
+
+            ITermGYRO = errorGyroI[axis] * (float)cfg.I8[axis] * 0.01f;
+
+            if (f.HORIZON_MODE) {
+                PTerm = PTermACC + prop * (rcCommandAxis - PTermACC);
+                ITerm = ITermACC + prop * (ITermGYRO - ITermACC);
+            } else {
+                PTerm = rcCommandAxis;
+                ITerm = ITermGYRO;
+            }
+        } else {
+            PTerm = PTermACC;
+            ITerm = ITermACC;
+        }
+
+        PTerm -= gyroData[axis] * dynP8[axis] * 0.003f;
+        delta = (gyroData[axis] - lastGyro[axis]) / ACCDeltaTimeINS;
+
+        lastGyro[axis] = gyroData[axis];
+        lastDTerm[axis] += RCfactor * (delta - lastDTerm[axis]);
+        DTerm = lastDTerm[axis] * dynD8[axis] * 0.00007f;
+
+        axisPID[axis] = lrintf(PTerm + ITerm - DTerm);                         // Round up result.
+    }
+
+    tmp0flt = (int32_t)FLOATcycleTime & (int32_t)~3;                          // Filter last 2 bit jitter
+    tmp0flt /= 3000.0f;
+
+    if (OLD_YAW) { // [0/1] 0 = multiwii 2.3 yaw, 1 = older yaw. hardcoded for now
+        PTerm = ((int32_t)cfg.P8[YAW] * (100 - (int32_t)cfg.yawRate * (int32_t)abs(rcCommand[YAW]) / 500)) / 100;
+        tmp0 = lrintf(gyroData[YAW] * 0.25f);
+        PTerm = rcCommand[YAW] - tmp0 * PTerm / 80;
+        if ((abs(tmp0) > 640) || (abs(rcCommand[YAW]) > 100)) {
+            errorGyroI[YAW] = 0;
+        } else {
+            error = ((int32_t)rcCommand[YAW] * 80 / (int32_t)cfg.P8[YAW]) - tmp0;
+            errorGyroI[YAW] = constrain(errorGyroI[YAW] + (int32_t)(error * tmp0flt), -16000, +16000); // WindUp
+            ITerm = (errorGyroI[YAW] / 125 * cfg.I8[YAW]) >> 6;
+        }
+    } else {
+        tmp0 = ((int32_t)rcCommand[YAW] * (((int32_t)cfg.yawRate << 1) + 40)) >> 5;
+        error = tmp0 - lrintf(gyroData[YAW] * 0.25f);                       // Less Gyrojitter works actually better
+
+        if (abs(tmp0) > 50) {
+            errorGyroI[YAW] = 0;
+        } else {
+            errorGyroI[YAW] = constrain(errorGyroI[YAW] + (int32_t)(error * (float)cfg.I8[YAW] * tmp0flt), -268435454, +268435454);
+        }
+
+        ITerm = constrain(errorGyroI[YAW] >> 13, -GYRO_I_MAX, +GYRO_I_MAX);
+        PTerm = ((int32_t)error * (int32_t)cfg.P8[YAW]) >> 6;
+
+//        if (numMotors >= 4) { // Constrain YAW by D value if not servo driven in that case servolimits apply
+            tmp0 = 300;
+            if (cfg.D8[YAW]) tmp0 -= (int32_t)cfg.D8[YAW];
+            PTerm = constrain(PTerm, -tmp0, tmp0);
+//        }
+    }
+    axisPID[YAW] = PTerm + ITerm;
+    axisPID[YAW] = lrintf(axisPID[YAW]);                                 // Round up result.
 }
 
 void setPIDController(int type)
@@ -543,6 +649,9 @@ void setPIDController(int type)
             break;
         case 2:
             pid_controller = pidMultiWii23;
+            break;
+        case 3:
+            pid_controller = pidHarakiri;
             break;
     }
 }
