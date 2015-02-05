@@ -47,8 +47,11 @@ static const uint8_t ubloxInit[] = {
     0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x03, 0x01, 0x0F, 0x49,           // set STATUS MSG rate
     0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x06, 0x01, 0x12, 0x4F,           // set SOL MSG rate
     0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x12, 0x01, 0x1E, 0x67,           // set VELNED MSG rate
-    0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01, 0x30, 0x05, 0x40, 0xA7,           // set SVINFO MSG rate
     0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A,             // set rate to 5Hz
+};
+
+static const uint8_t poll_svinfo[] = {
+        0xB5, 0x62, 0x01, 0x30, 0x00, 0x00, 0x31, 0x94 // Poll: UBX-NAV-SVINFO (0x01 0x30)
 };
 
 static uint8_t ubloxSbasInit[] = {
@@ -344,6 +347,19 @@ static bool gpsNewFrame(uint8_t c)
     return false;
 }
 
+// gpsPollSvinfo-function. Used for polling UBX-NAV-SVINFO (0x01 0x30) information from GPS.
+void gpsPollSvinfo(void)
+{
+    uint16_t i;
+
+    // If selected GPS isn't UBLOX then we don't poll UBX messages.
+    if (mcfg.gps_type != GPS_UBLOX)
+        return;
+
+    for (i = 0; i < sizeof(poll_svinfo); i++) {
+        serialWrite(core.gpsport, poll_svinfo[i]);
+    }
+}
 
 
 /*-----------------------------------------------------------
@@ -1329,8 +1345,9 @@ static bool _new_position;
 static bool _new_speed;
 
 // Receive buffer
-
-#define UBLOX_BUFFER_SIZE 200
+// Increased from 200 to 464, because new generation u-blox 8 GPS can find over 30 satellites.
+// Now maximum numCh is 38 (is calculated: 8 + 12*numCh).
+#define UBLOX_BUFFER_SIZE 464
 
 static union {
     ubx_nav_posllh posllh;
@@ -1453,14 +1470,17 @@ static bool UBLOX_parse_gps(void)
         break;
     case MSG_SVINFO:
         GPS_numCh = _buffer.svinfo.numCh;
-        if (GPS_numCh > 16)
-            GPS_numCh = 16;
+        if (GPS_numCh > 32)
+            GPS_numCh = 32;
         for (i = 0; i < GPS_numCh; i++){
             GPS_svinfo_chn[i]= _buffer.svinfo.channel[i].chn;
             GPS_svinfo_svid[i]= _buffer.svinfo.channel[i].svid;
             GPS_svinfo_quality[i]=_buffer.svinfo.channel[i].quality;
             GPS_svinfo_cno[i]= _buffer.svinfo.channel[i].cno;
         }
+        // Update GPS SVIFO update rate table.
+        GPS_svinfo_rate[0] = GPS_svinfo_rate[1];
+        GPS_svinfo_rate[1] = millis();
         break;
     default:
         return false;
