@@ -494,11 +494,12 @@ extern int16_t  nav[2];
 extern int8_t   nav_mode;                                    // Navigation mode
 extern int16_t  nav_rated[2];                                // Adding a rate controller to the navigation to make it smoother
 extern uint8_t  GPS_numCh;                                   // Number of channels
-extern uint8_t  GPS_svinfo_chn[16];                          // Channel number
-extern uint8_t  GPS_svinfo_svid[16];                         // Satellite ID
-extern uint8_t  GPS_svinfo_quality[16];                      // Bitfield Qualtity
-extern uint8_t  GPS_svinfo_cno[16];                          // Carrier to Noise Ratio (Signal Strength)
+extern uint8_t  GPS_svinfo_chn[32];                          // Channel number
+extern uint8_t  GPS_svinfo_svid[32];                         // Satellite ID
+extern uint8_t  GPS_svinfo_quality[32];                      // Bitfield Qualtity
+extern uint8_t  GPS_svinfo_cno[32];                          // Carrier to Noise Ratio (Signal Strength)
 extern uint32_t GPS_update_rate[2];                          // GPS coordinates updating rate
+extern uint32_t GPS_svinfo_rate[2];                          // GPS svinfo updating rate
 extern core_t core;
 extern master_t mcfg;
 extern config_t cfg;
@@ -597,6 +598,7 @@ void gpsInit(uint8_t baudrate);
 void gpsThread(void);
 void gpsSetPIDs(void);
 int8_t gpsSetPassthrough(void);
+void gpsPollSvinfo(void);
 void GPS_reset_home_position(void);
 void GPS_reset_nav(void);
 void GPS_set_next_wp(int32_t* lat, int32_t* lon);

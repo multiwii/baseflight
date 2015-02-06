@@ -57,11 +57,12 @@ int16_t nav[2];
 int16_t nav_rated[2];               // Adding a rate controller to the navigation to make it smoother
 int8_t nav_mode = NAV_MODE_NONE;    // Navigation mode
 uint8_t GPS_numCh;                  // Number of channels
-uint8_t GPS_svinfo_chn[16];         // Channel number
-uint8_t GPS_svinfo_svid[16];        // Satellite ID
-uint8_t GPS_svinfo_quality[16];     // Bitfield Qualtity
-uint8_t GPS_svinfo_cno[16];         // Carrier to Noise Ratio (Signal Strength)
+uint8_t GPS_svinfo_chn[32];         // Channel number
+uint8_t GPS_svinfo_svid[32];        // Satellite ID
+uint8_t GPS_svinfo_quality[32];     // Bitfield Qualtity
+uint8_t GPS_svinfo_cno[32];         // Carrier to Noise Ratio (Signal Strength)
 uint32_t GPS_update_rate[2];        // GPS coordinates updating rate (column 0 = last update time, 1 = current update ms)
+uint32_t GPS_svinfo_rate[2];        // GPS svinfo updating rate (column 0 = last update time, 1 = current update ms)
 
 // Automatic ACC Offset Calibration
 bool AccInflightCalibrationArmed = false;
