@@ -7,6 +7,7 @@
 
 #include "cli.h"
 #include "telemetry_common.h"
+#include "blackbox.h"
 
 #include "buzzer.h"
 
@@ -18,6 +19,8 @@ uint16_t cycleTime = 0;         // this is the number in micro second to achieve
 int16_t headFreeModeHold;
 
 uint16_t vbat;                  // battery voltage in 0.1V steps
+uint16_t vbatLatest = 0;
+
 int32_t amperage;               // amperage read by current sensor in centiampere (1/100th A)
 int32_t mAhdrawn;              // milliampere hours drawn from the battery since start
 int16_t telemTemperature1;      // gyro sensor temperature
@@ -39,6 +42,8 @@ uint8_t dynP8[3], dynI8[3], dynD8[3];
 uint8_t rcOptions[CHECKBOXITEMS];
 
 int16_t axisPID[3];
+
+int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
 
 // **********************
 // GPS
@@ -169,7 +174,8 @@ void annexCode(void)
         vbatCycleTime += cycleTime;
         if (!(++vbatTimer % VBATFREQ)) {
             vbatRaw -= vbatRaw / 8;
-            vbatRaw += adcGetChannel(ADC_BATTERY);
+            vbatLatest = adcGetChannel(ADC_BATTERY);
+            vbatRaw += vbatLatest;
             vbat = batteryAdcToVoltage(vbatRaw / 8);
             
             if (mcfg.power_adc_channel > 0) {
@@ -290,6 +296,9 @@ static void mwArm(void)
         if (!f.ARMED) {         // arm now!
             f.ARMED = 1;
             headFreeModeHold = heading;
+
+            if (!cliMode && feature(FEATURE_BLACKBOX))
+            	startBlackbox();
             // Beep for inform about arming
 #ifdef GPS
             if (feature(FEATURE_GPS) && f.GPS_FIX && GPS_numSat >= 5)
@@ -309,6 +318,10 @@ static void mwDisarm(void)
 {
     if (f.ARMED) {
         f.ARMED = 0;
+
+        if (feature(FEATURE_BLACKBOX))
+        	finishBlackbox();
+
         // Beep for inform about disarming
         buzzer(BUZZER_DISARMING);
         // Reset disarm time so that it works next time we arm the board.
@@ -379,6 +392,11 @@ static void pidMultiWii(void)
         delta1[axis] = delta;
         DTerm = (deltaSum * dynD8[axis]) / 32;
         axisPID[axis] = PTerm + ITerm - DTerm;
+
+        // Values for blackbox
+        axisPID_P[axis] = PTerm;
+		axisPID_I[axis] = ITerm;
+		axisPID_D[axis] = -DTerm;
     }
 }
 
@@ -448,6 +466,11 @@ static void pidRewrite(void)
 
         // -----calculate total PID output
         axisPID[axis] = PTerm + ITerm + DTerm;
+
+        // Values for blackbox
+        axisPID_P[axis] = PTerm;
+		axisPID_I[axis] = ITerm;
+		axisPID_D[axis] = DTerm;
     }
 }
 
@@ -1005,5 +1028,8 @@ void loop(void)
         mixTable();
         writeServos();
         writeMotors();
+
+        if (!cliMode && feature(FEATURE_BLACKBOX))
+        	handleBlackbox();
     }
 }
