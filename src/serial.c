@@ -851,7 +851,7 @@ static void evaluateCommand(void)
         gpsPollSvinfo();
         break;
     case MSP_GPSDEBUGINFO:
-        headSerialReply(8);
+        headSerialReply(16);
         if (sensors(SENSOR_GPS)) {
             serialize32(GPS_update_rate[1] - GPS_update_rate[0]);
             serialize32(GPS_svinfo_rate[1] - GPS_svinfo_rate[0]);
@@ -859,6 +859,8 @@ static void evaluateCommand(void)
             serialize32(0);
             serialize32(0);
         }
+        serialize32(GPS_HorizontalAcc);
+        serialize32(GPS_VerticalAcc);
         break;
 #endif /* GPS */
 
