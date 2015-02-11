@@ -837,6 +837,7 @@ static void evaluateCommand(void)
         serialize32(U_ID_1);
         serialize32(U_ID_2);
         break;
+#ifdef GPS
     case MSP_GPSSVINFO:
         headSerialReply(1 + (GPS_numCh * 4));
         serialize8(GPS_numCh);
@@ -849,7 +850,6 @@ static void evaluateCommand(void)
         // Poll new SVINFO from GPS
         gpsPollSvinfo();
         break;
-#ifdef GPS
     case MSP_GPSDEBUGINFO:
         headSerialReply(8);
         if (sensors(SENSOR_GPS)) {
