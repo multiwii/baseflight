@@ -512,6 +512,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\fw_nav.c</FilePath>
             </File>
+            <File>
+              <FileName>ibus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\ibus.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1276,6 +1281,16 @@
               <FileName>rxmsp.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\rxmsp.c</FilePath>
+            </File>
+            <File>
+              <FileName>fw_nav.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\fw_nav.c</FilePath>
+            </File>
+            <File>
+              <FileName>ibus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\ibus.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2282,6 +2297,16 @@
               <FileName>rxmsp.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\rxmsp.c</FilePath>
+            </File>
+            <File>
+              <FileName>fw_nav.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\fw_nav.c</FilePath>
+            </File>
+            <File>
+              <FileName>ibus.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\ibus.c</FilePath>
             </File>
           </Files>
         </Group>
