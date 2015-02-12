@@ -1441,6 +1441,8 @@ static bool UBLOX_parse_gps(void)
         GPS_coord[LON] = _buffer.posllh.longitude;
         GPS_coord[LAT] = _buffer.posllh.latitude;
         GPS_altitude = _buffer.posllh.altitude_msl / 10 / 100;  //alt in m
+        GPS_HorizontalAcc = _buffer.posllh.horizontal_accuracy;
+        GPS_VerticalAcc = _buffer.posllh.vertical_accuracy;
         f.GPS_FIX = next_fix;
         _new_position = true;
         if (!sensors(SENSOR_BARO) && f.FIXED_WING)

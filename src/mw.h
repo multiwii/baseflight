@@ -500,6 +500,8 @@ extern uint8_t  GPS_svinfo_quality[32];                      // Bitfield Qualtit
 extern uint8_t  GPS_svinfo_cno[32];                          // Carrier to Noise Ratio (Signal Strength)
 extern uint32_t GPS_update_rate[2];                          // GPS coordinates updating rate
 extern uint32_t GPS_svinfo_rate[2];                          // GPS svinfo updating rate
+extern uint32_t GPS_HorizontalAcc;                           // Horizontal accuracy estimate (mm)
+extern uint32_t GPS_VerticalAcc;                             // Vertical accuracy estimate (mm)
 extern core_t core;
 extern master_t mcfg;
 extern config_t cfg;
