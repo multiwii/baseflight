@@ -1,7 +1,9 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
+
 #include "board.h"
 #include "mw.h"
 
@@ -107,6 +109,7 @@ int main(void)
     }
 
     adcInit(&adc_params);
+
     // Check battery type/voltage
     if (feature(FEATURE_VBAT))
         batteryInit();
@@ -114,6 +117,7 @@ int main(void)
 
     // We have these sensors; SENSORS_SET defined in board.h depending on hardware platform
     sensorsSet(SENSORS_SET);
+
     // drop out any sensors that don't seem to work, init all the others. halt if gyro is dead.
     sensorsOK = sensorsAutodetect();
 
@@ -159,12 +163,14 @@ int main(void)
     pwm_params.servoPwmRate = mcfg.servo_pwm_rate;
     pwm_params.pwmFilter = mcfg.pwm_filter;
     pwm_params.idlePulse = PULSE_1MS; // standard PWM for brushless ESC (default, overridden below)
+
     if (feature(FEATURE_3D))
         pwm_params.idlePulse = mcfg.neutral3d;
     if (pwm_params.motorPwmRate > 500)
         pwm_params.idlePulse = 0; // brushed motors
     pwm_params.servoCenterPulse = mcfg.midrc;
     pwm_params.failsafeThreshold = cfg.failsafe_detect_threshold;
+
     switch (mcfg.power_adc_channel) {
         case 1:
             pwm_params.adcChannel = PWM2;
@@ -183,6 +189,7 @@ int main(void)
     // configure PWM/CPPM read function and max number of channels. spektrum or sbus below will override both of these, if enabled
     for (i = 0; i < RC_CHANS; i++)
         rcData[i] = 1502;
+
     rcReadRawFunc = pwmReadRawRC;
     core.numRCChannels = MAX_INPUTS;
 
@@ -221,7 +228,7 @@ int main(void)
 
 #ifndef CJMCU
     if (feature(FEATURE_SOFTSERIAL)) {
-        //mcfg.softserial_baudrate = 19200; // Uncomment to override config value
+        // mcfg.softserial_baudrate = 19200; // Uncomment to override config value
 
         setupSoftSerialPrimary(mcfg.softserial_baudrate, mcfg.softserial_1_inverted);
         setupSoftSerialSecondary(mcfg.softserial_2_inverted);
@@ -233,7 +240,7 @@ int main(void)
         loopbackPort2 = (serialPort_t*)&(softSerialPorts[1]);
         serialPrint(loopbackPort2, "SOFTSERIAL 2 - LOOPBACK ENABLED\r\n");
 #endif
-        //core.mainport = (serialPort_t*)&(softSerialPorts[0]); // Uncomment to switch the main port to use softserial.
+        // core.mainport = (serialPort_t*)&(softSerialPorts[0]); // Uncomment to switch the main port to use softserial.
     }
 
     if (feature(FEATURE_TELEMETRY))

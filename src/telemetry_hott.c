@@ -1,11 +1,7 @@
-/*
- * telemetry_hott.c
+/**
+ * Copyright (C) 2012-2015 baseflight
  *
- *  Created on: 6 Apr 2014
- *      Authors:
- *      Dominic Clifton - Hydra - Software Serial, Electronics, Hardware Integration and debugging, HoTT Code cleanup and fixes, general telemetry improvements.
- *      Carsten Giesen - cGiesen - Baseflight port
- *      Oliver Bayer - oBayer - MultiWii-HoTT, HoTT reverse engineering
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  *
  * It should be noted that the initial cut of code that deals with the handling of requests and formatting and
  * sending of responses comes from the MultiWii-Meets-HoTT and MultiHoTT-module projects

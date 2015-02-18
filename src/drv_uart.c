@@ -1,10 +1,12 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  *
  * DMA UART routines idea lifted from AutoQuad
- * Copyright © 2011  Bill Nesbitt
+ * Copyright (C) 2011 Bill Nesbitt
 */
+
 #include "board.h"
 
 static uartPort_t uartPort1;

@@ -1,3 +1,9 @@
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ */
+
 #include "board.h"
 
 void serialPrint(serialPort_t *instance, const char *str)

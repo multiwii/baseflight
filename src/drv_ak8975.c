@@ -1,11 +1,12 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ *
+ * This sensor is available on MPU-9150. The accel/gyro in that chip use the same driver as MPU-6050.
  */
  
 #include "board.h"
-
-// This sensor is available on MPU-9150. The accel/gyro in that chip use the same driver as MPU-6050.
 
 // AK8975, mag sensor address
 #define AK8975_MAG_I2C_ADDRESS     0x0C

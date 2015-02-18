@@ -1,12 +1,14 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ *
+ * Driver for SBUS receiver using UART2
  */
 
 #include "board.h"
 #include "mw.h"
 
-// driver for SBUS receiver using UART2
 
 #define SBUS_MAX_CHANNEL 8
 #define SBUS_FRAME_SIZE 25

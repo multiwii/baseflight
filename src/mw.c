@@ -1,7 +1,9 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
+
 #include "board.h"
 #include "mw.h"
 
@@ -169,6 +171,7 @@ void annexCode(void)
 
     if (feature(FEATURE_VBAT)) {
         vbatCycleTime += cycleTime;
+
         if (!(++vbatTimer % VBATFREQ)) {
             vbatRaw -= vbatRaw / 8;
             vbatRaw += adcGetChannel(ADC_BATTERY);
@@ -184,12 +187,14 @@ void annexCode(void)
             }
             
         }
+
         // Buzzers for low and critical battery levels
         if (vbat <= batteryCriticalVoltage)
             buzzer(BUZZER_BAT_CRIT_LOW);     // Critically low battery
         else if (vbat <= batteryWarningVoltage)
             buzzer(BUZZER_BAT_LOW);     // low battery
     }
+
     // update buzzer handler
     buzzerUpdate();
 
@@ -276,6 +281,7 @@ void computeRC(void)
             rcDataAverage[chan][rcAverageIndex % 4] = capture;
             // clear this since we're not accessing it elsewhere. saves a temp var
             rcData[chan] = 0;
+
             for (i = 0; i < 4; i++)
                 rcData[chan] += rcDataAverage[chan][i];
             rcData[chan] /= 4;
@@ -339,6 +345,7 @@ static void pidMultiWii(void)
 
     // **** PITCH & ROLL & YAW PID ****
     prop = max(abs(rcCommand[PITCH]), abs(rcCommand[ROLL])); // range [0;500]
+    
     for (axis = 0; axis < 3; axis++) {
         if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
             // 50 degrees max inclination
@@ -349,6 +356,7 @@ static void pidMultiWii(void)
             errorAngleI[axis] = constrain(errorAngleI[axis] + errorAngle, -10000, +10000); // WindUp
             ITermACC = (errorAngleI[axis] * cfg.I8[PIDLEVEL]) >> 12;
         }
+
         if (!f.ANGLE_MODE || f.HORIZON_MODE || axis == 2) { // MODE relying on GYRO or YAW axis
             error = (int32_t)rcCommand[axis] * 10 * 8 / cfg.P8[axis];
             error -= gyroData[axis];
@@ -360,6 +368,7 @@ static void pidMultiWii(void)
                 errorGyroI[axis] = 0;
             ITermGYRO = (errorGyroI[axis] / 125 * cfg.I8[axis]) >> 6;
         }
+
         if (f.HORIZON_MODE && axis < 2) {
             PTerm = (PTermACC * (500 - prop) + PTermGYRO * prop) / 500;
             ITerm = (ITermACC * (500 - prop) + ITermGYRO * prop) / 500;
@@ -527,6 +536,7 @@ void loop(void)
                     rcData[i] = mcfg.midrc;      // after specified guard time after RC signal is lost (in 0.1sec)
                 rcData[THROTTLE] = cfg.failsafe_throttle;
                 buzzer(BUZZER_TX_LOST_ARMED);
+
                 if ((failsafeCnt > 5 * (cfg.failsafe_delay + cfg.failsafe_off_delay)) && !f.FW_FAILSAFE_RTH_ENABLE) {  // Turn OFF motors after specified Time (in 0.1sec)
                     mwDisarm();             // This will prevent the copter to automatically rearm if failsafe shuts it down and prevents
                     f.OK_TO_ARM = 0;        // to restart accidentely by just reconnect to the tx - you will have to switch off first to rearm
@@ -534,6 +544,7 @@ void loop(void)
                 }
                 failsafeEvents++;
             }
+
             if (failsafeCnt > (5 * cfg.failsafe_delay) && !f.ARMED) {  // Turn off "Ok To arm to prevent the motors from spinning after repowering the RX with low throttle and aux to arm
                 mwDisarm();         // This will prevent the copter to automatically rearm if failsafe shuts it down and prevents
                 f.OK_TO_ARM = 0;    // to restart accidentely by just reconnect to the tx - you will have to switch off first to rearm
@@ -688,6 +699,7 @@ void loop(void)
         // Check AUX switches
         for (i = 0; i < 4; i++)
             auxState |= (rcData[AUX1 + i] < 1300) << (3 * i) | (1300 < rcData[AUX1 + i] && rcData[AUX1 + i] < 1700) << (3 * i + 1) | (rcData[AUX1 + i] > 1700) << (3 * i + 2);
+
         for (i = 0; i < CHECKBOXITEMS; i++)
             rcOptions[i] = (auxState & cfg.activate[i]) > 0;
 
@@ -846,6 +858,7 @@ void loop(void)
                 }
             }
         }
+
         // When armed and motors aren't spinning. Make warning beeps so that accidentally won't lose fingers...
         // Also disarm board after 5 sec so users without buzzer won't lose fingers.
         if (feature(FEATURE_MOTOR_STOP) && f.ARMED && !f.FIXED_WING) {
@@ -904,6 +917,7 @@ void loop(void)
     }
 
     currentTime = micros();
+
     if (mcfg.looptime == 0 || (int32_t)(currentTime - loopTime) >= 0) {
         loopTime = currentTime + mcfg.looptime;
 

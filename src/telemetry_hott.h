@@ -1,8 +1,7 @@
-/*
- * telemetry_hott.h
+/**
+ * Copyright (C) 2012-2015 baseflight
  *
- *  Created on: 6 Apr 2014
- *      Author: Hydra
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
 
 #ifndef TELEMETRY_HOTT_H_
@@ -206,4 +205,4 @@ void checkTelemetryState(void);
 void configureHoTTTelemetryPort(void);
 void freeHoTTTelemetryPort(void);
 
-#endif /* TELEMETRY_HOTT_H_ */
+#endif

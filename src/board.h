@@ -1,7 +1,9 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
+
 #pragma once
 
 // for roundf()
@@ -19,6 +21,7 @@
 #include "core_cm3.h"
 
 #ifndef __CC_ARM
+
 // only need this garbage on gcc
 #define USE_LAME_PRINTF
 #include "printf.h"
@@ -32,7 +35,7 @@
 #define M_PI       3.14159265358979323846f
 #endif /* M_PI */
 
-#define RADX10 (M_PI / 1800.0f)                  // 0.001745329252f
+#define RADX10 (M_PI / 1800.0f) // 0.001745329252f
 #define RAD    (M_PI / 180.0f)
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -46,13 +49,13 @@
 
 
 typedef enum HardwareRevision {
-    NAZE32 = 1,                                         // Naze32 and compatible with 8MHz HSE
-    NAZE32_REV5,                                        // Naze32 and compatible with 12MHz HSE
-    NAZE32_SP                                           // Naze32 w/Sensor Platforms
+    NAZE32 = 1,     // Naze32 and compatible with 8MHz HSE
+    NAZE32_REV5,    // Naze32 and compatible with 12MHz HSE
+    NAZE32_SP       // Naze32 w/Sensor Platforms
 } HardwareRevision;
 
 typedef enum {
-    SENSOR_GYRO = 1 << 0, // always present
+    SENSOR_GYRO = 1 << 0,   // always present
     SENSOR_ACC = 1 << 1,
     SENSOR_BARO = 1 << 2,
     SENSOR_MAG = 1 << 3,
@@ -134,8 +137,8 @@ typedef enum {
 
 typedef enum {
     TELEMETRY_PORT_UART = 0,
-    TELEMETRY_PORT_SOFTSERIAL_1, // Requires FEATURE_SOFTSERIAL
-    TELEMETRY_PORT_SOFTSERIAL_2, // Requires FEATURE_SOFTSERIAL
+    TELEMETRY_PORT_SOFTSERIAL_1,    // Requires FEATURE_SOFTSERIAL
+    TELEMETRY_PORT_SOFTSERIAL_2,    // Requires FEATURE_SOFTSERIAL
     TELEMETRY_PORT_MAX = TELEMETRY_PORT_SOFTSERIAL_2
 } TelemetryPort;
 
@@ -146,7 +149,7 @@ typedef enum {
 } sensor_axis_e;
 
 typedef enum {
-    ALIGN_DEFAULT = 0,                                      // driver-provided alignment
+    ALIGN_DEFAULT = 0,  // driver-provided alignment
     CW0_DEG = 1,
     CW90_DEG = 2,
     CW180_DEG = 3,
@@ -175,7 +178,7 @@ typedef struct sensor_data_t {
 typedef void (*sensorInitFuncPtr)(sensor_align_e align);   // sensor init prototype
 typedef void (*sensorReadFuncPtr)(int16_t *data);          // sensor read and align prototype
 typedef void (*baroOpFuncPtr)(void);                       // baro start operation
-typedef void (*baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature);             // baro calculation (filled params are pressure and temperature)
+typedef void (*baroCalculateFuncPtr)(int32_t *pressure, int32_t *temperature);  // baro calculation (filled params are pressure and temperature)
 typedef void (*serialReceiveCallbackPtr)(uint16_t data);   // used by serial drivers to return frames to app
 typedef uint16_t (*rcReadRawDataPtr)(uint8_t chan);        // used by receiver driver to return channel data
 typedef void (*pidControllerFuncPtr)(void);                // pid controller function prototype
@@ -198,7 +201,7 @@ typedef struct baro_t {
 } baro_t;
 
 // Hardware definitions and GPIO
-// Target definitions (NAZE, CJMCU, ... are same as in Makefile
+// Target definitions (NAZE, CJMCU, ...) are same as in Makefile
 #if defined(NAZE)
 // Afroflight32
 

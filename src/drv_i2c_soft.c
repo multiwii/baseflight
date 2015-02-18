@@ -1,11 +1,13 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ *
+ * Software I2C driver, using same pins as hardware I2C, with hw i2c module disabled.
+ * Can be configured for I2C2 pinout (SCL: PB10, SDA: PB11) or I2C1 pinout (SCL: PB6, SDA: PB7)
  */
-#include "board.h"
 
-// Software I2C driver, using same pins as hardware I2C, with hw i2c module disabled.
-// Can be configured for I2C2 pinout (SCL: PB10, SDA: PB11) or I2C1 pinout (SCL: PB6, SDA: PB7)
+#include "board.h"
 
 #ifdef SOFT_I2C
 

@@ -1,7 +1,13 @@
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ *
+ * Driver for IBUS (Flysky) receiver using UART2
+ */
+
 #include "board.h"
 #include "mw.h"
-
-// Driver for IBUS (Flysky) receiver using UART2
 
 #define IBUS_BUFFSIZE 32
 #define IBUS_MAX_CHANNEL 8

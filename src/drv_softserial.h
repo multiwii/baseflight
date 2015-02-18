@@ -1,8 +1,7 @@
-/*
- * drv_softserial.h
+/**
+ * Copyright (C) 2012-2015 baseflight
  *
- *  Created on: 23 Aug 2013
- *      Author: Hydra
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
 
 #pragma once

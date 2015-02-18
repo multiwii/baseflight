@@ -1,7 +1,9 @@
-/*
- * This file is part of baseflight
- * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
+
 #include "board.h"
 
 // BMP085, Standard address 0x77
@@ -131,15 +133,15 @@ bool bmp085Detect(baro_t *baro)
 
     delay(20); // datasheet says 10ms, we'll be careful and do 20. this is after ms5611 driver kills us, so longer the better.
 
-    i2cRead(BMP085_I2C_ADDR, BMP085_CHIP_ID__REG, 1, &data);  /* read Chip Id */
+    i2cRead(BMP085_I2C_ADDR, BMP085_CHIP_ID__REG, 1, &data);  // read Chip Id
     bmp085.chip_id = BMP085_GET_BITSLICE(data, BMP085_CHIP_ID);
     bmp085.oversampling_setting = 3;
 
-    if (bmp085.chip_id == BMP085_CHIP_ID) {            /* get bitslice */
-        i2cRead(BMP085_I2C_ADDR, BMP085_VERSION_REG, 1, &data); /* read Version reg */
-        bmp085.ml_version = BMP085_GET_BITSLICE(data, BMP085_ML_VERSION);        /* get ML Version */
-        bmp085.al_version = BMP085_GET_BITSLICE(data, BMP085_AL_VERSION);        /* get AL Version */
-        bmp085_get_cal_param(); /* readout bmp085 calibparam structure */
+    if (bmp085.chip_id == BMP085_CHIP_ID) {                                 // get bitslice
+        i2cRead(BMP085_I2C_ADDR, BMP085_VERSION_REG, 1, &data);             // read Version reg
+        bmp085.ml_version = BMP085_GET_BITSLICE(data, BMP085_ML_VERSION);   // get ML Version
+        bmp085.al_version = BMP085_GET_BITSLICE(data, BMP085_AL_VERSION);   // get AL Version
+        bmp085_get_cal_param(); // eadout bmp085 calibparam structure
         bmp085InitDone = true;
         baro->ut_delay = 6000;
         baro->up_delay = 27000;
@@ -175,7 +177,8 @@ static int32_t bmp085_get_pressure(uint32_t up)
     uint32_t b4, b7;
 
     b6 = bmp085.param_b5 - 4000;
-    // *****calculate B3************
+
+    // ***** calculate B3 *****
     x1 = (b6 * b6) >> 12;
     x1 *= bmp085.cal_param.b2;
     x1 >>= 11;
@@ -187,7 +190,7 @@ static int32_t bmp085_get_pressure(uint32_t up)
 
     b3 = (((((int32_t)bmp085.cal_param.ac1) * 4 + x3) << bmp085.oversampling_setting) + 2) >> 2;
 
-    // *****calculate B4************
+    // ***** calculate B4 *****
     x1 = (bmp085.cal_param.ac3 * b6) >> 13;
     x2 = (bmp085.cal_param.b1 * ((b6 * b6) >> 12)) >> 16;
     x3 = ((x1 + x2) + 2) >> 2;
@@ -236,10 +239,11 @@ static void bmp085_start_up(void)
     i2cWrite(BMP085_I2C_ADDR, BMP085_CTRL_MEAS_REG, ctrl_reg_data);
 }
 
-/** read out up for pressure conversion
-  depending on the oversampling ratio setting up can be 16 to 19 bit
-   \return up parameter that represents the uncompensated pressure value
-*/
+/**
+ * read out up for pressure conversion
+ * depending on the oversampling ratio setting up can be 16 to 19 bit
+ * return up parameter that represents the uncompensated pressure value
+ */
 static void bmp085_get_up(void)
 {
     uint8_t data[3];
@@ -268,7 +272,7 @@ static void bmp085_get_cal_param(void)
     uint8_t data[22];
     i2cRead(BMP085_I2C_ADDR, BMP085_PROM_START__ADDR, BMP085_PROM_DATA__LEN, data);
 
-    /*parameters AC1-AC6*/
+    // parameters AC1-AC6
     bmp085.cal_param.ac1 = (data[0] << 8) | data[1];
     bmp085.cal_param.ac2 = (data[2] << 8) | data[3];
     bmp085.cal_param.ac3 = (data[4] << 8) | data[5];
@@ -276,11 +280,11 @@ static void bmp085_get_cal_param(void)
     bmp085.cal_param.ac5 = (data[8] << 8) | data[9];
     bmp085.cal_param.ac6 = (data[10] << 8) | data[11];
 
-    /*parameters B1,B2*/
+    // parameters B1,B2
     bmp085.cal_param.b1 = (data[12] << 8) | data[13];
     bmp085.cal_param.b2 = (data[14] << 8) | data[15];
 
-    /*parameters MB,MC,MD*/
+    // parameters MB,MC,MD
     bmp085.cal_param.mb = (data[16] << 8) | data[17];
     bmp085.cal_param.mc = (data[18] << 8) | data[19];
     bmp085.cal_param.md = (data[20] << 8) | data[21];

@@ -1,8 +1,7 @@
-/*
- * telemetry_frsky.h
+/**
+ * Copyright (C) 2012-2015 baseflight
  *
- *  Created on: 6 Apr 2014
- *      Author: Hydra
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
  */
 
 #ifndef TELEMETRY_FRSKY_H_
@@ -14,4 +13,4 @@ void checkFrSkyTelemetryState(void);
 void configureFrSkyTelemetryPort(void);
 void freeFrSkyTelemetryPort(void);
 
-#endif /* TELEMETRY_FRSKY_H_ */
+#endif

@@ -1,7 +1,13 @@
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ *
+ * Driver for SUMD receiver using UART2
+ */
+
 #include "board.h"
 #include "mw.h"
-
-// driver for SUMD receiver using UART2
 
 #define SUMD_SYNCBYTE 0xA8
 #define SUMD_MAX_CHANNEL 8

@@ -1,16 +1,20 @@
-#include "board.h"
-#include "mw.h"
-
-#ifdef SONAR
-
-/* HC-SR04 consists of ultrasonic transmitter, receiver, and control circuits.
+/**
+ * Copyright (C) 2012-2015 baseflight
+ *
+ * License: http://www.gnu.org/licenses/gpl.html GPL version 3 or higher
+ * 
+ * HC-SR04 consists of ultrasonic transmitter, receiver, and control circuits.
  * When trigged it sends out a series of 40KHz ultrasonic pulses and receives
  * echo froman object. The distance between the unit and the object is calculated
  * by measuring the traveling time of sound and output it as the width of a TTL pulse.
  *
  * *** Warning: HC-SR04 operates at +5V ***
- *
  */
+
+#include "board.h"
+#include "mw.h"
+
+#ifdef SONAR
 
 static uint16_t trigger_pin;
 static uint16_t echo_pin;
