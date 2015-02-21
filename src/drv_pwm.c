@@ -455,6 +455,7 @@ bool pwmInit(drv_pwm_config_t *init)
         pwmWritePtr = pwmWriteSyncPwm;
 
     // set return values in init struct
+    init->numMotors = numMotors;
     init->numServos = numServos;
 
     return false;

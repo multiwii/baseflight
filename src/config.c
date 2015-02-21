@@ -378,7 +378,7 @@ static void resetConf(void)
     cfg.P8[PITCH] = 36;
     cfg.rcRate8 = 130;
     cfg.rollPitchRate = 20;
-    cfg.yawRate = 125;
+    cfg.yawRate = 20;
     cfg.failsafe_delay = 2;
     cfg.failsafe_off_delay = 0;
     cfg.failsafe_throttle = 1000;
