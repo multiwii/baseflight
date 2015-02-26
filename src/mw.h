@@ -19,16 +19,14 @@
 
 // Serial GPS only variables
 // navigation mode
-typedef enum NavigationMode
-{
+typedef enum NavigationMode {
     NAV_MODE_NONE = 0,
     NAV_MODE_POSHOLD,
     NAV_MODE_WP
 } NavigationMode;
 
 // Syncronized with GUI. Only exception is mixer > 11, which is always returned as 11 during serialization.
-typedef enum MultiType
-{
+typedef enum MultiType {
     MULTITYPE_TRI = 1,
     MULTITYPE_QUADP = 2,
     MULTITYPE_QUADX = 3,
@@ -47,7 +45,7 @@ typedef enum MultiType
     MULTITYPE_HELI_90_DEG = 16,
     MULTITYPE_VTAIL4 = 17,
     MULTITYPE_HEX6H = 18,
-    MULTITYPE_PPM_TO_SERVO = 19,    // PPM -> servo relay 
+    MULTITYPE_PPM_TO_SERVO = 19,    // PPM -> servo relay
     MULTITYPE_DUALCOPTER = 20,
     MULTITYPE_SINGLECOPTER = 21,
     MULTITYPE_ATAIL4 = 22,
@@ -486,7 +484,7 @@ extern int32_t  GPS_hold[3];
 extern uint8_t  GPS_numSat;
 extern uint16_t GPS_distanceToHome;                          // distance to home or hold point in meters
 extern int16_t  GPS_directionToHome;                         // direction to home or hol point in degrees
-extern uint16_t GPS_altitude,GPS_speed;                      // altitude in 0.1m and speed in 0.1m/s
+extern uint16_t GPS_altitude, GPS_speed;                     // altitude in 0.1m and speed in 0.1m/s
 extern uint8_t  GPS_update;                                  // it's a binary toogle to distinct a GPS position update
 extern int16_t  GPS_angle[3];                                // it's the angles that must be applied for GPS correction
 extern uint16_t GPS_ground_course;                           // degrees*10
@@ -603,7 +601,7 @@ int8_t gpsSetPassthrough(void);
 void gpsPollSvinfo(void);
 void GPS_reset_home_position(void);
 void GPS_reset_nav(void);
-void GPS_set_next_wp(int32_t* lat, int32_t* lon);
+void GPS_set_next_wp(int32_t *lat, int32_t *lon);
 int32_t wrap_18000(int32_t error);
 void fw_nav(void);
 

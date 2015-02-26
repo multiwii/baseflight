@@ -111,7 +111,7 @@ static uint16_t spektrumReadRawRC(uint8_t chan)
  * Function must be called immediately after startup so that we don't miss satellite bind window.
  * Known parameters. Tested with DSMX satellite and DX8 radio. Framerate (11ms or 22ms) must be selected from TX.
  * 9 = DSMX 11ms / DSMX 22ms
- * 5 = DSM2 11ms 2048 / DSM2 22ms 1024 
+ * 5 = DSM2 11ms 2048 / DSM2 22ms 1024
  */
 void spektrumBind(void)
 {
