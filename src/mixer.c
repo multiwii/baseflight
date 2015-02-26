@@ -291,7 +291,7 @@ void mixerInit(void)
                 currentMixer[i] = mixers[mcfg.mixerConfiguration].motor[i];
         }
     }
-    
+
     if (core.useServo) {
         numberRules = servoMixers[mcfg.mixerConfiguration].numberRules;
         if (servoMixers[mcfg.mixerConfiguration].rule) {
@@ -314,7 +314,7 @@ void mixerInit(void)
     // set flag that we're on something with wings
     if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE) {
         f.FIXED_WING = 1;
-        
+
         if (mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE) {
             // load custom mixer into currentServoMixer
             for (i = 0; i < MAX_SERVO_RULES; i++) {
@@ -325,8 +325,7 @@ void mixerInit(void)
                 numberRules++;
             }
         }
-    }
-    else
+    } else
         f.FIXED_WING = 0;
 
     mixerResetMotors();
@@ -340,7 +339,7 @@ void mixerResetMotors(void)
         motor_disarmed[i] = feature(FEATURE_3D) ? mcfg.neutral3d : mcfg.mincommand;
 }
 
-void servoMixerLoadMix(int index) 
+void servoMixerLoadMix(int index)
 {
     int i;
 
@@ -409,7 +408,7 @@ void writeServos(void)
             pwmWriteServo(0, servo[3]);
             pwmWriteServo(1, servo[4]);
             break;
-            
+
         case MULTITYPE_AIRPLANE:
         case MULTITYPE_SINGLECOPTER:
             pwmWriteServo(0, servo[3]);
@@ -417,7 +416,7 @@ void writeServos(void)
             pwmWriteServo(2, servo[5]);
             pwmWriteServo(3, servo[6]);
             break;
-            
+
         case MULTITYPE_CUSTOM_PLANE:
             pwmWriteServo(0, servo[3]);
             pwmWriteServo(1, servo[4]);
@@ -464,7 +463,7 @@ static void servoMixer(void)
     int16_t input[INPUT_ITEMS];
     static int16_t currentOutput[MAX_SERVO_RULES];
     uint8_t i;
-    
+
     if (f.PASSTHRU_MODE) {
         // Direct passthru from RX
         input[INPUT_ROLL] = rcCommand[ROLL];
@@ -486,20 +485,20 @@ static void servoMixer(void)
     input[INPUT_RC_PITCH] = mcfg.midrc - rcData[PITCH];
     input[INPUT_RC_YAW] = mcfg.midrc - rcData[YAW];
     input[INPUT_RC_THROTTLE] = mcfg.midrc - rcData[THROTTLE];
-    
+
     for (i = 0; i < MAX_SERVOS; i++)
         servo[i] = servoMiddle(i);
 
     // mix servos according to rules
     for (i = 0; i < numberRules; i++) {
         // consider rule if no box assigned or box is active
-        if (currentServoMixer[i].box == 0 || rcOptions[BOXSERVO1+currentServoMixer[i].box-1]) {
+        if (currentServoMixer[i].box == 0 || rcOptions[BOXSERVO1 + currentServoMixer[i].box - 1]) {
             uint8_t target = currentServoMixer[i].targetChannel;
             uint8_t from = currentServoMixer[i].fromChannel;
             uint16_t servo_width = cfg.servoConf[target].max - cfg.servoConf[target].min;
             int16_t min = currentServoMixer[i].min * servo_width / 100 - servo_width / 2;
             int16_t max = currentServoMixer[i].max * servo_width / 100 - servo_width / 2;
-            
+
             if (currentServoMixer[i].speed == 0)
                 currentOutput[i] = input[from];
             else {
@@ -607,7 +606,7 @@ void mixTable(void)
             if ((rcData[THROTTLE]) < mcfg.mincheck) {
                 if (!feature(FEATURE_MOTOR_STOP))
                     motor[i] = mcfg.minthrottle;
-                else { 
+                else {
                     motor[i] = mcfg.mincommand;
                     f.MOTORS_STOPPED = 1;
                 }

@@ -72,14 +72,14 @@ enum {
 
 #define CC_CHANNELS_PER_TIMER 4 // TIM_Channel_1..4
 
-static const TIM_TypeDef * const timers[MAX_TIMERS] = {
+static const TIM_TypeDef *const timers[MAX_TIMERS] = {
     [TIM1_IDX] = TIM1, [TIM2_IDX] = TIM2, [TIM3_IDX] = TIM3, [TIM4_IDX] = TIM4
 };
 
 typedef struct channelConfig_s {
     uint16_t channel;
     uint16_t interruptBit;
-    uint16_t (*TIM_GetCaptureFn)(TIM_TypeDef* TIMx);
+    uint16_t (*TIM_GetCaptureFn)(TIM_TypeDef *TIMx);
 } channelConfig_t;
 
 static const channelConfig_t channels[CC_CHANNELS_PER_TIMER] = {
@@ -101,7 +101,7 @@ timerConfig_t timerConfigs[MAX_TIMERS][CC_CHANNELS_PER_TIMER];
 static int lookupTimerIndex(const TIM_TypeDef *tim)
 {
     int timerIndex;
-    for (timerIndex=0; timerIndex < MAX_TIMERS; timerIndex++ ) {
+    for (timerIndex = 0; timerIndex < MAX_TIMERS; timerIndex++ ) {
         if (timers[timerIndex] == tim)
             break;
     }
@@ -111,7 +111,7 @@ static int lookupTimerIndex(const TIM_TypeDef *tim)
 static int lookupChannelIndex(const int channel)
 {
     int channelIndex;
-    for (channelIndex=0; channelIndex < CC_CHANNELS_PER_TIMER; channelIndex++ ) {
+    for (channelIndex = 0; channelIndex < CC_CHANNELS_PER_TIMER; channelIndex++ ) {
         if (channels[channelIndex].channel == channel)
             break;
     }
@@ -202,12 +202,12 @@ static timerConfig_t *findTimerConfig(unsigned int timerIndex, unsigned int chan
     return &(timerConfigs[timerIndex][channelIndex]);
 }
 
-static void timCCxHandler(TIM_TypeDef * const tim, unsigned int timerIndex)
+static void timCCxHandler(TIM_TypeDef *const tim, unsigned int timerIndex)
 {
     unsigned int channelIndex;
 
     for (channelIndex = 0; channelIndex < CC_CHANNELS_PER_TIMER; channelIndex++) {
-        channelConfig_t const * const channel = &channels[channelIndex];
+        channelConfig_t const *const channel = &channels[channelIndex];
 
         if (TIM_GetITStatus(tim, channel->interruptBit) == SET) {
             TIM_ClearITPendingBit(tim, channel->interruptBit);

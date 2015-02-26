@@ -291,7 +291,7 @@ static void uartStartTxDMA(uartPort_t *s)
 
 uint8_t uartTotalBytesWaiting(serialPort_t *instance)
 {
-    uartPort_t *s = (uartPort_t*)instance;
+    uartPort_t *s = (uartPort_t *)instance;
     // FIXME always returns 1 or 0, not the amount of bytes waiting
     if (s->rxDMAChannel)
         return s->rxDMAChannel->CNDTR != s->rxDMAPos;
@@ -341,8 +341,8 @@ void uartWrite(serialPort_t *instance, uint8_t ch)
 }
 
 const struct serialPortVTable uartVTable[] = {
-    { 
-        uartWrite, 
+    {
+        uartWrite,
         uartTotalBytesWaiting,
         uartRead,
         uartSetBaudRate,

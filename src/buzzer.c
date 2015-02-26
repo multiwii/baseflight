@@ -18,11 +18,11 @@
  */
 // fast beep:
 static const uint8_t buzz_shortBeep[] = {
-    5,5, 0xFF
+    5, 5, 0xFF
 };
 // fast beep:
 static const uint8_t buzz_BatteryBeep[] = {
-    10,5, 0xFF
+    10, 5, 0xFF
 };
 // medium beep
 static const uint8_t buzz_mediumBeepFast[] = {
@@ -38,23 +38,23 @@ static const uint8_t buzz_longBeep[] = {
 };
 // SOS morse code:
 static const uint8_t buzz_sos[] = {
-    10,10, 10,10, 10,40, 40,10, 40,10, 40,40, 10,10, 10,10, 10,70, 0xFF
+    10, 10, 10, 10, 10, 40, 40, 10, 40, 10, 40, 40, 10, 10, 10, 10, 10, 70, 0xFF
 };
 // Arming when GPS is fixed
 static const uint8_t buzz_armed[] = {
-    5,5, 15,5, 5,5, 15,30, 0xFF
+    5, 5, 15, 5, 5, 5, 15, 30, 0xFF
 };
 // Ready beeps. When gps has fix and copter is ready to fly.
 static const uint8_t buzz_readyBeep[] = {
-    4,5, 4,5, 8,5, 15,5, 8,5, 4,5, 4,5, 0xFF
+    4, 5, 4, 5, 8, 5, 15, 5, 8, 5, 4, 5, 4, 5, 0xFF
 };
 // 2 fast short beeps
 static const uint8_t buzz_2shortBeeps[] = {
-    5,5, 5,5, 0xFF
+    5, 5, 5, 5, 0xFF
 };
 // 3 fast short beeps
 static const uint8_t buzz_3shortBeeps[] = {
-    5,5, 5,5, 5,5, 0xFF
+    5, 5, 5, 5, 5, 5, 0xFF
 };
 // Array used for beeps when reporting GPS satellite count (up to 10 satellites)
 static uint8_t buzz_countSats[22];
@@ -64,7 +64,7 @@ static uint8_t buzzerMode = BUZZER_STOPPED;
 // Buzzer off = 0 Buzzer on = 1
 static uint8_t buzzerIsOn = 0;
 // Pointer to current sequence
-static const uint8_t* buzzerPtr = NULL;
+static const uint8_t *buzzerPtr = NULL;
 // Place in current sequence
 static uint16_t buzzerPos = 0;
 // Time when buzzer routine must act next time

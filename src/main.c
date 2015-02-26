@@ -43,8 +43,8 @@ int main(void)
     drv_adc_config_t adc_params;
     bool sensorsOK = false;
 #ifdef SOFTSERIAL_LOOPBACK
-    serialPort_t* loopbackPort1 = NULL;
-    serialPort_t* loopbackPort2 = NULL;
+    serialPort_t *loopbackPort1 = NULL;
+    serialPort_t *loopbackPort2 = NULL;
 #endif
 
     initEEPROM();
@@ -227,10 +227,10 @@ int main(void)
         setupSoftSerialSecondary(mcfg.softserial_2_inverted);
 
 #ifdef SOFTSERIAL_LOOPBACK
-        loopbackPort1 = (serialPort_t*)&(softSerialPorts[0]);
+        loopbackPort1 = (serialPort_t *)(&softSerialPorts[0]));
         serialPrint(loopbackPort1, "SOFTSERIAL 1 - LOOPBACK ENABLED\r\n");
 
-        loopbackPort2 = (serialPort_t*)&(softSerialPorts[1]);
+        loopbackPort2 = (serialPort_t *)(&softSerialPorts[1]));
         serialPrint(loopbackPort2, "SOFTSERIAL 2 - LOOPBACK ENABLED\r\n");
 #endif
         //core.mainport = (serialPort_t*)&(softSerialPorts[0]); // Uncomment to switch the main port to use softserial.

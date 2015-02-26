@@ -68,8 +68,8 @@ static volatile uint8_t reg;
 static volatile uint8_t bytes;
 static volatile uint8_t writing;
 static volatile uint8_t reading;
-static volatile uint8_t* write_p;
-static volatile uint8_t* read_p;
+static volatile uint8_t *write_p;
+static volatile uint8_t *read_p;
 
 static bool i2cHandleHardwareFailure(void)
 {
@@ -92,13 +92,15 @@ bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data)
     bytes = len_;
     busy = 1;
     error = false;
-    
+
     if (!I2Cx)
         return false;
 
     if (!(I2Cx->CR2 & I2C_IT_EVT)) {                                    // if we are restarting the driver
         if (!(I2Cx->CR1 & 0x0100)) {                                    // ensure sending a start
-            while (I2Cx->CR1 & 0x0200 && --timeout > 0) { ; }           // wait for any stop to finish sending
+            while (I2Cx->CR1 & 0x0200 && --timeout > 0) {
+                ;    // wait for any stop to finish sending
+            }
             if (timeout == 0)
                 return i2cHandleHardwareFailure();
             I2C_GenerateSTART(I2Cx, ENABLE);                            // send the start for the new job
@@ -107,7 +109,9 @@ bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data)
     }
 
     timeout = I2C_DEFAULT_TIMEOUT;
-    while (busy && --timeout > 0) { ; }
+    while (busy && --timeout > 0) {
+        ;
+    }
     if (timeout == 0)
         return i2cHandleHardwareFailure();
 
@@ -119,7 +123,7 @@ bool i2cWrite(uint8_t addr_, uint8_t reg_, uint8_t data)
     return i2cWriteBuffer(addr_, reg_, 1, &data);
 }
 
-bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf)
+bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t *buf)
 {
     uint32_t timeout = I2C_DEFAULT_TIMEOUT;
 
@@ -138,7 +142,9 @@ bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf)
 
     if (!(I2Cx->CR2 & I2C_IT_EVT)) {                                    // if we are restarting the driver
         if (!(I2Cx->CR1 & 0x0100)) {                                    // ensure sending a start
-            while (I2Cx->CR1 & 0x0200 && --timeout > 0) { ; }           // wait for any stop to finish sending
+            while (I2Cx->CR1 & 0x0200 && --timeout > 0) {
+                ;    // wait for any stop to finish sending
+            }
             if (timeout == 0)
                 return i2cHandleHardwareFailure();
             I2C_GenerateSTART(I2Cx, ENABLE);                            // send the start for the new job
@@ -147,7 +153,9 @@ bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf)
     }
 
     timeout = I2C_DEFAULT_TIMEOUT;
-    while (busy && --timeout > 0) { ; }
+    while (busy && --timeout > 0) {
+        ;
+    }
     if (timeout == 0)
         return i2cHandleHardwareFailure();
 
@@ -168,9 +176,13 @@ static void i2c_er_handler(void)
         I2C_ITConfig(I2Cx, I2C_IT_BUF, DISABLE);                        // disable the RXNE/TXE interrupt - prevent the ISR tailchaining onto the ER (hopefully)
         if (!(SR1Register & 0x0200) && !(I2Cx->CR1 & 0x0200)) {         // if we dont have an ARLO error, ensure sending of a stop
             if (I2Cx->CR1 & 0x0100) {                                   // We are currently trying to send a start, this is very bad as start, stop will hang the peripheral
-                while (I2Cx->CR1 & 0x0100) { ; }                        // wait for any start to finish sending
+                while (I2Cx->CR1 & 0x0100) {
+                    ;    // wait for any start to finish sending
+                }
                 I2C_GenerateSTOP(I2Cx, ENABLE);                         // send stop to finalise bus transaction
-                while (I2Cx->CR1 & 0x0200) { ; }                        // wait for stop to finish sending
+                while (I2Cx->CR1 & 0x0200) {
+                    ;    // wait for stop to finish sending
+                }
                 i2cInit(I2Cx_index);                                    // reset and configure the hardware
             } else {
                 I2C_GenerateSTOP(I2Cx, ENABLE);                         // stop to free up the bus
@@ -255,7 +267,9 @@ void i2c_ev_handler(void)
             }
         }
         // we must wait for the start to clear, otherwise we get constant BTF
-        while (I2Cx->CR1 & 0x0100) { ; }
+        while (I2Cx->CR1 & 0x0100) {
+            ;
+        }
     } else if (SReg_1 & 0x0040) {                                       // Byte received - EV7
         read_p[index++] = (uint8_t)I2Cx->DR;
         if (bytes == (index + 3))

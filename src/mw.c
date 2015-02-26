@@ -173,7 +173,7 @@ void annexCode(void)
             vbatRaw -= vbatRaw / 8;
             vbatRaw += adcGetChannel(ADC_BATTERY);
             vbat = batteryAdcToVoltage(vbatRaw / 8);
-            
+
             if (mcfg.power_adc_channel > 0) {
                 amperageRaw -= amperageRaw / 8;
                 amperageRaw += adcGetChannel(ADC_EXTERNAL_CURRENT);
@@ -182,7 +182,7 @@ void annexCode(void)
                 mAhdrawn = mAhdrawnRaw / (3600 * 100);
                 vbatCycleTime = 0;
             }
-            
+
         }
         // Buzzers for low and critical battery levels
         if (vbat <= batteryCriticalVoltage)
@@ -432,7 +432,7 @@ static void pidRewrite(void)
 
         // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
         // I coefficient (I8) moved before integration to make limiting independent from PID settings
-        errorGyroI[axis] = constrain(errorGyroI[axis], (int32_t)-GYRO_I_MAX << 13, (int32_t)+GYRO_I_MAX << 13);
+        errorGyroI[axis] = constrain(errorGyroI[axis], (int32_t)(-GYRO_I_MAX) << 13, (int32_t)(+GYRO_I_MAX) << 13);
         ITerm = errorGyroI[axis] >> 13;
 
         //-----calculate D-term
@@ -607,7 +607,7 @@ void loop(void)
                         calibratingB = 10; // calibrate baro to new ground level (10 * 25 ms = ~250 ms non blocking)
                     if (!sensors(SENSOR_MAG))
                         heading = 0; // reset heading to zero after gyro calibration
-                // Inflight ACC Calibration
+                    // Inflight ACC Calibration
                 } else if (feature(FEATURE_INFLIGHT_ACC_CAL) && (rcSticks == THR_LO + YAW_LO + PIT_HI + ROL_HI)) {
                     if (AccInflightCalibrationMeasurementDone) {        // trigger saving into eeprom after landing
                         AccInflightCalibrationMeasurementDone = false;
@@ -707,7 +707,7 @@ void loop(void)
         } else {
             f.ANGLE_MODE = 0;   // failsafe support
             f.FW_FAILSAFE_RTH_ENABLE = 0;
-          }
+        }
 
         if (rcOptions[BOXHORIZON]) {
             f.ANGLE_MODE = 0;
@@ -836,7 +836,7 @@ void loop(void)
             if (feature(FEATURE_FAILSAFE) && failsafeCnt > (6 * cfg.failsafe_delay)) {
                 f.PASSTHRU_MODE = 0;
                 f.ANGLE_MODE = 1;
-                for (i = 0; i < 3; i++) 
+                for (i = 0; i < 3; i++)
                     rcData[i] = mcfg.midrc;
                 rcData[THROTTLE] = cfg.failsafe_throttle;
                 // No GPS?  Force a soft left turn.
@@ -861,45 +861,45 @@ void loop(void)
     } else {                        // not in rc loop
         static int taskOrder = 0;   // never call all function in the same loop, to avoid high delay spikes
         switch (taskOrder) {
-        case 0:
-            taskOrder++;
+            case 0:
+                taskOrder++;
 #ifdef MAG
-            if (sensors(SENSOR_MAG) && Mag_getADC())
-                break;
+                if (sensors(SENSOR_MAG) && Mag_getADC())
+                    break;
 #endif
-        case 1:
-            taskOrder++;
+            case 1:
+                taskOrder++;
 #ifdef BARO
-            if (sensors(SENSOR_BARO) && Baro_update())
-                break;
+                if (sensors(SENSOR_BARO) && Baro_update())
+                    break;
 #endif
-        case 2:
-            taskOrder++;
+            case 2:
+                taskOrder++;
 #ifdef BARO
-            if (sensors(SENSOR_BARO) && getEstimatedAltitude())
-                break;
+                if (sensors(SENSOR_BARO) && getEstimatedAltitude())
+                    break;
 #endif
-        case 3:
-            // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
-            // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
-            // change this based on available hardware
-            taskOrder++;
+            case 3:
+                // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
+                // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
+                // change this based on available hardware
+                taskOrder++;
 #ifdef GPS
-            if (feature(FEATURE_GPS)) {
-                gpsThread();
-                break;
-            }
+                if (feature(FEATURE_GPS)) {
+                    gpsThread();
+                    break;
+                }
 #endif
-        case 4:
-            taskOrder = 0;
+            case 4:
+                taskOrder = 0;
 #ifdef SONAR
-            if (sensors(SENSOR_SONAR)) {
-                Sonar_update();
-            }
+                if (sensors(SENSOR_SONAR)) {
+                    Sonar_update();
+                }
 #endif
-            if (feature(FEATURE_VARIO) && f.VARIO_MODE)
-                mwVario();
-            break;
+                if (feature(FEATURE_VARIO) && f.VARIO_MODE)
+                    mwVario();
+                break;
         }
     }
 
@@ -983,7 +983,7 @@ void loop(void)
                 float sin_yaw_y = sinf(heading * 0.0174532925f);
                 float cos_yaw_x = cosf(heading * 0.0174532925f);
                 if (!f.FIXED_WING) {
-                	if (cfg.nav_slew_rate) {
+                    if (cfg.nav_slew_rate) {
                         nav_rated[LON] += constrain(wrap_18000(nav[LON] - nav_rated[LON]), -cfg.nav_slew_rate, cfg.nav_slew_rate); // TODO check this on uint8
                         nav_rated[LAT] += constrain(wrap_18000(nav[LAT] - nav_rated[LAT]), -cfg.nav_slew_rate, cfg.nav_slew_rate);
                         GPS_angle[ROLL] = (nav_rated[LON] * cos_yaw_x - nav_rated[LAT] * sin_yaw_y) / 10;
@@ -991,12 +991,12 @@ void loop(void)
                     } else {
                         GPS_angle[ROLL] = (nav[LON] * cos_yaw_x - nav[LAT] * sin_yaw_y) / 10;
                         GPS_angle[PITCH] = (nav[LON] * sin_yaw_y + nav[LAT] * cos_yaw_x) / 10;
-                	}
+                    }
                 } else fw_nav();
             } else {
-            	GPS_angle[ROLL] = 0;
-            	GPS_angle[PITCH] = 0;
-            	GPS_angle[YAW] = 0;
+                GPS_angle[ROLL] = 0;
+                GPS_angle[PITCH] = 0;
+                GPS_angle[YAW] = 0;
             }
         }
 #endif

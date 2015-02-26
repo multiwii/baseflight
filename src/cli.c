@@ -49,17 +49,17 @@ static float _atof(const char *p);
 static char *ftoa(float x, char *floatString);
 
 // sync this with MultiType enum from mw.h
-static const char * const mixerNames[] = {
+static const char *const mixerNames[] = {
     "TRI", "QUADP", "QUADX", "BI",
     "GIMBAL", "Y6", "HEX6",
     "FLYING_WING", "Y4", "HEX6X", "OCTOX8", "OCTOFLATP", "OCTOFLATX",
-    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4", 
+    "AIRPLANE", "HELI_120_CCPM", "HELI_90_DEG", "VTAIL4",
     "HEX6H", "PPM_TO_SERVO", "DUALCOPTER", "SINGLECOPTER",
     "ATAIL4", "CUSTOM", "CUSTOMPLANE", NULL
 };
 
 // sync this with AvailableFeatures enum from board.h
-static const char * const featureNames[] = {
+static const char *const featureNames[] = {
     "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SERIALRX", "MOTOR_STOP",
     "SERVO_TILT", "SOFTSERIAL", "LED_RING", "GPS",
     "FAILSAFE", "SONAR", "TELEMETRY", "POWERMETER", "VARIO", "3D",
@@ -68,17 +68,17 @@ static const char * const featureNames[] = {
 };
 
 // sync this with AvailableSensors enum from board.h
-static const char * const sensorNames[] = {
+static const char *const sensorNames[] = {
     "GYRO", "ACC", "BARO", "MAG", "SONAR", "GPS", "GPS+MAG", NULL
 };
 
 // sync this with AccelSensors enum from board.h
-static const char * const accNames[] = {
+static const char *const accNames[] = {
     "", "ADXL345", "MPU6050", "MMA845x", "BMA280", "MPU6500", "None", NULL
 };
 
 // sync this with HardwareRevision in board.h
-static const char * const hwNames[] = {
+static const char *const hwNames[] = {
     "", "Naze 32", "Naze32 rev.5", "Naze32 SP"
 };
 
@@ -404,8 +404,14 @@ static float _atof(const char *p)
 
         // Calculate scaling factor.
         // while (expon >= 50) { scale *= 1E50f; expon -= 50; }
-        while (expon >=  8) { scale *= 1E8f;  expon -=  8; }
-        while (expon >   0) { scale *= 10.0f; expon -=  1; }
+        while (expon >=  8) {
+            scale *= 1E8f;
+            expon -=  8;
+        }
+        while (expon >   0) {
+            scale *= 10.0f;
+            expon -=  1;
+        }
     }
 
     // Return signed and scaled floating point result.
@@ -645,7 +651,7 @@ static void cliServoMix(char *cmdline)
             printf("change the direction a servo reacts to a input channel: \r\nservo input -1|1\r\n");
             printf("s");
             for (channel = 0; channel < INPUT_ITEMS; channel++)
-                printf("\ti%d",channel + 1);
+                printf("\ti%d", channel + 1);
             printf("\r\n");
 
             for (servoIndex = 0; servoIndex < MAX_SERVOS; servoIndex++) {
@@ -662,12 +668,12 @@ static void cliServoMix(char *cmdline)
             args[check++] = atoi(ptr);
             ptr = strtok(NULL, " ");
         }
-        
+
         if (ptr != NULL || check != ARGS_COUNT) {
             printf("Wrong number of arguments, needs servo input direction\r\n");
             return;
         }
-        
+
         if (args[SERVO] >= 1 && args[SERVO] <= MAX_SERVOS && args[INPUT] >= 1 && args[INPUT] <= INPUT_ITEMS && (args[DIRECTION] == -1 || args[DIRECTION] == 1)) {
             args[SERVO] -= 1;
             args[INPUT] -= 1;
@@ -679,20 +685,19 @@ static void cliServoMix(char *cmdline)
             printf("ERR: Wrong range for arguments\r\n");
 
         cliServoMix("direction");
-    }
-    else {
+    } else {
         enum {RULE = 0, TARGET, INPUT, RATE, SPEED, MIN, MAX, BOX, ARGS_COUNT};
         ptr = strtok(cmdline, " ");
         while (ptr != NULL && check < ARGS_COUNT) {
             args[check++] = atoi(ptr);
             ptr = strtok(NULL, " ");
         }
-        
+
         if (ptr != NULL || check != ARGS_COUNT) {
             printf("ERR: Wrong number of arguments, needs rule target_channel input_channel rate speed min max box\r\n");
             return;
         }
-        
+
         i = args[RULE] - 1;
         if (i >= 0 && i < MAX_SERVO_RULES &&
             args[TARGET] > 0 && args[TARGET] <= MAX_SERVOS &&
@@ -702,14 +707,14 @@ static void cliServoMix(char *cmdline)
             args[MIN] >= 0 && args[MIN] <= 100 &&
             args[MAX] >= 0 && args[MAX] <= 100 && args[MIN] < args[MAX] &&
             args[BOX] >= 0 && args[BOX] <= MAX_SERVO_BOXES) {
-                mcfg.customServoMixer[i].targetChannel = args[TARGET] - 1;
-                mcfg.customServoMixer[i].fromChannel = args[INPUT] - 1;
-                mcfg.customServoMixer[i].rate = args[RATE];
-                mcfg.customServoMixer[i].speed = args[SPEED];
-                mcfg.customServoMixer[i].min = args[MIN];
-                mcfg.customServoMixer[i].max = args[MAX];
-                mcfg.customServoMixer[i].box = args[BOX];
-                cliServoMix("");
+            mcfg.customServoMixer[i].targetChannel = args[TARGET] - 1;
+            mcfg.customServoMixer[i].fromChannel = args[INPUT] - 1;
+            mcfg.customServoMixer[i].rate = args[RATE];
+            mcfg.customServoMixer[i].speed = args[SPEED];
+            mcfg.customServoMixer[i].min = args[MIN];
+            mcfg.customServoMixer[i].max = args[MAX];
+            mcfg.customServoMixer[i].box = args[BOX];
+            cliServoMix("");
         } else
             printf("ERR: Wrong range for arguments\r\n");
     }
@@ -768,7 +773,7 @@ static void cliDump(char *cmdline)
         }
         printf("cmix %d 0 0 0 0\r\n", i + 1);
     }
-    
+
     // print custom servo mixer if exists
     if (mcfg.customServoMixer[0].rate != 0) {
         for (i = 0; i < MAX_SERVO_RULES; i++) {
@@ -785,13 +790,13 @@ static void cliDump(char *cmdline)
         }
         printf("smix %d 0 0 0 0\r\n", i + 1);
     }
-    
+
     // print servo directions
     for (i = 0; i < 8; i++)
         for (channel = 0; channel < INPUT_ITEMS; channel++)
             if (cfg.servoConf[i].direction & (1 << channel))
-                printf("smix direction %d %d -1\r\n",i + 1 ,channel + 1);
-    
+                printf("smix direction %d %d -1\r\n", i + 1 , channel + 1);
+
     // print enabled features
     mask = featureMask();
     for (i = 0; ; i++) { // disable all feature first
@@ -1198,7 +1203,7 @@ static void cliStatus(char *cmdline)
     uint32_t mask;
 
     printf("System Uptime: %d seconds, Voltage: %d * 0.1V (%dS battery)\r\n",
-        millis() / 1000, vbat, batteryCellCount);
+           millis() / 1000, vbat, batteryCellCount);
     mask = sensorsMask();
 
     printf("Hardware: %s @ %dMHz, detected sensors: ", hwNames[hw_revision], (SystemCoreClock / 1000000));

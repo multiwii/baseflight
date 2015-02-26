@@ -152,7 +152,7 @@ static uint8_t I2C_ReceiveByte(void)
     return byte;
 }
 
-void i2cInit(I2C_TypeDef * I2C)
+void i2cInit(I2C_TypeDef *I2C)
 {
     gpio_config_t gpio;
 
@@ -162,7 +162,7 @@ void i2cInit(I2C_TypeDef * I2C)
     gpioInit(I2C_GPIO, &gpio);
 }
 
-bool i2cWriteBuffer(uint8_t addr, uint8_t reg, uint8_t len, uint8_t * data)
+bool i2cWriteBuffer(uint8_t addr, uint8_t reg, uint8_t len, uint8_t *data)
 {
     int i;
     if (!I2C_Start())
