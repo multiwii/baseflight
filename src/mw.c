@@ -327,8 +327,7 @@ static void mwVario(void)
 static int32_t errorGyroI[3] = { 0, 0, 0 };
 static int32_t errorAngleI[2] = { 0, 0 };
 
-static void pidMultiWii(void)
-{
+static void pidMultiWii(void) {
     int axis, prop;
     int32_t error, errorAngle;
     int32_t PTerm, ITerm, PTermACC = 0, ITermACC = 0, PTermGYRO = 0, ITermGYRO = 0, DTerm;
@@ -339,7 +338,7 @@ static void pidMultiWii(void)
 
     // **** PITCH & ROLL & YAW PID ****
     prop = max(abs(rcCommand[PITCH]), abs(rcCommand[ROLL])); // range [0;500]
-    for (axis = 0; axis < 3; axis++) {
+    for(axis = 0; axis < 3; axis++) {
         if ((f.ANGLE_MODE || f.HORIZON_MODE) && axis < 2) { // MODE relying on ACC
             // 50 degrees max inclination
             errorAngle = constrain(2 * rcCommand[axis] + GPS_angle[axis], -((int)mcfg.max_angle_inclination), +mcfg.max_angle_inclination) - angle[axis] + cfg.angleTrim[axis];
