@@ -394,10 +394,10 @@ void writeServos(void)
             }
             break;
 
-        case MULTITYPE_GIMBAL:
-            pwmWriteServo(0, servo[0]);
-            pwmWriteServo(1, servo[1]);
-            break;
+    case MULTITYPE_GIMBAL:
+        pwmWriteServo(0, servo[0]);
+        pwmWriteServo(1, servo[1]);
+        break;
 
         case MULTITYPE_DUALCOPTER:
             pwmWriteServo(0, servo[4]);
