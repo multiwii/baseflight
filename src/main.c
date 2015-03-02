@@ -251,7 +251,7 @@ int main(void)
     while (1) {
         loop();
 #ifdef SOFTSERIAL_LOOPBACK
-        if (loopbackPort1) {
+        if(loopbackPort1){
             while (serialTotalBytesWaiting(loopbackPort1)) {
                 uint8_t b = serialRead(loopbackPort1);
                 serialWrite(loopbackPort1, b);
