@@ -128,7 +128,7 @@ int main(void)
 
     LED1_ON;
     LED0_OFF;
-    for (i = 0; i < 10; i++) {
+    for(i=0;i<10;i++){
         LED1_TOGGLE;
         LED0_TOGGLE;
         delay(25);
@@ -188,22 +188,22 @@ int main(void)
 
     if (feature(FEATURE_SERIALRX)) {
         switch (mcfg.serialrx_type) {
-            case SERIALRX_SPEKTRUM1024:
-            case SERIALRX_SPEKTRUM2048:
-                spektrumInit(&rcReadRawFunc);
-                break;
-            case SERIALRX_SBUS:
-                sbusInit(&rcReadRawFunc);
-                break;
-            case SERIALRX_SUMD:
-                sumdInit(&rcReadRawFunc);
-                break;
-            case SERIALRX_MSP:
-                mspInit(&rcReadRawFunc);
-                break;
-            case SERIALRX_IBUS:
-                ibusInit(&rcReadRawFunc);
-                break;
+        case SERIALRX_SPEKTRUM1024:
+        case SERIALRX_SPEKTRUM2048:
+            spektrumInit(&rcReadRawFunc);
+            break;
+        case SERIALRX_SBUS:
+            sbusInit(&rcReadRawFunc);
+            break;
+        case SERIALRX_SUMD:
+            sumdInit(&rcReadRawFunc);
+            break;
+        case SERIALRX_MSP:
+            mspInit(&rcReadRawFunc);
+            break;
+        case SERIALRX_IBUS:
+            ibusInit(&rcReadRawFunc);
+            break;
         }
     }
 #ifndef CJMCU
