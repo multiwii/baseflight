@@ -128,7 +128,7 @@ int main(void)
 
     LED1_ON;
     LED0_OFF;
-    for (i = 0; i < 10; i++) {
+    for(i = 0; i < 10;i++) {
         LED1_TOGGLE;
         LED0_TOGGLE;
         delay(25);
