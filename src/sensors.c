@@ -448,7 +448,7 @@ static void GYRO_Common(void)
         }
         calibratingG--;
     }
-    for (axis = 0; axis < 3; axis++)
+    for(axis = 0; axis < 3; axis++)
         gyroADC[axis] -= gyroZero[axis];
 }
 
