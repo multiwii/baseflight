@@ -595,11 +595,18 @@ void mixTable(void)
     for (i = 0; i < numberMotor; i++) {
         if (maxMotor > mcfg.maxthrottle)     // this is a way to still have good gyro corrections if at least one motor reaches its max.
             motor[i] -= maxMotor - mcfg.maxthrottle;
+
         if (feature(FEATURE_3D)) {
             if ((rcData[THROTTLE]) > mcfg.midrc) {
                 motor[i] = constrain(motor[i], mcfg.deadband3d_high, mcfg.maxthrottle);
+                if ((mcfg.mixerConfiguration) == MULTITYPE_TRI) {
+                    servo[5] = constrain(servo[5], cfg.servoConf[5].min, cfg.servoConf[5].max);
+                }
             } else {
                 motor[i] = constrain(motor[i], mcfg.mincommand, mcfg.deadband3d_low);
+                if ((mcfg.mixerConfiguration) == MULTITYPE_TRI) {
+                    servo[5] = constrain(servo[5], cfg.servoConf[5].max, cfg.servoConf[5].min);
+                }
             }
         } else {
             motor[i] = constrain(motor[i], mcfg.minthrottle, mcfg.maxthrottle);
