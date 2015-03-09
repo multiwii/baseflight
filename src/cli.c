@@ -63,7 +63,7 @@ static const char *const featureNames[] = {
     "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SERIALRX", "MOTOR_STOP",
     "SERVO_TILT", "SOFTSERIAL", "LED_RING", "GPS",
     "FAILSAFE", "SONAR", "TELEMETRY", "POWERMETER", "VARIO", "3D",
-    "FW_FAILSAFE_RTH",
+    "FW_FAILSAFE_RTH", "SYNCPWM", "FASTPWM",
     NULL
 };
 

@@ -38,6 +38,8 @@
 
 typedef struct {
     volatile uint16_t *ccr;
+    volatile uint16_t *cr1;
+    volatile uint16_t *cnt;
     uint16_t period;
 
     // for input only
@@ -170,7 +172,7 @@ static const uint8_t *const hardwareMaps[] = {
 };
 
 #define PWM_TIMER_MHZ 1
-#define PWM_BRUSHED_TIMER_MHZ 8
+#define PWM_TIMER_8_MHZ 8
 
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 {
@@ -187,19 +189,19 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
     switch (channel) {
         case TIM_Channel_1:
             TIM_OC1Init(tim, &TIM_OCInitStructure);
-            TIM_OC1PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC1PreloadConfig(tim, TIM_OCPreload_Disable);
             break;
         case TIM_Channel_2:
             TIM_OC2Init(tim, &TIM_OCInitStructure);
-            TIM_OC2PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC2PreloadConfig(tim, TIM_OCPreload_Disable);
             break;
         case TIM_Channel_3:
             TIM_OC3Init(tim, &TIM_OCInitStructure);
-            TIM_OC3PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC3PreloadConfig(tim, TIM_OCPreload_Disable);
             break;
         case TIM_Channel_4:
             TIM_OC4Init(tim, &TIM_OCInitStructure);
-            TIM_OC4PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC4PreloadConfig(tim, TIM_OCPreload_Disable);
             break;
     }
 }
@@ -238,6 +240,9 @@ static pwmPortData_t *pwmOutConfig(uint8_t port, uint8_t mhz, uint16_t period, u
     if (timerHardware[port].outputEnable)
         TIM_CtrlPWMOutputs(timerHardware[port].tim, ENABLE);
     TIM_Cmd(timerHardware[port].tim, ENABLE);
+
+    p->cr1 = &timerHardware[port].tim->CR1;
+    p->cnt = &timerHardware[port].tim->CNT;
 
     switch (timerHardware[port].channel) {
         case TIM_Channel_1:
@@ -341,10 +346,19 @@ static void pwmWriteStandard(uint8_t index, uint16_t value)
     *motors[index]->ccr = value;
 }
 
+static void pwmWriteSyncPwm(uint8_t index, uint16_t value)
+{
+    *motors[index]->cr1 &= (uint16_t) ~(0x0001);    // disable timer
+    *motors[index]->cnt = 0x0000;                   // set timer counter to zero
+    *motors[index]->ccr = value;                    // set the pwm value
+    *motors[index]->cr1 |= (uint16_t) (0x0001);     // enable timer
+}
+
 bool pwmInit(drv_pwm_config_t *init)
 {
     int i = 0;
     const uint8_t *setup;
+    uint16_t period;
 
     // to avoid importing cfg/mcfg
     failsafeThreshold = init->failsafeThreshold;
@@ -403,13 +417,22 @@ bool pwmInit(drv_pwm_config_t *init)
             numInputs++;
         } else if (mask & TYPE_M) {
             uint32_t hz, mhz;
-            if (init->motorPwmRate > 500)
-                mhz = PWM_BRUSHED_TIMER_MHZ;
+
+            if (init->motorPwmRate > 500 || init->fastPWM)
+                mhz = PWM_TIMER_8_MHZ;
             else
                 mhz = PWM_TIMER_MHZ;
+
             hz = mhz * 1000000;
 
-            motors[numMotors++] = pwmOutConfig(port, mhz, hz / init->motorPwmRate, init->idlePulse);
+            if (init->syncPWM)
+                period = 8000 * mhz; // 8ms period in syncPWM mode, cycletime should be smaller than this
+            else if (init->fastPWM)
+                period = hz / 4000;
+            else
+                period = hz / init->motorPwmRate;
+
+            motors[numMotors++] = pwmOutConfig(port, mhz, period, init->idlePulse);
         } else if (mask & TYPE_S) {
             servos[numServos++] = pwmOutConfig(port, PWM_TIMER_MHZ, 1000000 / init->servoPwmRate, init->servoCenterPulse);
         }
@@ -419,6 +442,8 @@ bool pwmInit(drv_pwm_config_t *init)
     pwmWritePtr = pwmWriteStandard;
     if (init->motorPwmRate > 500)
         pwmWritePtr = pwmWriteBrushed;
+    else if (init->syncPWM)
+        pwmWritePtr = pwmWriteSyncPwm;
 
     // set return values in init struct
     init->numServos = numServos;
