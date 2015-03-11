@@ -177,6 +177,7 @@ static const uint8_t *const hardwareMaps[] = {
 
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 {
+    uint16_t tim_oc_preload;
     TIM_OCInitTypeDef TIM_OCInitStructure;
 
     TIM_OCStructInit(&TIM_OCInitStructure);
@@ -186,8 +187,6 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
     TIM_OCInitStructure.TIM_Pulse = value;
     TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
     TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-
-    uint16_t tim_oc_preload;
 
     if (syncPWM)
         tim_oc_preload = TIM_OCPreload_Disable;
