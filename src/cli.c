@@ -63,7 +63,7 @@ static const char *const featureNames[] = {
     "PPM", "VBAT", "INFLIGHT_ACC_CAL", "SERIALRX", "MOTOR_STOP",
     "SERVO_TILT", "SOFTSERIAL", "LED_RING", "GPS",
     "FAILSAFE", "SONAR", "TELEMETRY", "POWERMETER", "VARIO", "3D",
-    "FW_FAILSAFE_RTH",
+    "FW_FAILSAFE_RTH", "SYNCPWM", "FASTPWM",
     NULL
 };
 
@@ -130,7 +130,7 @@ typedef struct {
 } clivalue_t;
 
 const clivalue_t valueTable[] = {
-    { "looptime", VAR_UINT16, &mcfg.looptime, 0, 9000 },
+    { "looptime", VAR_UINT16, &mcfg.looptime, 0, 5000 },
     { "emf_avoidance", VAR_UINT8, &mcfg.emf_avoidance, 0, 1 },
     { "midrc", VAR_UINT16, &mcfg.midrc, 1200, 1700 },
     { "minthrottle", VAR_UINT16, &mcfg.minthrottle, 0, 2000 },
