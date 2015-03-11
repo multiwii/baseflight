@@ -68,6 +68,7 @@ static uint8_t numMotors = 0;
 static uint8_t numServos = 0;
 static uint8_t numInputs = 0;
 static uint8_t pwmFilter = 0;
+static bool syncPWM = false;
 static uint16_t failsafeThreshold = 985;
 // external vars (ugh)
 extern int16_t failsafeCnt;
@@ -186,22 +187,29 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
     TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
     TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
 
+    uint16_t tim_oc_preload;
+
+    if (syncPWM)
+        tim_oc_preload = TIM_OCPreload_Disable;
+    else
+        tim_oc_preload = TIM_OCPreload_Enable;
+
     switch (channel) {
         case TIM_Channel_1:
             TIM_OC1Init(tim, &TIM_OCInitStructure);
-            TIM_OC1PreloadConfig(tim, TIM_OCPreload_Disable);
+            TIM_OC1PreloadConfig(tim, tim_oc_preload);
             break;
         case TIM_Channel_2:
             TIM_OC2Init(tim, &TIM_OCInitStructure);
-            TIM_OC2PreloadConfig(tim, TIM_OCPreload_Disable);
+            TIM_OC2PreloadConfig(tim, tim_oc_preload);
             break;
         case TIM_Channel_3:
             TIM_OC3Init(tim, &TIM_OCInitStructure);
-            TIM_OC3PreloadConfig(tim, TIM_OCPreload_Disable);
+            TIM_OC3PreloadConfig(tim, tim_oc_preload);
             break;
         case TIM_Channel_4:
             TIM_OC4Init(tim, &TIM_OCInitStructure);
-            TIM_OC4PreloadConfig(tim, TIM_OCPreload_Disable);
+            TIM_OC4PreloadConfig(tim, tim_oc_preload);
             break;
     }
 }
@@ -364,6 +372,8 @@ bool pwmInit(drv_pwm_config_t *init)
     failsafeThreshold = init->failsafeThreshold;
     // pwm filtering on input
     pwmFilter = init->pwmFilter;
+
+    syncPWM = init->syncPWM;
 
     // this is pretty hacky shit, but it will do for now. array of 4 config maps, [ multiPWM multiPPM airPWM airPPM ]
     if (init->airplane)
