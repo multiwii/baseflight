@@ -118,21 +118,6 @@ void spektrumBind(void)
     int i;
     gpio_config_t gpio;
 
-#ifdef HARDWARE_BIND_PLUG
-    // Check status of bind plug and exit if not active
-    GPIO_TypeDef *hwBindPort = NULL;
-    uint16_t hwBindPin = 0;
-
-    hwBindPort = GPIOB;
-    hwBindPin = Pin_5;
-    gpio.speed = Speed_2MHz;
-    gpio.pin = hwBindPin;
-    gpio.mode = Mode_IPU;
-    gpioInit(hwBindPort, &gpio);
-    if (digitalIn(hwBindPort, hwBindPin))
-        return;
-#endif
-
     if (mcfg.spektrum_sat_on_flexport) {
         // USART3, PB11
         spekBindPort = GPIOB;
@@ -144,6 +129,22 @@ void spektrumBind(void)
         spekBindPin = Pin_3;
         spekUart = USART2;
     }
+
+#ifdef HARDWARE_BIND_PLUG
+    // Check status of bind plug and exit if not active
+    GPIO_TypeDef *hwBindPort = NULL;
+    uint16_t hwBindPin = 0;
+
+    hwBindPort = GPIOB;
+    hwBindPin = Pin_5;
+    gpio.speed = Speed_2MHz;
+    gpio.pin = hwBindPin;
+    gpio.mode = Mode_IPU;
+    gpioInit(hwBindPort, &gpio);
+    delayMicroseconds(10);  // allow configuration to settle
+    if (digitalIn(hwBindPort, hwBindPin))
+        return;
+#endif
 
     // don't try to bind if: here after soft reset or bind flag is out of range
     if (rccReadBkpDr() == BKP_SOFTRESET || mcfg.spektrum_sat_bind == 0 || mcfg.spektrum_sat_bind > 10)

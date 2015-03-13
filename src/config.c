@@ -363,6 +363,76 @@ static void resetConf(void)
     for (i = 0; i < MAX_MOTORS; i++)
         mcfg.customMixer[i].throttle = 0.0f;
 
+    // alternative defaults AlienWii32 (activate via OPTIONS="ALIENWII32" during make for NAZE target)
+#ifdef ALIENWII32
+    featureSet(FEATURE_PPM);
+    featureSet(FEATURE_SERIALRX);
+    featureSet(FEATURE_MOTOR_STOP);
+    featureSet(FEATURE_FAILSAFE);
+    mcfg.serialrx_type = 1;
+    mcfg.spektrum_sat_bind = 5;
+    mcfg.minthrottle = 1000;
+    mcfg.maxthrottle = 2000;
+    cfg.pidController = 2;
+    cfg.P8[ROLL] = 36;
+    cfg.P8[PITCH] = 36;
+    cfg.rcRate8 = 130;
+    cfg.rollPitchRate = 20;
+    cfg.yawRate = 20;
+    cfg.failsafe_delay = 2;
+    cfg.failsafe_off_delay = 0;
+    cfg.failsafe_throttle = 1000;
+    parseRcChannels("TAER1234");
+
+    //  { 1.0f, -0.5f,  1.0f, -1.0f },          // REAR_R
+    mcfg.customMixer[0].throttle = 1.0f;
+    mcfg.customMixer[0].roll = -0.5f;
+    mcfg.customMixer[0].pitch = 1.0f;
+    mcfg.customMixer[0].yaw = -1.0f;
+
+    //  { 1.0f, -0.5f, -1.0f,  1.0f },          // FRONT_R
+    mcfg.customMixer[1].throttle = 1.0f;
+    mcfg.customMixer[1].roll = -0.5f;
+    mcfg.customMixer[1].pitch = -1.0f;
+    mcfg.customMixer[1].yaw = 1.0f;
+
+    //  { 1.0f,  0.5f,  1.0f,  1.0f },          // REAR_L
+    mcfg.customMixer[2].throttle = 1.0f;
+    mcfg.customMixer[2].roll = 0.5f;
+    mcfg.customMixer[2].pitch = 1.0f;
+    mcfg.customMixer[2].yaw = 1.0f;
+
+    //  { 1.0f,  0.5f, -1.0f, -1.0f },          // FRONT_L
+    mcfg.customMixer[3].throttle = 1.0f;
+    mcfg.customMixer[3].roll = 0.5f;
+    mcfg.customMixer[3].pitch = -1.0f;
+    mcfg.customMixer[3].yaw = -1.0f;
+
+    //  { 1.0f, -1.0f, -0.5f, -1.0f },          // MIDFRONT_R
+    mcfg.customMixer[4].throttle = 1.0f;
+    mcfg.customMixer[4].roll = -1.0f;
+    mcfg.customMixer[4].pitch = -0.5f;
+    mcfg.customMixer[4].yaw = -1.0f;
+
+    //  { 1.0f,  1.0f, -0.5f,  1.0f },          // MIDFRONT_L
+    mcfg.customMixer[5].throttle = 1.0f;
+    mcfg.customMixer[5].roll = 1.0f;
+    mcfg.customMixer[5].pitch = -0.5f;
+    mcfg.customMixer[5].yaw = 1.0f;
+
+    //  { 1.0f, -1.0f,  0.5f,  1.0f },          // MIDREAR_R
+    mcfg.customMixer[6].throttle = 1.0f;
+    mcfg.customMixer[6].roll = -1.0f;
+    mcfg.customMixer[6].pitch = 0.5f;
+    mcfg.customMixer[6].yaw = 1.0f;
+
+    //  { 1.0f,  1.0f,  0.5f, -1.0f },          // MIDREAR_L
+    mcfg.customMixer[7].throttle = 1.0f;
+    mcfg.customMixer[7].roll = 1.0f;
+    mcfg.customMixer[7].pitch = 0.5f;
+    mcfg.customMixer[7].yaw = -1.0f;
+#endif
+
     // copy default config into all 3 profiles
     for (i = 0; i < 3; i++)
         memcpy(&mcfg.profile[i], &cfg, sizeof(config_t));
