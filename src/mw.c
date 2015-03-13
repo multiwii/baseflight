@@ -613,11 +613,12 @@ void pidHarakiri(void)
     } else {
         int32_t tmp = ((int32_t)rcCommand[YAW] * (((int32_t)cfg.yawRate << 1) + 40)) >> 5;
         error = tmp - lrintf(gyroData[YAW] * 0.25f);                        // Less Gyrojitter works actually better
+        errorGyroI[YAW] = constrain(errorGyroI[YAW] + (int32_t)(error * (float)cfg.I8[YAW] * Mwii3msTimescale), -268435454, +268435454);
 
-        if (abs(tmp) > 50) {
-            errorGyroI[YAW] = 0;
+        if(cfg.yawdeadband) {
+            if (rcCommand[YAW]) errorGyroI[YAW] = 0;
         } else {
-            errorGyroI[YAW] = constrain(errorGyroI[YAW] + (int32_t)(error * (float)cfg.I8[YAW] * Mwii3msTimescale), -268435454, +268435454);
+            if (abs(tmp) > 50) errorGyroI[YAW] = 0;
         }
 
         ITerm = constrain(errorGyroI[YAW] >> 13, -GYRO_I_MAX, +GYRO_I_MAX);
