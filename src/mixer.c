@@ -252,12 +252,7 @@ int16_t servoMiddle(int nr)
 
 int servoDirection(int nr, int lr)
 {
-    // servo.rate is overloaded for servos that don't have a rate, but only need direction
-    // bit set = negative, clear = positive
-    // rate[2] = ???_direction
-    // rate[1] = roll_direction
-    // rate[0] = pitch_direction
-    // servo.rate is also used as gimbal gain multiplier (yeah)
+    // load the direction from the direction field of the servo
     if (cfg.servoConf[nr].direction & (1 << lr))
         return -1;
     else
