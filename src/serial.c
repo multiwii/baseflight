@@ -482,7 +482,7 @@ static void evaluateCommand(void)
             s_struct((uint8_t *)&servo, 16);
             break;
         case MSP_SERVO_CONF:
-            headSerialReply(MAX_SERVOS * sizeof(servoParam_t));
+            headSerialReply(MAX_SERVOS * 9);
             for (i = 0; i < MAX_SERVOS; i++) {
                 serialize16(cfg.servoConf[i].min);
                 serialize16(cfg.servoConf[i].max);
