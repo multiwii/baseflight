@@ -10,7 +10,7 @@
 #include "telemetry_common.h"
 
 // Multiwii Serial Protocol 0
-#define MSP_VERSION              1
+#define MSP_VERSION              2
 #define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
 #define CAP_BASEFLIGHT_CONFIG       ((uint32_t)1 << 30)
 #define CAP_DYNBALANCE              ((uint32_t)1 << 2)
