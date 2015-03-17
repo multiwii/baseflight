@@ -515,8 +515,7 @@ static void evaluateCommand(void)
             break;
         case MSP_SET_SERVOMIX_CONF:
             headSerialReply(0);
-            i = read8();
-            if (i < MAX_SERVO_RULES) {
+            for (i = 0; i < MAX_SERVO_RULES; i++) {
                 mcfg.customServoMixer[i].targetChannel = read8();
                 mcfg.customServoMixer[i].fromChannel = read8();
                 mcfg.customServoMixer[i].rate = read8();
