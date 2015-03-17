@@ -80,7 +80,7 @@
 #define MSP_REBOOT               68     //in message          reboot settings
 #define MSP_BUILDINFO            69     //out message         build date as well as some space for future expansion
 
-#define INBUF_SIZE 64
+#define INBUF_SIZE 128
 
 typedef struct box_t {
     const uint8_t boxIndex;         // this is from boxnames enum
