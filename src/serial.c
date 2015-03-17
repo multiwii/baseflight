@@ -763,10 +763,11 @@ static void evaluateCommand(void)
             mcfg.board_align_yaw = read16(); // board_align_yaw
             mcfg.currentscale = read16();
             mcfg.currentoffset = read16();
+            mcfg.motor_pwm_rate = read16();
             /// ???
             break;
         case MSP_CONFIG:
-            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 4);
+            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2);
             serialize8(mcfg.mixerConfiguration);
             serialize32(featureMask());
             serialize8(mcfg.serialrx_type);
@@ -775,6 +776,7 @@ static void evaluateCommand(void)
             serialize16(mcfg.board_align_yaw);
             serialize16(mcfg.currentscale);
             serialize16(mcfg.currentoffset);
+            serialize16(mcfg.motor_pwm_rate);
             /// ???
             break;
 
