@@ -482,7 +482,7 @@ static void servoMixer(void)
     input[INPUT_RC_THROTTLE] = mcfg.midrc - rcData[THROTTLE];
 
     for (i = 0; i < MAX_SERVOS; i++)
-        servo[i] = servoMiddle(i);
+        servo[i] = 0;
 
     // mix servos according to rules
     for (i = 0; i < numberRules; i++) {
@@ -509,8 +509,10 @@ static void servoMixer(void)
     }
 
     // servo rates
-    for (i = 0; i < MAX_SERVOS; i++)
+    for (i = 0; i < MAX_SERVOS; i++) {
         servo[i] = ((int32_t)cfg.servoConf[i].rate * servo[i]) / 100;
+        servo[i] += servoMiddle(i);
+    }
 }
 
 void mixTable(void)
