@@ -542,6 +542,7 @@ void writeServos(void);
 void writeMotors(void);
 void writeAllMotors(int16_t mc);
 void mixTable(void);
+void loadCustomServoMixer(void);
 
 // Serial
 void serialInit(uint32_t baudrate);

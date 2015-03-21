@@ -259,6 +259,24 @@ int servoDirection(int nr, int lr)
         return 1;
 }
 
+void loadCustomServoMixer(void)
+{
+    uint8_t i;
+
+    // reset settings
+    numberRules = 0;
+    memset(currentServoMixer, 0, sizeof(currentServoMixer));
+
+    // load custom mixer into currentServoMixer
+    for (i = 0; i < MAX_SERVO_RULES; i++) {
+        // check if done
+        if (mcfg.customServoMixer[i].rate == 0)
+            break;
+        currentServoMixer[i] = mcfg.customServoMixer[i];
+        numberRules++;
+    }
+}
+
 void mixerInit(void)
 {
     int i;
@@ -310,16 +328,8 @@ void mixerInit(void)
     if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE) {
         f.FIXED_WING = 1;
 
-        if (mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE) {
-            // load custom mixer into currentServoMixer
-            for (i = 0; i < MAX_SERVO_RULES; i++) {
-                // check if done
-                if (mcfg.customServoMixer[i].rate == 0)
-                    break;
-                currentServoMixer[i] = mcfg.customServoMixer[i];
-                numberRules++;
-            }
-        }
+        if (mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE)
+            loadCustomServoMixer();
     } else
         f.FIXED_WING = 0;
 

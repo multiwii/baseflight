@@ -524,6 +524,7 @@ static void evaluateCommand(void)
                 mcfg.customServoMixer[i].max = read8();
                 mcfg.customServoMixer[i].box = read8();
             }
+            loadCustomServoMixer();
             break;
         case MSP_MOTOR:
             s_struct((uint8_t *)motor, 16);
