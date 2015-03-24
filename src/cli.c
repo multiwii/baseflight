@@ -24,6 +24,7 @@ static void cliMotor(char *cmdline);
 static void cliProfile(char *cmdline);
 static void cliSave(char *cmdline);
 static void cliSet(char *cmdline);
+static void cliServo(char *cmdline);
 static void cliServoMix(char *cmdline);
 static void cliStatus(char *cmdline);
 static void cliVersion(char *cmdline);
@@ -105,6 +106,7 @@ const clicmd_t cmdTable[] = {
     { "motor", "get/set motor output value", cliMotor },
     { "profile", "index (0 to 2)", cliProfile },
     { "save", "save and reboot", cliSave },
+    { "servo", "edit servo configuration", cliServo },
     { "set", "name=value or blank or * for list", cliSet },
     { "smix", "design custom servo mixer", cliServoMix },
     { "status", "show system status", cliStatus },
@@ -594,6 +596,68 @@ static void cliCMix(char *cmdline)
     }
 }
 
+static void cliServo(char *cmdline)
+{
+    int i;
+    uint8_t len;
+    char *ptr;
+    int8_t servoRates[8] = { 30, 30, 100, 100, 100, 100, 100, 100 };
+
+    len = strlen(cmdline);
+
+    if (len == 0) {
+        printf("servo servo_number\tmin\tmiddle\tmax\trate\r\n");
+        for (i = 0; i < MAX_SERVOS; i++) {
+            printf("#%d:\t", i + 1);
+            printf("%d\t", cfg.servoConf[i].min);
+            printf("%d\t", cfg.servoConf[i].middle);
+            printf("%d\t", cfg.servoConf[i].max);
+            printf("%d\t", cfg.servoConf[i].rate);
+            printf("\r\n");
+        }
+        printf("\r\n");
+        printf("Reset servos: servo reset\r\n");
+        return;
+    } else if (strncasecmp(cmdline, "reset", 5) == 0) {
+        // erase servo config
+        for (i = 0; i < MAX_SERVOS; i++) {
+            cfg.servoConf[i].min = 1020;
+            cfg.servoConf[i].max = 2000;
+            cfg.servoConf[i].middle = 1500;
+            cfg.servoConf[i].rate = servoRates[i];
+        }
+    } else {
+        enum {SERVO = 0, MIN, MIDDLE, MAX, RATE, ARGS_COUNT};
+        int args[ARGS_COUNT], check = 0;
+
+        ptr = strtok(cmdline, " ");
+        while (ptr != NULL && check < ARGS_COUNT) {
+            args[check++] = atoi(ptr);
+            ptr = strtok(NULL, " ");
+        }
+
+        if (ptr != NULL || check != ARGS_COUNT) {
+            printf("ERR: Wrong number of arguments, needs servo_number min middle max rate\r\n");
+            return;
+        }
+
+        if (args[SERVO] >= 1 && args[SERVO] <= MAX_SERVOS &&
+            args[MIN] >= 900 && args[MIN] <= 2100 &&
+            args[MAX] >= 900 && args[MAX] <= 2100 &&
+            args[MIDDLE] >= 900 && args[MIDDLE] <= 2100 &&
+            args[RATE] >= -100 && args[RATE] <= 100 &&
+            args[MIN] <= args[MIDDLE] && args[MIDDLE] <= args[MAX]) {
+            args[SERVO]--;
+            cfg.servoConf[args[SERVO]].min = args[MIN];
+            cfg.servoConf[args[SERVO]].max = args[MAX];
+            cfg.servoConf[args[SERVO]].middle = args[MIDDLE];
+            cfg.servoConf[args[SERVO]].rate = args[RATE];
+        } else
+            printf("ERR: Wrong range for arguments, range for min, max and middle [900,2100], min <= middle <= max, range for rate [-100,100]\r\n");
+        cliServo("");
+    }
+}
+
 static void cliServoMix(char *cmdline)
 {
     int i;
@@ -792,10 +856,14 @@ static void cliDump(char *cmdline)
     }
 
     // print servo directions
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < MAX_SERVOS; i++)
         for (channel = 0; channel < INPUT_ITEMS; channel++)
             if (cfg.servoConf[i].direction & (1 << channel))
                 printf("smix direction %d %d -1\r\n", i + 1 , channel + 1);
+
+    // print servo config
+    for (i = 0; i < MAX_SERVOS; i++)
+        printf("servo %d %d %d %d %d\r\n", i + 1, cfg.servoConf[i].min, cfg.servoConf[i].middle, cfg.servoConf[i].max, cfg.servoConf[i].rate);
 
     // print enabled features
     mask = featureMask();
