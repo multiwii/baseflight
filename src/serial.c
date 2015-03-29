@@ -10,7 +10,7 @@
 #include "telemetry_common.h"
 
 // Multiwii Serial Protocol 0
-#define MSP_VERSION              2
+#define MSP_VERSION              3
 #define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
 #define CAP_BASEFLIGHT_CONFIG       ((uint32_t)1 << 30)
 #define CAP_DYNBALANCE              ((uint32_t)1 << 2)
@@ -79,6 +79,8 @@
 #define MSP_SET_CONFIG           67     //in message          baseflight-specific settings save
 #define MSP_REBOOT               68     //in message          reboot settings
 #define MSP_BUILDINFO            69     //out message         build date as well as some space for future expansion
+#define MSP_TUNING_EXT           70     //out message         extended tuning params
+#define MSP_SET_TUNING_EXT       71     //in message          extended tuning params
 
 #define INBUF_SIZE 128
 
@@ -374,7 +376,7 @@ static void evaluateCommand(void)
         case MSP_SET_RC_TUNING:
             cfg.rcRate8 = read8();
             cfg.rcExpo8 = read8();
-            cfg.rollPitchRate = read8();
+            cfg.rollRate = cfg.pitchRate = read8();
             cfg.yawRate = read8();
             cfg.dynThrPID = read8();
             cfg.thrMid8 = read8();
@@ -577,7 +579,7 @@ static void evaluateCommand(void)
             headSerialReply(7);
             serialize8(cfg.rcRate8);
             serialize8(cfg.rcExpo8);
-            serialize8(cfg.rollPitchRate);
+            serialize8(cfg.rollRate); // here for legacy support
             serialize8(cfg.yawRate);
             serialize8(cfg.dynThrPID);
             serialize8(cfg.thrMid8);
@@ -804,6 +806,18 @@ static void evaluateCommand(void)
             serialize32(0); // future exp
             break;
 
+        case MSP_TUNING_EXT:
+            headSerialReply(2);
+            serialize8(cfg.rollRate);        
+            serialize8(cfg.pitchRate);
+            break;
+        
+        case MSP_SET_TUNING_EXT:
+            headSerialReply(0);
+            cfg.rollRate = read8();
+            cfg.pitchRate = read8();;
+            break;        
+        
         default:                   // we do not know how to handle the (valid) message, indicate error MSP $M!
             headSerialError(0);
             break;
