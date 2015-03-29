@@ -133,17 +133,7 @@ void annexCode(void)
 
             tmp2 = tmp / 100;
             rcCommand[axis] = lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (lookupPitchRollRC[tmp2 + 1] - lookupPitchRollRC[tmp2]) / 100;
-            
-            switch(axis) {
-                case 0:
-                    prop1 = 100 - (uint16_t)cfg.rollRate * tmp / 500;
-                    break;
-                case 1:
-                    prop1 = 100 - (uint16_t)cfg.pitchRate * tmp / 500;
-                    break;
-                default:
-                    break;
-            }
+            prop1 = (axis == 0) ? (100 - (uint16_t)cfg.rollRate * tmp / 500) : (100 - (uint16_t)cfg.pitchRate * tmp / 500);
             prop1 = (uint16_t)prop1 * prop2 / 100;
         } else {                // YAW
             if (cfg.yawdeadband) {
@@ -415,17 +405,7 @@ static void pidRewrite(void)
             // calculate error and limit the angle to 50 degrees max inclination
             errorAngle = (constrain(rcCommand[axis] + GPS_angle[axis], -500, +500) - angle[axis] + cfg.angleTrim[axis]) / 10.0f; // 16 bits is ok here
             if (!f.ANGLE_MODE) { //control is GYRO based (ACRO and HORIZON - direct sticks control is applied to rate PID
-                switch(axis) {
-                    case 0:
-                        AngleRateTmp = ((int32_t)(cfg.rollRate + 27) * rcCommand[axis]) >> 4;
-                        break;
-                    case 1:
-                        AngleRateTmp = ((int32_t)(cfg.pitchRate + 27) * rcCommand[axis]) >> 4;
-                        break;
-                    default:
-                        break;
-                }
-                
+                AngleRateTmp = (axis == 0) ? (((int32_t)(cfg.rollRate + 27) * rcCommand[axis]) >> 4) : (((int32_t)(cfg.pitchRate + 27) * rcCommand[axis]) >> 4);
                 if (f.HORIZON_MODE) {
                     // mix up angle error to desired AngleRateTmp to add a little auto-level feel
                     AngleRateTmp += (errorAngle * cfg.I8[PIDLEVEL]) >> 8;
