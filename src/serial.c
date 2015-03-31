@@ -376,7 +376,7 @@ static void evaluateCommand(void)
         case MSP_SET_RC_TUNING:
             cfg.rcRate8 = read8();
             cfg.rcExpo8 = read8();
-            cfg.rollRate = cfg.pitchRate = read8();
+            cfg.rollPitchRate[0] = cfg.rollPitchRate[1] = read8();
             cfg.yawRate = read8();
             cfg.dynThrPID = read8();
             cfg.thrMid8 = read8();
@@ -579,7 +579,7 @@ static void evaluateCommand(void)
             headSerialReply(7);
             serialize8(cfg.rcRate8);
             serialize8(cfg.rcExpo8);
-            serialize8(cfg.rollRate); // here for legacy support
+            serialize8(cfg.rollPitchRate[0]); // here for legacy support
             serialize8(cfg.yawRate);
             serialize8(cfg.dynThrPID);
             serialize8(cfg.thrMid8);
@@ -766,10 +766,12 @@ static void evaluateCommand(void)
             mcfg.currentscale = read16();
             mcfg.currentoffset = read16();
             mcfg.motor_pwm_rate = read16();
+            cfg.rollPitchRate[0] = read8();
+            cfg.rollPitchRate[1] = read8();
             /// ???
             break;
         case MSP_CONFIG:
-            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2);
+            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2);
             serialize8(mcfg.mixerConfiguration);
             serialize32(featureMask());
             serialize8(mcfg.serialrx_type);
@@ -779,6 +781,8 @@ static void evaluateCommand(void)
             serialize16(mcfg.currentscale);
             serialize16(mcfg.currentoffset);
             serialize16(mcfg.motor_pwm_rate);
+            serialize8(cfg.rollPitchRate[0]);
+            serialize8(cfg.rollPitchRate[1]);
             /// ???
             break;
 
@@ -806,18 +810,6 @@ static void evaluateCommand(void)
             serialize32(0); // future exp
             break;
 
-        case MSP_TUNING_EXT:
-            headSerialReply(2);
-            serialize8(cfg.rollRate);        
-            serialize8(cfg.pitchRate);
-            break;
-        
-        case MSP_SET_TUNING_EXT:
-            headSerialReply(0);
-            cfg.rollRate = read8();
-            cfg.pitchRate = read8();;
-            break;        
-        
         default:                   // we do not know how to handle the (valid) message, indicate error MSP $M!
             headSerialError(0);
             break;
