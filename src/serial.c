@@ -79,8 +79,6 @@
 #define MSP_SET_CONFIG           67     //in message          baseflight-specific settings save
 #define MSP_REBOOT               68     //in message          reboot settings
 #define MSP_BUILDINFO            69     //out message         build date as well as some space for future expansion
-#define MSP_TUNING_EXT           70     //out message         extended tuning params
-#define MSP_SET_TUNING_EXT       71     //in message          extended tuning params
 
 #define INBUF_SIZE 128
 
