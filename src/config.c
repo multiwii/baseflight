@@ -285,8 +285,6 @@ static void resetConf(void)
     cfg.D8[PIDVEL] = 1;
     cfg.rcRate8 = 90;
     cfg.rcExpo8 = 65;
-    cfg.rollPitchRate[0] = 0;
-    cfg.rollPitchRate[1] = 0;
     cfg.yawRate = 0;
     cfg.dynThrPID = 0;
     cfg.tpa_breakpoint = 1500;
