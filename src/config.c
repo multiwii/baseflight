@@ -24,7 +24,7 @@ master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
 const char rcChannelLetters[] = "AERT1234";
 
-static const uint8_t EEPROM_CONF_VERSION = 73;
+static const uint8_t EEPROM_CONF_VERSION = 74;
 static uint32_t enabledSensors = 0;
 static void resetConf(void);
 static const uint32_t FLASH_WRITE_ADDR = 0x08000000 + (FLASH_PAGE_SIZE * (FLASH_PAGE_COUNT - (CONFIG_SIZE / 1024)));
@@ -285,7 +285,6 @@ static void resetConf(void)
     cfg.D8[PIDVEL] = 1;
     cfg.rcRate8 = 90;
     cfg.rcExpo8 = 65;
-    cfg.rollPitchRate = 0;
     cfg.yawRate = 0;
     cfg.dynThrPID = 0;
     cfg.tpa_breakpoint = 1500;

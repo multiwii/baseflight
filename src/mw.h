@@ -225,7 +225,7 @@ typedef struct config_t {
     uint8_t thrMid8;
     uint8_t thrExpo8;
 
-    uint8_t rollPitchRate;
+    uint8_t rollPitchRate[2];
     uint8_t yawRate;
 
     uint8_t dynThrPID;

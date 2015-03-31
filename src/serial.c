@@ -10,7 +10,7 @@
 #include "telemetry_common.h"
 
 // Multiwii Serial Protocol 0
-#define MSP_VERSION              2
+#define MSP_VERSION              3
 #define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
 #define CAP_BASEFLIGHT_CONFIG       ((uint32_t)1 << 30)
 #define CAP_DYNBALANCE              ((uint32_t)1 << 2)
@@ -374,7 +374,7 @@ static void evaluateCommand(void)
         case MSP_SET_RC_TUNING:
             cfg.rcRate8 = read8();
             cfg.rcExpo8 = read8();
-            cfg.rollPitchRate = read8();
+            cfg.rollPitchRate[0] = cfg.rollPitchRate[1] = read8();
             cfg.yawRate = read8();
             cfg.dynThrPID = read8();
             cfg.thrMid8 = read8();
@@ -577,7 +577,7 @@ static void evaluateCommand(void)
             headSerialReply(7);
             serialize8(cfg.rcRate8);
             serialize8(cfg.rcExpo8);
-            serialize8(cfg.rollPitchRate);
+            serialize8(cfg.rollPitchRate[0]); // here for legacy support
             serialize8(cfg.yawRate);
             serialize8(cfg.dynThrPID);
             serialize8(cfg.thrMid8);
@@ -764,10 +764,12 @@ static void evaluateCommand(void)
             mcfg.currentscale = read16();
             mcfg.currentoffset = read16();
             mcfg.motor_pwm_rate = read16();
+            cfg.rollPitchRate[0] = read8();
+            cfg.rollPitchRate[1] = read8();
             /// ???
             break;
         case MSP_CONFIG:
-            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2);
+            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2);
             serialize8(mcfg.mixerConfiguration);
             serialize32(featureMask());
             serialize8(mcfg.serialrx_type);
@@ -777,6 +779,8 @@ static void evaluateCommand(void)
             serialize16(mcfg.currentscale);
             serialize16(mcfg.currentoffset);
             serialize16(mcfg.motor_pwm_rate);
+            serialize8(cfg.rollPitchRate[0]);
+            serialize8(cfg.rollPitchRate[1]);
             /// ???
             break;
 
