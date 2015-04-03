@@ -374,7 +374,7 @@ static void evaluateCommand(void)
         case MSP_SET_RC_TUNING:
             cfg.rcRate8 = read8();
             cfg.rcExpo8 = read8();
-            read8(); // Read but not set.
+            read8(); // Legacy pitch-roll rate, read but not set.
             cfg.yawRate = read8();
             cfg.dynThrPID = read8();
             cfg.thrMid8 = read8();
