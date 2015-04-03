@@ -457,8 +457,8 @@ static void pidRewrite(void)
 }
 
 #define RCconstPI   0.159154943092f // 0.5f / M_PI;
-#define MAIN_CUT_HZ 12.0f // (default 12Hz, Range 1-50Hz)
-#define OLD_YAW	0 // [0/1] 0 = multiwii 2.3 yaw, 1 = older yaw.
+#define MAIN_CUT_HZ 12.0f           // (default 12Hz, Range 1-50Hz)
+#define OLD_YAW     0               // [0/1] 0 = multiwii 2.3 yaw, 1 = older yaw.
 
 void pidHarakiri(void)
 {
@@ -542,7 +542,7 @@ void pidHarakiri(void)
         error = tmp - lrintf(gyroData[YAW] * 0.25f);                        // Less Gyrojitter works actually better
         errorGyroI[YAW] = constrain(errorGyroI[YAW] + (int32_t)(error * (float)cfg.I8[YAW] * Mwii3msTimescale), -268435454, +268435454);
 
-        if(cfg.yawdeadband) {
+        if (cfg.yawdeadband) {
             if (rcCommand[YAW]) errorGyroI[YAW] = 0;
         } else {
             if (abs(tmp) > 50) errorGyroI[YAW] = 0;
@@ -572,9 +572,9 @@ void setPIDController(int type)
         case 1:
             pid_controller = pidRewrite;
             break;
-        case 2  :
+        case 2:
             pid_controller = pidHarakiri;
-            break;        
+            break;
     }
 }
 
