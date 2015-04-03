@@ -31,6 +31,7 @@ typedef struct drv_pwm_config_t {
     bool fastPWM;
 
     // OUT parameters, filled by driver
+    uint8_t numMotors;
     uint8_t numServos;
 } drv_pwm_config_t;
 

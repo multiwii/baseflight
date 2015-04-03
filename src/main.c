@@ -180,6 +180,7 @@ int main(void)
     }
 
     pwmInit(&pwm_params);
+    core.numMotors = pwm_params.numMotors;
     core.numServos = pwm_params.numServos;
 
     // configure PWM/CPPM read function and max number of channels. spektrum or sbus below will override both of these, if enabled
