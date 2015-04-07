@@ -766,10 +766,11 @@ static void evaluateCommand(void)
             mcfg.motor_pwm_rate = read16();
             cfg.rollPitchRate[0] = read8();
             cfg.rollPitchRate[1] = read8();
+            mcfg.power_adc_channel = read8();
             /// ???
             break;
         case MSP_CONFIG:
-            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2);
+            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1);
             serialize8(mcfg.mixerConfiguration);
             serialize32(featureMask());
             serialize8(mcfg.serialrx_type);
@@ -781,6 +782,7 @@ static void evaluateCommand(void)
             serialize16(mcfg.motor_pwm_rate);
             serialize8(cfg.rollPitchRate[0]);
             serialize8(cfg.rollPitchRate[1]);
+            serialize8(mcfg.power_adc_channel);
             /// ???
             break;
 
