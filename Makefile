@@ -205,12 +205,7 @@ $(TARGET_HEX): $(TARGET_ELF)
 $(TARGET_ELF):  $(TARGET_OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-# Platform-specific creation of obj directory
-ifeq ($(OS),Windows_NT)
-MKDIR_OBJDIR = @if not exist $(OBJECT_DIR) mkdir $(subst /,\,$(dir $@))
-else
 MKDIR_OBJDIR = @mkdir -p $(dir $@)
-endif
 
 # Compile
 $(OBJECT_DIR)/$(TARGET)/%.o: %.c
