@@ -148,7 +148,7 @@ void tfp_format(void *putp, putcf putf, char *fmt, va_list va)
             putf(putp, ch);
         else {
             char lz = 0;
-#ifdef 	PRINTF_LONG_SUPPORT
+#ifdef  PRINTF_LONG_SUPPORT
             char lng = 0;
 #endif
             int w = 0;
@@ -160,17 +160,17 @@ void tfp_format(void *putp, putcf putf, char *fmt, va_list va)
             if (ch >= '0' && ch <= '9') {
                 ch = a2i(ch, &fmt, 10, &w);
             }
-#ifdef 	PRINTF_LONG_SUPPORT
+#ifdef  PRINTF_LONG_SUPPORT
             if (ch == 'l') {
                 ch = *(fmt++);
                 lng = 1;
             }
 #endif
             switch (ch) {
-            case 0:
-                goto abort;
-            case 'u':{
-#ifdef 	PRINTF_LONG_SUPPORT
+                case 0:
+                    goto abort;
+                case 'u': {
+#ifdef  PRINTF_LONG_SUPPORT
                     if (lng)
                         uli2a(va_arg(va, unsigned long int), 10, 0, bf);
                     else
@@ -179,8 +179,8 @@ void tfp_format(void *putp, putcf putf, char *fmt, va_list va)
                     putchw(putp, putf, w, lz, bf);
                     break;
                 }
-            case 'd':{
-#ifdef 	PRINTF_LONG_SUPPORT
+                case 'd': {
+#ifdef  PRINTF_LONG_SUPPORT
                     if (lng)
                         li2a(va_arg(va, unsigned long int), bf);
                     else
@@ -189,30 +189,31 @@ void tfp_format(void *putp, putcf putf, char *fmt, va_list va)
                     putchw(putp, putf, w, lz, bf);
                     break;
                 }
-            case 'x':
-            case 'X':
-#ifdef 	PRINTF_LONG_SUPPORT
-                if (lng)
-                    uli2a(va_arg(va, unsigned long int), 16, (ch == 'X'), bf);
-                else
+                case 'x':
+                case 'X':
+#ifdef  PRINTF_LONG_SUPPORT
+                    if (lng)
+                        uli2a(va_arg(va, unsigned long int), 16, (ch == 'X'), bf);
+                    else
 #endif
-                    ui2a(va_arg(va, unsigned int), 16, (ch == 'X'), bf);
-                putchw(putp, putf, w, lz, bf);
-                break;
-            case 'c':
-                putf(putp, (char) (va_arg(va, int)));
-                break;
-            case 's':
-                putchw(putp, putf, w, 0, va_arg(va, char *));
-                break;
-            case '%':
-                putf(putp, ch);
-            default:
-                break;
+                        ui2a(va_arg(va, unsigned int), 16, (ch == 'X'), bf);
+                    putchw(putp, putf, w, lz, bf);
+                    break;
+                case 'c':
+                    putf(putp, (char) (va_arg(va, int)));
+                    break;
+                case 's':
+                    putchw(putp, putf, w, 0, va_arg(va, char *));
+                    break;
+                case '%':
+                    putf(putp, ch);
+                default:
+                    break;
             }
         }
     }
-  abort:;
+abort:
+    ;
 }
 
 

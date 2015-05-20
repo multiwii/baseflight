@@ -5,6 +5,7 @@
 
 #include "board.h"
 #include "mw.h"
+#include "buzzer.h"
 
 uint16_t calibratingA = 0;      // the calibration is done is the main loop. Calibrating decreases at each cycle down to 0, then we enter in a normal mode.
 uint16_t calibratingB = 0;      // baro calibration = get new ground pressure value
@@ -17,6 +18,7 @@ extern bool AccInflightCalibrationMeasurementDone;
 extern bool AccInflightCalibrationSavetoEEProm;
 extern bool AccInflightCalibrationActive;
 extern uint16_t batteryWarningVoltage;
+extern uint16_t batteryCriticalVoltage;
 extern uint8_t batteryCellCount;
 extern float magneticDeclination;
 
@@ -45,14 +47,14 @@ bool sensorsAutodetect(void)
         if (hw_revision == NAZE32_SP && mpu6500Detect(&acc, &gyro, mcfg.gyro_lpf))
             haveMpu65 = true;
         else if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
-        // well, we found our gyro
-        ;
-    } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf))
+            // well, we found our gyro
+            ;
+        } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf))
 #endif
-    {
-        // if this fails, we get a beep + blink pattern. we're doomed, no gyro or i2c error.
-        return false;
-    }
+        {
+            // if this fails, we get a beep + blink pattern. we're doomed, no gyro or i2c error.
+            return false;
+        }
 
     // Accelerometer. Fuck it. Let user break shit.
 retry:
@@ -119,7 +121,7 @@ retry:
 #ifdef BARO
     // Detect what pressure sensors are available. baro->update() is set to sensor-specific update function
     if (!bmp085Detect(&baro)) {
-        // ms5611 disables BMP085, and tries to initialize + check PROM crc. 
+        // ms5611 disables BMP085, and tries to initialize + check PROM crc.
         // moved 5611 init here because there have been some reports that calibration data in BMP180
         // has been "passing" ms5611 PROM crc check
         if (!ms5611Detect(&baro)) {
@@ -136,7 +138,7 @@ retry:
     gyro.init(mcfg.gyro_align);
 
 #ifdef MAG
-    retryMag:
+retryMag:
     switch (mcfg.mag_hardware) {
         case MAG_NONE: // disable MAG
             sensorsClear(SENSOR_MAG);
@@ -145,12 +147,12 @@ retry:
 
         case MAG_HMC5883L:
             if (hmc5883lDetect(&mag)) {
-              magHardware = MAG_HMC5883L;
-              if (mcfg.mag_hardware == MAG_HMC5883L)
-                break;
-          }
-        ; // fallthrough
-          
+                magHardware = MAG_HMC5883L;
+                if (mcfg.mag_hardware == MAG_HMC5883L)
+                    break;
+            }
+            ; // fallthrough
+
 #ifdef NAZE
         case MAG_AK8975:
             if (ak8975detect(&mag)) {
@@ -160,7 +162,7 @@ retry:
             }
 #endif
     }
-    
+
     // Found anything? Check if user fucked up or mag is really missing.
     if (magHardware == MAG_DEFAULT) {
         if (mcfg.mag_hardware > MAG_DEFAULT && mcfg.mag_hardware < MAG_NONE) {
@@ -214,11 +216,11 @@ uint16_t batteryAdcToVoltage(uint16_t src)
 int32_t currentSensorToCentiamps(uint16_t src)
 {
     int32_t millivolts;
-    
+
     millivolts = ((uint32_t)src * ADCVREF * 100) / 4095;
     millivolts -= mcfg.currentoffset;
-    
-    return (millivolts * 1000) / (int32_t)mcfg.currentscale; // current in 0.01A steps 
+
+    return (millivolts * 1000) / (int32_t)mcfg.currentscale; // current in 0.01A steps
 }
 
 void batteryInit(void)
@@ -240,7 +242,8 @@ void batteryInit(void)
             break;
     }
     batteryCellCount = i;
-    batteryWarningVoltage = i * mcfg.vbatmincellvoltage; // 3.3V per cell minimum, configurable in CLI
+    batteryWarningVoltage = i * mcfg.vbatwarningcellvoltage; // 3.5V per cell minimum, configurable in CLI
+    batteryCriticalVoltage = i * mcfg.vbatmincellvoltage; // 3.3V per cell minimum, configurable in CLI
 }
 
 static void ACC_Common(void)
@@ -298,7 +301,7 @@ static void ACC_Common(void)
             if (InflightcalibratingA == 1) {
                 AccInflightCalibrationActive = false;
                 AccInflightCalibrationMeasurementDone = true;
-                toggleBeep = 2;      // buzzer for indicatiing the end of calibration
+                buzzer(BUZZER_ACC_CALIBRATION);      // buzzer for indicatiing the end of calibration
                 // recover saved values to maintain current flight behavior until new values are transferred
                 mcfg.accZero[ROLL] = accZero_saved[ROLL];
                 mcfg.accZero[PITCH] = accZero_saved[PITCH];
@@ -375,8 +378,7 @@ int Baro_update(void)
 }
 #endif /* BARO */
 
-typedef struct stdev_t
-{
+typedef struct stdev_t {
     float m_oldM, m_newM, m_oldS, m_newS;
     int m_n;
 } stdev_t;

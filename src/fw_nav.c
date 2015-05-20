@@ -55,7 +55,7 @@ void fw_nav(void)
     int16_t groundSpeed;
     int spDiff;
     uint8_t i;
-    
+
     // Nav timer
     static uint32_t gpsTimer = 0;
     static uint16_t gpsFreq = 1000 / GPS_UPD_HZ;    // 5HZ 200ms DT
@@ -70,7 +70,7 @@ void fw_nav(void)
 
     // Wrap GPS_Heading 1800
     GPS_Heading = wrap_18000(GPS_Heading * 10) / 10;
-    
+
     // Only use MAG if Mag and GPS_Heading aligns
     if (sensors(SENSOR_MAG)) {
         if (abs(heading - (GPS_Heading / 10)) > 10 && GPS_speed > 200)
@@ -93,7 +93,7 @@ void fw_nav(void)
         // Deadpan for throttle at correct Alt.
         if (abs(GPS_AltErr) < 1) // Just cruise along in deadpan.
             NAV_Thro = cfg.fw_cruise_throttle;
-        else 
+        else
             // Add AltitudeError  and scale up with a factor to throttle
             NAV_Thro = constrain(cfg.fw_cruise_throttle - (GPS_AltErr * cfg.fw_scaler_throttle), cfg.fw_idle_throttle, cfg.fw_climb_throttle);
 
@@ -191,7 +191,7 @@ void fw_nav(void)
 
         navDiff *= navPID_PARAM.kP;                                 // Add P
         navDiff += navErrorI;                                       // Add I
-        // End of NavPID 
+        // End of NavPID
 
         // Limit outputs
         GPS_angle[PITCH] = constrain(altDiff / 10, -cfg.fw_gps_maxclimb * 10, cfg.fw_gps_maxdive * 10) + ALT_deltaSum;
@@ -200,11 +200,12 @@ void fw_nav(void)
 
         // Elevator compensation depending on behaviour.
         // Prevent stall with Disarmed motor
-        if (!f.CLIMBOUT_FW)
-            GPS_angle[PITCH] -= (abs(angle[ROLL]) *cfg.fw_roll_comp);
+        if (f.MOTORS_STOPPED)
+            GPS_angle[PITCH] = constrain(GPS_angle[PITCH], 0, cfg.fw_gps_maxdive * 10);
 
         // Add elevator compared with rollAngle
-        GPS_angle[PITCH] -= abs(angle[ROLL]);
+        if (!f.CLIMBOUT_FW)
+            GPS_angle[PITCH] -= (abs(angle[ROLL]) * cfg.fw_roll_comp);
 
         // Throttle compensation depending on behaviour.
         // Compensate throttle with pitch Angle

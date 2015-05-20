@@ -92,7 +92,7 @@ bool hmc5883lDetect(sensor_t *mag)
 
     mag->init = hmc5883lInit;
     mag->read = hmc5883lRead;
-    
+
     return true;
 }
 
@@ -106,7 +106,7 @@ void hmc5883lInit(sensor_align_e align)
 
     if (align > 0)
         magAlign = align;
-    
+
     if (hw_revision == NAZE32) {
         // PB12 - MAG_DRDY output on rev4 hardware
         gpio.pin = Pin_12;

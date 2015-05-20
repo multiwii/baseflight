@@ -3,7 +3,7 @@
 // Driver for STM32F103CB onboard ADC
 // VBAT is connected to PA4 (ADC1_IN4) with 10k:1k divider
 // rev.5 hardware has PA5 (ADC1_IN5) on breakout pad on bottom of board
-// Additional channel can be stolen from RC_CH2 (PA1, ADC1_IN1) or 
+// Additional channel can be stolen from RC_CH2 (PA1, ADC1_IN1) or
 // RC_CH8 (PB1, ADC1_IN9) by using set power_adc_channel=1|9
 
 typedef struct adc_config_t {
@@ -77,9 +77,9 @@ void adcInit(drv_adc_config_t *init)
 
     // Calibrate ADC
     ADC_ResetCalibration(ADC1);
-    while(ADC_GetResetCalibrationStatus(ADC1));
+    while (ADC_GetResetCalibrationStatus(ADC1));
     ADC_StartCalibration(ADC1);
-    while(ADC_GetCalibrationStatus(ADC1));
+    while (ADC_GetCalibrationStatus(ADC1));
 
     // Fire off ADC
     ADC_SoftwareStartConvCmd(ADC1, ENABLE);

@@ -12,7 +12,7 @@ uint32_t baroPressureSum = 0;
 int32_t BaroAlt = 0;
 float sonarTransition = 0;
 int32_t baroAlt_offset = 0;
-int32_t sonarAlt = -1;         // in cm , -1 indicate sonar is not in range 
+int32_t sonarAlt = -1;         // in cm , -1 indicate sonar is not in range
 int32_t EstAlt;                // in cm
 int32_t BaroPID = 0;
 int32_t AltHold;
@@ -41,7 +41,7 @@ void imuInit(void)
     smallAngle = lrintf(acc_1G * cosf(RAD * cfg.small_angle));
     accVelScale = 9.80665f / acc_1G / 10000.0f;
     throttleAngleScale = (1800.0f / M_PI) * (900.0f / cfg.throttle_correction_angle);
-    
+
     fc_acc = 0.5f / (M_PI * cfg.accz_lpf_cutoff); // calculate RC time constant used in the accZ lpf
 
 #ifdef MAG
@@ -206,7 +206,7 @@ void acc_calc(uint32_t deltaT)
     accSum[X] += applyDeadband(lrintf(accel_ned.V.X), cfg.accxy_deadband);
     accSum[Y] += applyDeadband(lrintf(accel_ned.V.Y), cfg.accxy_deadband);
     accSum[Z] += applyDeadband(lrintf(accz_smooth), cfg.accz_deadband);
-    
+
     accTimeSum += deltaT;
     accSumCount++;
 }
@@ -308,7 +308,7 @@ static void getEstimatedAttitude(void)
             int deg = lrintf(acosf(cosZ) * throttleAngleScale);
             if (deg > 900)
                 deg = 900;
-            throttleAngleCorrection = lrintf(cfg.throttle_correction_value * sinf(deg / (900.0f * M_PI / 2.0f))) ;
+            throttleAngleCorrection = lrintf(cfg.throttle_correction_value * sinf(deg / (900.0f * M_PI / 2.0f)));
         }
 
     }
@@ -426,7 +426,7 @@ int getEstimatedAltitude(void)
         } else {
             setVel = setVelocity;
         }
-        
+
         // Velocity PID-Controller
         // P
         error = setVel - vel_tmp;

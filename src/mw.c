@@ -8,9 +8,10 @@
 #include "cli.h"
 #include "telemetry_common.h"
 
+#include "buzzer.h"
+
 flags_t f;
 int16_t debug[4];
-uint8_t toggleBeep = 0;
 uint32_t currentTime = 0;
 uint32_t previousTime = 0;
 uint16_t cycleTime = 0;         // this is the number in micro second to achieve a full loop, it can differ a little and is taken into account in the PID loop
@@ -56,10 +57,14 @@ int16_t nav[2];
 int16_t nav_rated[2];               // Adding a rate controller to the navigation to make it smoother
 int8_t nav_mode = NAV_MODE_NONE;    // Navigation mode
 uint8_t GPS_numCh;                  // Number of channels
-uint8_t GPS_svinfo_chn[16];         // Channel number
-uint8_t GPS_svinfo_svid[16];        // Satellite ID
-uint8_t GPS_svinfo_quality[16];     // Bitfield Qualtity
-uint8_t GPS_svinfo_cno[16];         // Carrier to Noise Ratio (Signal Strength)
+uint8_t GPS_svinfo_chn[32];         // Channel number
+uint8_t GPS_svinfo_svid[32];        // Satellite ID
+uint8_t GPS_svinfo_quality[32];     // Bitfield Qualtity
+uint8_t GPS_svinfo_cno[32];         // Carrier to Noise Ratio (Signal Strength)
+uint32_t GPS_update_rate[2];        // GPS coordinates updating rate (column 0 = last update time, 1 = current update ms)
+uint32_t GPS_svinfo_rate[2];        // GPS svinfo updating rate (column 0 = last update time, 1 = current update ms)
+uint32_t GPS_HorizontalAcc;         // Horizontal accuracy estimate (mm)
+uint32_t GPS_VerticalAcc;           // Vertical accuracy estimate (mm)
 
 // Automatic ACC Offset Calibration
 bool AccInflightCalibrationArmed = false;
@@ -70,7 +75,11 @@ uint16_t InflightcalibratingA = 0;
 
 // Battery monitoring stuff
 uint8_t batteryCellCount = 3;       // cell count
-uint16_t batteryWarningVoltage;     // annoying buzzer after this one, battery ready to be dead
+uint16_t batteryWarningVoltage;     // slow buzzer after this one, recommended 80% of battery used. Time to land.
+uint16_t batteryCriticalVoltage;    // annoying buzzer after this one, battery is going to be dead.
+
+// Time of automatic disarm when "Don't spin the motors when armed" is enabled.
+static uint32_t disarmTime = 0;
 
 void blinkLED(uint8_t num, uint8_t wait, uint8_t repeat)
 {
@@ -92,7 +101,6 @@ void annexCode(void)
     static uint32_t calibratedAccTime;
     int32_t tmp, tmp2;
     int32_t axis, prop1, prop2;
-    static uint8_t buzzerFreq;  // delay between buzzer ring
 
     // vbat shit
     static uint8_t vbatTimer = 0;
@@ -125,7 +133,7 @@ void annexCode(void)
 
             tmp2 = tmp / 100;
             rcCommand[axis] = lookupPitchRollRC[tmp2] + (tmp - tmp2 * 100) * (lookupPitchRollRC[tmp2 + 1] - lookupPitchRollRC[tmp2]) / 100;
-            prop1 = 100 - (uint16_t)cfg.rollPitchRate * tmp / 500;
+            prop1 = 100 - (uint16_t)cfg.rollPitchRate[axis] * tmp / 500;
             prop1 = (uint16_t)prop1 * prop2 / 100;
         } else {                // YAW
             if (cfg.yawdeadband) {
@@ -165,7 +173,7 @@ void annexCode(void)
             vbatRaw -= vbatRaw / 8;
             vbatRaw += adcGetChannel(ADC_BATTERY);
             vbat = batteryAdcToVoltage(vbatRaw / 8);
-            
+
             if (mcfg.power_adc_channel > 0) {
                 amperageRaw -= amperageRaw / 8;
                 amperageRaw += adcGetChannel(ADC_EXTERNAL_CURRENT);
@@ -174,15 +182,16 @@ void annexCode(void)
                 mAhdrawn = mAhdrawnRaw / (3600 * 100);
                 vbatCycleTime = 0;
             }
-            
-        }
-        if ((vbat > batteryWarningVoltage) || (vbat < mcfg.vbatmincellvoltage)) { // VBAT ok, buzzer off
-            buzzerFreq = 0;
-        } else
-            buzzerFreq = 4;     // low battery
-    }
 
-    buzzer(buzzerFreq);         // external buzzer routine that handles buzzer events globally now
+        }
+        // Buzzers for low and critical battery levels
+        if (vbat <= batteryCriticalVoltage)
+            buzzer(BUZZER_BAT_CRIT_LOW);     // Critically low battery
+        else if (vbat <= batteryWarningVoltage)
+            buzzer(BUZZER_BAT_LOW);     // low battery
+    }
+    // update buzzer handler
+    buzzerUpdate();
 
     if ((calibratingA > 0 && sensors(SENSOR_ACC)) || (calibratingG > 0)) {      // Calibration phasis
         LED0_TOGGLE;
@@ -283,6 +292,15 @@ static void mwArm(void)
         if (!f.ARMED) {         // arm now!
             f.ARMED = 1;
             headFreeModeHold = heading;
+            // Beep for inform about arming
+#ifdef GPS
+            if (feature(FEATURE_GPS) && f.GPS_FIX && GPS_numSat >= 5)
+                buzzer(BUZZER_ARMING_GPS_FIX);
+            else
+                buzzer(BUZZER_ARMING);
+#else
+            buzzer(BUZZER_ARMING);
+#endif
         }
     } else if (!f.ARMED) {
         blinkLED(2, 255, 1);
@@ -291,8 +309,14 @@ static void mwArm(void)
 
 static void mwDisarm(void)
 {
-    if (f.ARMED)
+    if (f.ARMED) {
         f.ARMED = 0;
+        // Beep for inform about disarming
+        buzzer(BUZZER_DISARMING);
+        // Reset disarm time so that it works next time we arm the board.
+        if (disarmTime != 0)
+            disarmTime = 0;
+    }
 }
 
 static void mwVario(void)
@@ -381,7 +405,8 @@ static void pidRewrite(void)
             // calculate error and limit the angle to 50 degrees max inclination
             errorAngle = (constrain(rcCommand[axis] + GPS_angle[axis], -500, +500) - angle[axis] + cfg.angleTrim[axis]) / 10.0f; // 16 bits is ok here
             if (!f.ANGLE_MODE) { //control is GYRO based (ACRO and HORIZON - direct sticks control is applied to rate PID
-                AngleRateTmp = ((int32_t)(cfg.rollPitchRate + 27) * rcCommand[axis]) >> 4;
+                AngleRateTmp = ((int32_t)(cfg.rollPitchRate[axis] + 27) * rcCommand[axis]) >> 4;
+
                 if (f.HORIZON_MODE) {
                     // mix up angle error to desired AngleRateTmp to add a little auto-level feel
                     AngleRateTmp += (errorAngle * cfg.I8[PIDLEVEL]) >> 8;
@@ -408,7 +433,7 @@ static void pidRewrite(void)
 
         // limit maximum integrator value to prevent WindUp - accumulating extreme values when system is saturated.
         // I coefficient (I8) moved before integration to make limiting independent from PID settings
-        errorGyroI[axis] = constrain(errorGyroI[axis], (int32_t)-GYRO_I_MAX << 13, (int32_t)+GYRO_I_MAX << 13);
+        errorGyroI[axis] = constrain(errorGyroI[axis], (int32_t)(-GYRO_I_MAX) << 13, (int32_t)(+GYRO_I_MAX) << 13);
         ITerm = errorGyroI[axis] >> 13;
 
         //-----calculate D-term
@@ -476,6 +501,9 @@ void loop(void)
             case SERIALRX_MSP:
                 rcReady = mspFrameComplete();
                 break;
+            case SERIALRX_IBUS:
+                rcReady = ibusFrameComplete();
+                break;
         }
     }
 
@@ -499,15 +527,18 @@ void loop(void)
                 for (i = 0; i < 3; i++)
                     rcData[i] = mcfg.midrc;      // after specified guard time after RC signal is lost (in 0.1sec)
                 rcData[THROTTLE] = cfg.failsafe_throttle;
+                buzzer(BUZZER_TX_LOST_ARMED);
                 if ((failsafeCnt > 5 * (cfg.failsafe_delay + cfg.failsafe_off_delay)) && !f.FW_FAILSAFE_RTH_ENABLE) {  // Turn OFF motors after specified Time (in 0.1sec)
                     mwDisarm();             // This will prevent the copter to automatically rearm if failsafe shuts it down and prevents
                     f.OK_TO_ARM = 0;        // to restart accidentely by just reconnect to the tx - you will have to switch off first to rearm
+                    buzzer(BUZZER_TX_LOST);
                 }
                 failsafeEvents++;
             }
             if (failsafeCnt > (5 * cfg.failsafe_delay) && !f.ARMED) {  // Turn off "Ok To arm to prevent the motors from spinning after repowering the RX with low throttle and aux to arm
                 mwDisarm();         // This will prevent the copter to automatically rearm if failsafe shuts it down and prevents
                 f.OK_TO_ARM = 0;    // to restart accidentely by just reconnect to the tx - you will have to switch off first to rearm
+                buzzer(BUZZER_TX_LOST);
             }
             failsafeCnt++;
         }
@@ -577,7 +608,7 @@ void loop(void)
                         calibratingB = 10; // calibrate baro to new ground level (10 * 25 ms = ~250 ms non blocking)
                     if (!sensors(SENSOR_MAG))
                         heading = 0; // reset heading to zero after gyro calibration
-                // Inflight ACC Calibration
+                    // Inflight ACC Calibration
                 } else if (feature(FEATURE_INFLIGHT_ACC_CAL) && (rcSticks == THR_LO + YAW_LO + PIT_HI + ROL_HI)) {
                     if (AccInflightCalibrationMeasurementDone) {        // trigger saving into eeprom after landing
                         AccInflightCalibrationMeasurementDone = false;
@@ -585,9 +616,9 @@ void loop(void)
                     } else {
                         AccInflightCalibrationArmed = !AccInflightCalibrationArmed;
                         if (AccInflightCalibrationArmed) {
-                            toggleBeep = 2;
+                            buzzer(BUZZER_ACC_CALIBRATION);
                         } else {
-                            toggleBeep = 3;
+                            buzzer(BUZZER_ACC_CALIBRATION_FAIL);
                         }
                     }
                 }
@@ -677,7 +708,7 @@ void loop(void)
         } else {
             f.ANGLE_MODE = 0;   // failsafe support
             f.FW_FAILSAFE_RTH_ENABLE = 0;
-          }
+        }
 
         if (rcOptions[BOXHORIZON]) {
             f.ANGLE_MODE = 0;
@@ -785,6 +816,8 @@ void loop(void)
                         }
                     }
                 }
+                // Beep for indication that GPS has found satellites and naze32 is ready to fly
+                buzzer(BUZZER_READY_BEEP);
             } else {
                 f.GPS_HOME_MODE = 0;
                 f.GPS_HOLD_MODE = 0;
@@ -799,12 +832,12 @@ void loop(void)
             f.PASSTHRU_MODE = 0;
         }
 
-        if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
+        if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE) {
             f.HEADFREE_MODE = 0;
             if (feature(FEATURE_FAILSAFE) && failsafeCnt > (6 * cfg.failsafe_delay)) {
                 f.PASSTHRU_MODE = 0;
                 f.ANGLE_MODE = 1;
-                for (i = 0; i < 3; i++) 
+                for (i = 0; i < 3; i++)
                     rcData[i] = mcfg.midrc;
                 rcData[THROTTLE] = cfg.failsafe_throttle;
                 // No GPS?  Force a soft left turn.
@@ -814,49 +847,60 @@ void loop(void)
                 }
             }
         }
-				
+        // When armed and motors aren't spinning. Make warning beeps so that accidentally won't lose fingers...
+        // Also disarm board after 5 sec so users without buzzer won't lose fingers.
+        if (feature(FEATURE_MOTOR_STOP) && f.ARMED && !f.FIXED_WING) {
+            if (isThrottleLow) {
+                if (disarmTime == 0)
+                    disarmTime = millis() + 1000 * mcfg.auto_disarm_board;
+                else if (disarmTime < millis() && mcfg.auto_disarm_board != 0)
+                    mwDisarm();
+                buzzer(BUZZER_ARMED);
+            } else if (disarmTime != 0)
+                disarmTime = 0;
+        }
     } else {                        // not in rc loop
         static int taskOrder = 0;   // never call all function in the same loop, to avoid high delay spikes
         switch (taskOrder) {
-        case 0:
-            taskOrder++;
+            case 0:
+                taskOrder++;
 #ifdef MAG
-            if (sensors(SENSOR_MAG) && Mag_getADC())
-                break;
+                if (sensors(SENSOR_MAG) && Mag_getADC())
+                    break;
 #endif
-        case 1:
-            taskOrder++;
+            case 1:
+                taskOrder++;
 #ifdef BARO
-            if (sensors(SENSOR_BARO) && Baro_update())
-                break;
+                if (sensors(SENSOR_BARO) && Baro_update())
+                    break;
 #endif
-        case 2:
-            taskOrder++;
+            case 2:
+                taskOrder++;
 #ifdef BARO
-            if (sensors(SENSOR_BARO) && getEstimatedAltitude())
-                break;
+                if (sensors(SENSOR_BARO) && getEstimatedAltitude())
+                    break;
 #endif
-        case 3:
-            // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
-            // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
-            // change this based on available hardware
-            taskOrder++;
+            case 3:
+                // if GPS feature is enabled, gpsThread() will be called at some intervals to check for stuck
+                // hardware, wrong baud rates, init GPS if needed, etc. Don't use SENSOR_GPS here as gpsThread() can and will
+                // change this based on available hardware
+                taskOrder++;
 #ifdef GPS
-            if (feature(FEATURE_GPS)) {
-                gpsThread();
-                break;
-            }
+                if (feature(FEATURE_GPS)) {
+                    gpsThread();
+                    break;
+                }
 #endif
-        case 4:
-            taskOrder = 0;
+            case 4:
+                taskOrder = 0;
 #ifdef SONAR
-            if (sensors(SENSOR_SONAR)) {
-                Sonar_update();
-            }
+                if (sensors(SENSOR_SONAR)) {
+                    Sonar_update();
+                }
 #endif
-            if (feature(FEATURE_VARIO) && f.VARIO_MODE)
-                mwVario();
-            break;
+                if (feature(FEATURE_VARIO) && f.VARIO_MODE)
+                    mwVario();
+                break;
         }
     }
 
@@ -870,7 +914,7 @@ void loop(void)
         cycleTime = (int32_t)(currentTime - previousTime);
         previousTime = currentTime;
         // non IMU critical, temeperatur, serialcom
-         annexCode();
+        annexCode();
 #ifdef MAG
         if (sensors(SENSOR_MAG)) {
             if (abs(rcCommand[YAW]) < 70 && f.MAG_MODE) {
@@ -940,7 +984,7 @@ void loop(void)
                 float sin_yaw_y = sinf(heading * 0.0174532925f);
                 float cos_yaw_x = cosf(heading * 0.0174532925f);
                 if (!f.FIXED_WING) {
-                	if (cfg.nav_slew_rate) {
+                    if (cfg.nav_slew_rate) {
                         nav_rated[LON] += constrain(wrap_18000(nav[LON] - nav_rated[LON]), -cfg.nav_slew_rate, cfg.nav_slew_rate); // TODO check this on uint8
                         nav_rated[LAT] += constrain(wrap_18000(nav[LAT] - nav_rated[LAT]), -cfg.nav_slew_rate, cfg.nav_slew_rate);
                         GPS_angle[ROLL] = (nav_rated[LON] * cos_yaw_x - nav_rated[LAT] * sin_yaw_y) / 10;
@@ -948,12 +992,12 @@ void loop(void)
                     } else {
                         GPS_angle[ROLL] = (nav[LON] * cos_yaw_x - nav[LAT] * sin_yaw_y) / 10;
                         GPS_angle[PITCH] = (nav[LON] * sin_yaw_y + nav[LAT] * cos_yaw_x) / 10;
-                	}
+                    }
                 } else fw_nav();
             } else {
-            	GPS_angle[ROLL] = 0;
-            	GPS_angle[PITCH] = 0;
-            	GPS_angle[YAW] = 0;
+                GPS_angle[ROLL] = 0;
+                GPS_angle[PITCH] = 0;
+                GPS_angle[YAW] = 0;
             }
         }
 #endif
