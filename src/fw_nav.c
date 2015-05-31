@@ -123,7 +123,7 @@ void fw_nav(void)
 
         // Filtering of navDiff around home to stop nervous servos
         if (GPS_distanceToHome < 10)
-            navDiff *= 0.1;
+            navDiff *= 0.1f;
 
         // Wrap Heading 180
         navDiff = wrap_18000(navDiff * 100) / 100;
