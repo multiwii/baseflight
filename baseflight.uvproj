@@ -642,6 +642,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\drv_ak8975.c</FilePath>
             </File>
+            <File>
+              <FileName>drv_bmp280.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\drv_bmp280.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1416,6 +1421,11 @@
               <FileName>drv_ak8975.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\drv_ak8975.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_bmp280.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\drv_bmp280.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2991,6 +3001,11 @@
               <FileName>drv_ak8975.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\drv_ak8975.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_bmp280.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\drv_bmp280.c</FilePath>
             </File>
           </Files>
         </Group>

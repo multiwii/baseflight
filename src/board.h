@@ -241,6 +241,7 @@ typedef struct baro_t {
 #include "drv_adxl345.h"
 #include "drv_bma280.h"
 #include "drv_bmp085.h"
+#include "drv_bmp280.h"
 #include "drv_ms5611.h"
 #include "drv_hmc5883l.h"
 #include "drv_ak8975.h"
