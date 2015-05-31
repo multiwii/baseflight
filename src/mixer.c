@@ -482,14 +482,21 @@ static void servoMixer(void)
     }
 
     input[INPUT_THROTTLE] = motor[0];
-    input[INPUT_AUX1] = mcfg.midrc - rcData[AUX1];
-    input[INPUT_AUX2] = mcfg.midrc - rcData[AUX2];
-    input[INPUT_AUX3] = mcfg.midrc - rcData[AUX3];
-    input[INPUT_AUX4] = mcfg.midrc - rcData[AUX4];
-    input[INPUT_RC_ROLL] = mcfg.midrc - rcData[ROLL];
-    input[INPUT_RC_PITCH] = mcfg.midrc - rcData[PITCH];
-    input[INPUT_RC_YAW] = mcfg.midrc - rcData[YAW];
-    input[INPUT_RC_THROTTLE] = mcfg.midrc - rcData[THROTTLE];
+
+    // center the RC input value around the RC middle value
+    // by subtracting the RC middle value from the RC input value, we get:
+    // data - middle = input
+    // 2000 - 1500 = +500
+    // 1500 - 1500 = 0
+    // 1000 - 1500 = -500
+    input[INPUT_AUX1] = rcData[AUX1] - mcfg.midrc;
+    input[INPUT_AUX2] = rcData[AUX2] - mcfg.midrc;
+    input[INPUT_AUX3] = rcData[AUX3] - mcfg.midrc;
+    input[INPUT_AUX4] = rcData[AUX4] - mcfg.midrc;
+    input[INPUT_RC_ROLL] = rcData[ROLL] - mcfg.midrc;
+    input[INPUT_RC_PITCH] = rcData[PITCH] - mcfg.midrc;
+    input[INPUT_RC_YAW] = rcData[YAW] - mcfg.midrc;
+    input[INPUT_RC_THROTTLE] = rcData[THROTTLE] - mcfg.midrc;
 
     for (i = 0; i < MAX_SERVOS; i++)
         servo[i] = 0;
