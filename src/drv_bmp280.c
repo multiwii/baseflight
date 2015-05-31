@@ -63,7 +63,7 @@ typedef struct bmp280_calib_param_t {
 
 static uint8_t bmp280_chip_id = 0;
 static bool bmp280InitDone = false;
-static bmp280_calib_param_t bmp280_cal; 
+static bmp280_calib_param_t bmp280_cal;
 // uncompensated pressure and temperature
 static int32_t bmp280_up = 0;
 static int32_t bmp280_ut = 0;
@@ -143,7 +143,7 @@ float bmp280_compensate_T(int32_t adc_T)
     var2 = ((((float)adc_T) / 131072.0f - ((float)bmp280_cal.dig_T1) / 8192.0f) * (((float)adc_T) / 131072.0f - ((float)bmp280_cal.dig_T1) / 8192.0f)) * ((float)bmp280_cal.dig_T3);
     bmp280_cal.t_fine = (int32_t)(var1 + var2);
     T = (var1 + var2) / 5120.0f;
-    
+
     return T;
 }
 
@@ -165,7 +165,7 @@ float bmp280_compensate_P(int32_t adc_P)
     var1 = ((float)bmp280_cal.dig_P9) * p * p / 2147483648.0f;
     var2 = p * ((float)bmp280_cal.dig_P8) / 32768.0f;
     p = p + (var1 + var2 + ((float)bmp280_cal.dig_P7)) / 16.0f;
-    
+
     return p;
 }
 
@@ -175,7 +175,7 @@ static void bmp280_calculate(int32_t *pressure, int32_t *temperature)
     float t, p;
     t = bmp280_compensate_T(bmp280_ut);
     p = bmp280_compensate_P(bmp280_up);
-    
+
     if (pressure)
         *pressure = (int32_t)p;
     if (temperature)
