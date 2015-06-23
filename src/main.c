@@ -8,11 +8,15 @@
 #include "telemetry_common.h"
 
 core_t core;
+int hw_revision = 0;
 
 extern rcReadRawDataPtr rcReadRawFunc;
 
 // receiver read function
 extern uint16_t pwmReadRawRC(uint8_t chan);
+
+// from system_stm32f10x.c
+void SetSysClock(bool overclock);
 
 #ifdef USE_LAME_PRINTF
 // gcc/GNU version
@@ -39,26 +43,67 @@ int main(void)
     drv_adc_config_t adc_params;
     bool sensorsOK = false;
 #ifdef SOFTSERIAL_LOOPBACK
-    serialPort_t* loopbackPort1 = NULL;
-    serialPort_t* loopbackPort2 = NULL;
+    serialPort_t *loopbackPort1 = NULL;
+    serialPort_t *loopbackPort2 = NULL;
 #endif
 
     initEEPROM();
     checkFirstTime(false);
     readEEPROM();
-    systemInit(mcfg.emf_avoidance);
+
+    // Configure clock, this figures out HSE for hardware autodetect
+    SetSysClock(mcfg.emf_avoidance);
+
+    // determine hardware revision
+    if (hse_value == 8000000)
+        hw_revision = NAZE32;
+    else if (hse_value == 12000000)
+        hw_revision = NAZE32_REV5;
+
+    systemInit();
 #ifdef USE_LAME_PRINTF
     init_printf(NULL, _putc);
 #endif
 
+    if (feature(FEATURE_SERIALRX)) {
+        switch (mcfg.serialrx_type) {
+            case SERIALRX_SPEKTRUM1024:
+            case SERIALRX_SPEKTRUM2048:
+                // Spektrum satellite binding if enabled on startup.
+                // Must be called before that 100ms sleep so that we don't lose satellite's binding window after startup.
+                // The rest of Spektrum initialization will happen later - via spektrumInit()
+                spektrumBind();
+                break;
+        }
+    }
+
+    // sleep for 100ms
+    delay(100);
+
     activateConfig();
 
+#ifndef CJMCU
+    if (spiInit() == SPI_DEVICE_MPU && hw_revision == NAZE32_REV5)
+        hw_revision = NAZE32_SP;
+#endif
+
+    if (hw_revision != NAZE32_SP)
+        i2cInit(I2C_DEVICE);
+
     // configure power ADC
-    if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9))
+    if (mcfg.power_adc_channel > 0 && (mcfg.power_adc_channel == 1 || mcfg.power_adc_channel == 9 || mcfg.power_adc_channel == 5))
         adc_params.powerAdcChannel = mcfg.power_adc_channel;
     else {
         adc_params.powerAdcChannel = 0;
         mcfg.power_adc_channel = 0;
+    }
+
+    // configure rssi ADC
+    if (mcfg.rssi_adc_channel > 0 && (mcfg.rssi_adc_channel == 1 || mcfg.rssi_adc_channel == 9 || mcfg.rssi_adc_channel == 5) && mcfg.rssi_adc_channel != mcfg.power_adc_channel)
+        adc_params.rssiAdcChannel = mcfg.rssi_adc_channel;
+    else {
+        adc_params.rssiAdcChannel = 0;
+        mcfg.rssi_adc_channel = 0;
     }
 
     adcInit(&adc_params);
@@ -100,7 +145,7 @@ int main(void)
     serialInit(mcfg.serial_baudrate);
 
     // when using airplane/wing mixer, servo/motor outputs are remapped
-    if (mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_FLYING_WING)
+    if (mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE)
         pwm_params.airplane = true;
     else
         pwm_params.airplane = false;
@@ -112,11 +157,14 @@ int main(void)
     pwm_params.extraServos = cfg.gimbal_flags & GIMBAL_FORWARDAUX;
     pwm_params.motorPwmRate = mcfg.motor_pwm_rate;
     pwm_params.servoPwmRate = mcfg.servo_pwm_rate;
+    pwm_params.pwmFilter = mcfg.pwm_filter;
     pwm_params.idlePulse = PULSE_1MS; // standard PWM for brushless ESC (default, overridden below)
     if (feature(FEATURE_3D))
         pwm_params.idlePulse = mcfg.neutral3d;
     if (pwm_params.motorPwmRate > 500)
         pwm_params.idlePulse = 0; // brushed motors
+    pwm_params.syncPWM = feature(FEATURE_SYNCPWM);
+    pwm_params.fastPWM = feature(FEATURE_FASTPWM);
     pwm_params.servoCenterPulse = mcfg.midrc;
     pwm_params.failsafeThreshold = cfg.failsafe_detect_threshold;
     switch (mcfg.power_adc_channel) {
@@ -155,14 +203,15 @@ int main(void)
             case SERIALRX_MSP:
                 mspInit(&rcReadRawFunc);
                 break;
+            case SERIALRX_IBUS:
+                ibusInit(&rcReadRawFunc);
+                break;
         }
     }
 #ifndef CJMCU
-    else { // spektrum and GPS are mutually exclusive
-        // Optional GPS - available in both PPM and PWM input mode, in PWM input, reduces number of available channels by 2.
-        // gpsInit will return if FEATURE_GPS is not enabled.
-        gpsInit(mcfg.gps_baudrate);
-    }
+    // Optional GPS - available in both PPM, PWM and serialRX input mode, in PWM input, reduces number of available channels by 2.
+    // gpsInit will return if FEATURE_GPS is not enabled.
+    gpsInit(mcfg.gps_baudrate);
 #endif
 #ifdef SONAR
     // sonar stuff only works with PPM
@@ -180,10 +229,10 @@ int main(void)
         setupSoftSerialSecondary(mcfg.softserial_2_inverted);
 
 #ifdef SOFTSERIAL_LOOPBACK
-        loopbackPort1 = (serialPort_t*)&(softSerialPorts[0]);
+        loopbackPort1 = (serialPort_t *)(&softSerialPorts[0]));
         serialPrint(loopbackPort1, "SOFTSERIAL 1 - LOOPBACK ENABLED\r\n");
 
-        loopbackPort2 = (serialPort_t*)&(softSerialPorts[1]);
+        loopbackPort2 = (serialPort_t *)(&softSerialPorts[1]));
         serialPrint(loopbackPort2, "SOFTSERIAL 2 - LOOPBACK ENABLED\r\n");
 #endif
         //core.mainport = (serialPort_t*)&(softSerialPorts[0]); // Uncomment to switch the main port to use softserial.
@@ -215,16 +264,9 @@ int main(void)
 
         if (loopbackPort2) {
             while (serialTotalBytesWaiting(loopbackPort2)) {
-#ifndef OLIMEXINO // PB0/D27 and PB1/D28 internally connected so this would result in a continuous stream of data
                 serialRead(loopbackPort2);
-#else
-                uint8_t b = serialRead(loopbackPort2);
-                serialWrite(loopbackPort2, b);
-                //serialWrite(core.mainport, 0x02);
-                //serialWrite(core.mainport, b);
-#endif // OLIMEXINO
             };
-    }
+        }
 #endif
     }
 }

@@ -1,11 +1,15 @@
-#include "board.h"
 /*
-    DMA UART routines idea lifted from AutoQuad
-    Copyright © 2011  Bill Nesbitt
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ *
+ * DMA UART routines idea lifted from AutoQuad
+ * Copyright © 2011  Bill Nesbitt
 */
+#include "board.h"
 
 static uartPort_t uartPort1;
 static uartPort_t uartPort2;
+static uartPort_t uartPort3;
 
 // USART1 - Telemetry (RX/TX by DMA)
 uartPort_t *serialUSART1(uint32_t baudRate, portMode_t mode)
@@ -96,6 +100,62 @@ uartPort_t *serialUSART2(uint32_t baudRate, portMode_t mode)
     return s;
 }
 
+// USART3 - Telemetry (RX/TX by DMA + REMAP)
+uartPort_t *serialUSART3(uint32_t baudRate, portMode_t mode)
+{
+    uartPort_t *s;
+    static volatile uint8_t rx3Buffer[UART3_RX_BUFFER_SIZE];
+    static volatile uint8_t tx3Buffer[UART3_TX_BUFFER_SIZE];
+    gpio_config_t gpio;
+    NVIC_InitTypeDef NVIC_InitStructure;
+
+    s = &uartPort3;
+    s->port.vTable = uartVTable;
+
+    s->port.baudRate = baudRate;
+
+    s->port.rxBuffer = rx3Buffer;
+    s->port.txBuffer = tx3Buffer;
+    s->port.rxBufferSize = UART3_RX_BUFFER_SIZE;
+    s->port.txBufferSize = UART3_TX_BUFFER_SIZE;
+
+    // if we're only receiving, fall back to IRQ reception - workaround for spektrum sat polling
+    if (mode != MODE_RX)
+        s->rxDMAChannel = DMA1_Channel3;
+    s->txDMAChannel = DMA1_Channel2;
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
+    // USART3_TX    PB10
+    // USART3_RX    PB11
+    gpio.speed = Speed_2MHz;
+    gpio.pin = Pin_10;
+    gpio.mode = Mode_AF_PP;
+    if (mode & MODE_TX)
+        gpioInit(GPIOB, &gpio);
+    gpio.pin = Pin_11;
+    gpio.mode = Mode_IPU;
+    if (mode & MODE_RX)
+        gpioInit(GPIOB, &gpio);
+
+    if (mode == MODE_RX) {
+        // RX Interrupt
+        NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;
+        NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+        NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
+        NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+        NVIC_Init(&NVIC_InitStructure);
+    }
+
+    // DMA TX Interrupt
+    NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel2_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);
+
+    return s;
+}
+
 serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr callback, uint32_t baudRate, portMode_t mode)
 {
     DMA_InitTypeDef DMA_InitStructure;
@@ -103,10 +163,15 @@ serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr callback,
 
     uartPort_t *s = NULL;
 
+    if (!USARTx)
+        return NULL;
+
     if (USARTx == USART1)
         s = serialUSART1(baudRate, mode);
     if (USARTx == USART2)
         s = serialUSART2(baudRate, mode);
+    if (USARTx == USART3)
+        s = serialUSART3(baudRate, mode);
 
     s->USARTx = USARTx;
 
@@ -226,7 +291,7 @@ static void uartStartTxDMA(uartPort_t *s)
 
 uint8_t uartTotalBytesWaiting(serialPort_t *instance)
 {
-    uartPort_t *s = (uartPort_t*)instance;
+    uartPort_t *s = (uartPort_t *)instance;
     // FIXME always returns 1 or 0, not the amount of bytes waiting
     if (s->rxDMAChannel)
         return s->rxDMAChannel->CNDTR != s->rxDMAPos;
@@ -276,8 +341,8 @@ void uartWrite(serialPort_t *instance, uint8_t ch)
 }
 
 const struct serialPortVTable uartVTable[] = {
-    { 
-        uartWrite, 
+    {
+        uartWrite,
         uartTotalBytesWaiting,
         uartRead,
         uartSetBaudRate,
@@ -293,6 +358,19 @@ void DMA1_Channel4_IRQHandler(void)
 {
     uartPort_t *s = &uartPort1;
     DMA_ClearITPendingBit(DMA1_IT_TC4);
+    DMA_Cmd(s->txDMAChannel, DISABLE);
+
+    if (s->port.txBufferHead != s->port.txBufferTail)
+        uartStartTxDMA(s);
+    else
+        s->txDMAEmpty = true;
+}
+
+// USART3 Tx DMA Handler
+void DMA1_Channel2_IRQHandler(void)
+{
+    uartPort_t *s = &uartPort3;
+    DMA_ClearITPendingBit(DMA1_IT_TC2);
     DMA_Cmd(s->txDMAChannel, DISABLE);
 
     if (s->port.txBufferHead != s->port.txBufferTail)
@@ -338,6 +416,23 @@ void USART2_IRQHandler(void)
             s->port.txBufferTail = (s->port.txBufferTail + 1) % s->port.txBufferSize;
         } else {
             USART_ITConfig(s->USARTx, USART_IT_TXE, DISABLE);
+        }
+    }
+}
+
+// USART3 Rx IRQ Handler
+void USART3_IRQHandler(void)
+{
+    uartPort_t *s = &uartPort3;
+    uint16_t SR = s->USARTx->SR;
+
+    if (SR & USART_FLAG_RXNE) {
+        // If we registered a callback, pass crap there
+        if (s->port.callback) {
+            s->port.callback(s->USARTx->DR);
+        } else {
+            s->port.rxBuffer[s->port.rxBufferHead] = s->USARTx->DR;
+            s->port.rxBufferHead = (s->port.rxBufferHead + 1) % s->port.rxBufferSize;
         }
     }
 }

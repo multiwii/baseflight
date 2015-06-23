@@ -11,7 +11,6 @@
 #define SBUS_MAX_CHANNEL 8
 #define SBUS_FRAME_SIZE 25
 #define SBUS_SYNCBYTE 0x0F
-#define SBUS_OFFSET 988
 
 static bool sbusFrameDone = false;
 static void sbusDataReceive(uint16_t c);
@@ -26,7 +25,8 @@ void sbusInit(rcReadRawDataPtr *callback)
 {
     int b;
     for (b = 0; b < SBUS_MAX_CHANNEL; b++)
-        sbusChannelData[b] = 2 * (mcfg.midrc - SBUS_OFFSET);
+        sbusChannelData[b] = (1.6f * mcfg.midrc) - 1408;
+
     // Configure hardware inverter on PB2. If not available, this has no effect.
     INV_ON;
     core.rcvrport = uartOpen(USART2, sbusDataReceive, 100000, (portMode_t)(MODE_RX | MODE_SBUS));
@@ -109,5 +109,8 @@ bool sbusFrameComplete(void)
 
 static uint16_t sbusReadRawRC(uint8_t chan)
 {
-    return sbusChannelData[mcfg.rcmap[chan]] / 2 + SBUS_OFFSET;
+    // Linear fitting values read from OpenTX-ppmus and comparing with values received by X4R
+    // http://www.wolframalpha.com/input/?i=linear+fit+%7B173%2C+988%7D%2C+%7B1812%2C+2012%7D%2C+%7B993%2C+1500%7D
+    // No actual Futaba hardware to test with. Sorry.
+    return (0.625f * sbusChannelData[mcfg.rcmap[chan]]) + 880;
 }

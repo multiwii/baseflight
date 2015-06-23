@@ -29,7 +29,7 @@ void setTxSignal(softSerial_t *softSerial, uint8_t state)
     }
 }
 
-softSerial_t* lookupSoftSerial(uint8_t reference)
+softSerial_t *lookupSoftSerial(uint8_t reference)
 {
     assert_param(reference >= 0 && reference <= MAX_SOFTSERIAL_PORTS);
 
@@ -338,7 +338,7 @@ void onSerialRxPinChange(uint8_t portIndex, uint16_t capture)
         // synchronise bit counter
         // FIXME this reduces functionality somewhat as receiving breaks concurrent transmission on all ports because
         // the next callback to the onSerialTimer will happen too early causing transmission errors.
-        TIM_SetCounter(softSerial->rxTimerHardware->tim, 0);
+        TIM_SetCounter(softSerial->rxTimerHardware->tim, softSerial->rxTimerHardware->tim->ARR / 2);
         if (softSerial->isTransmittingData) {
             softSerial->transmissionErrors++;
         }
@@ -427,9 +427,17 @@ void softSerialWriteByte(serialPort_t *s, uint8_t ch)
 
 void softSerialSetBaudRate(serialPort_t *s, uint32_t baudRate)
 {
-    (void)s;
-    (void)baudRate;
-    // not implemented.
+    uint32_t newbaudRate;
+
+    if (baudRate > SOFT_SERIAL_MAX_BAUD_RATE)
+        newbaudRate = SOFT_SERIAL_MAX_BAUD_RATE;
+    else
+        newbaudRate = baudRate;
+    s->baudRate = newbaudRate;
+
+    // Dummy implementation. Whole soft serial should be redesigned with faster&separate baud rates per port.
+    softSerial_t *softSerial = &(softSerialPorts[0]);
+    setupSoftSerialPrimary(newbaudRate, softSerial->isInverted);
 }
 
 void softSerialSetMode(serialPort_t *instance, portMode_t mode)

@@ -19,14 +19,17 @@ typedef struct drv_pwm_config_t {
     bool useServos;
     bool extraServos;    // configure additional 4 channels in PPM mode as servos, not motors
     bool airplane;       // fixed wing hardware config, lots of servos etc
+    uint8_t pwmFilter;   // PWM ICFilter value for jittering input
     uint8_t adcChannel;  // steal one RC input for current sensor
     uint16_t motorPwmRate;
     uint16_t servoPwmRate;
-    uint16_t idlePulse;  // PWM value to use when initializing the driver. set this to either PULSE_1MS (regular pwm), 
-                         // some higher value (used by 3d mode), or 0, for brushed pwm drivers.
+    uint16_t idlePulse;  // PWM value to use when initializing the driver. set this to either PULSE_1MS (regular pwm),
+    // some higher value (used by 3d mode), or 0, for brushed pwm drivers.
     uint16_t servoCenterPulse;
     uint16_t failsafeThreshold;
-    
+    bool syncPWM;
+    bool fastPWM;
+
     // OUT parameters, filled by driver
     uint8_t numServos;
 } drv_pwm_config_t;

@@ -82,7 +82,7 @@ void hottV4FormatAndSendGPSResponse(void)
 
     hottV4GPSUpdate();
 
-    hottV4Respond((uint8_t*)&HoTTV4GPSModule, sizeof(HoTTV4GPSModule));
+    hottV4Respond((uint8_t *)&HoTTV4GPSModule, sizeof(HoTTV4GPSModule));
 }
 
 void hottV4GPSUpdate(void)
@@ -212,7 +212,7 @@ void hottV4FormatAndSendEAMResponse(void)
     HoTTV4ElectricAirModule.m2s = OFFSET_M2S;
     HoTTV4ElectricAirModule.m3s = OFFSET_M3S;
 
-    hottV4Respond((uint8_t*)&HoTTV4ElectricAirModule, sizeof(HoTTV4ElectricAirModule));
+    hottV4Respond((uint8_t *)&HoTTV4ElectricAirModule, sizeof(HoTTV4ElectricAirModule));
 }
 
 static void hottV4Respond(uint8_t *data, uint8_t size)
@@ -264,13 +264,13 @@ void handleHoTTTelemetry(void)
         delay(5);
 
         switch (c) {
-        case 0x8A:
+            case 0x8A:
                 if (sensors(SENSOR_GPS))
                     hottV4FormatAndSendGPSResponse();
-            break;
-        case 0x8E:
-            hottV4FormatAndSendEAMResponse();
-            break;
+                break;
+            case 0x8E:
+                hottV4FormatAndSendEAMResponse();
+                break;
         }
     }
 }

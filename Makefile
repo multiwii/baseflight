@@ -14,7 +14,7 @@
 # Things that the user might override on the commandline
 #
 
-# The target to build, must be one of NAZE OR OLIMEXINO
+# The target to build, must be one of NAZE or CJMCU
 TARGET		?= NAZE
 
 # Compile-time options
@@ -30,7 +30,7 @@ SERIAL_DEVICE	?= /dev/ttyUSB0
 # Things that need to be maintained as the source changes
 #
 
-VALID_TARGETS	 = NAZE OLIMEXINO CJMCU
+VALID_TARGETS = NAZE CJMCU
 
 # Working directories
 ROOT		 = $(dir $(lastword $(MAKEFILE_LIST)))
@@ -59,6 +59,8 @@ COMMON_SRC	 = buzzer.c \
 		   drv_uart.c \
 		   printf.c \
 		   utils.c \
+		   fw_nav.c \
+		   ibus.c \
 		   sbus.c \
 		   sumd.c \
 		   spektrum.c \
@@ -76,30 +78,21 @@ HIGHEND_SRC	 = gps.c \
 # Source files for the NAZE target
 NAZE_SRC	 = drv_adc.c \
 		   drv_adxl345.c \
+		   drv_ak8975.c \
 		   drv_bma280.c \
 		   drv_bmp085.c \
 		   drv_ms5611.c \
+		   drv_bmp280.c \
 		   drv_hcsr04.c \
 		   drv_hmc5883l.c \
 		   drv_ledring.c \
 		   drv_mma845x.c \
 		   drv_mpu3050.c \
 		   drv_mpu6050.c \
+		   drv_mpu6500.c \
 		   drv_l3g4200d.c \
 		   drv_pwm.c \
 		   drv_spi.c \
-		   drv_timer.c \
-		   $(HIGHEND_SRC) \
-		   $(COMMON_SRC)
-
-# Source files for the OLIMEXINO target
-OLIMEXINO_SRC	 = drv_spi.c \
-		   drv_adc.c \
-		   drv_adxl345.c \
-		   drv_mpu3050.c \
-		   drv_mpu6050.c \
-		   drv_l3g4200d.c \
-		   drv_pwm.c \
 		   drv_timer.c \
 		   $(HIGHEND_SRC) \
 		   $(COMMON_SRC)
@@ -213,19 +206,21 @@ $(TARGET_HEX): $(TARGET_ELF)
 $(TARGET_ELF):  $(TARGET_OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
+MKDIR_OBJDIR = @mkdir -p $(dir $@)
+
 # Compile
 $(OBJECT_DIR)/$(TARGET)/%.o: %.c
-	@mkdir -p $(dir $@)
+	$(MKDIR_OBJDIR)
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(CFLAGS) $<
 
 # Assemble
 $(OBJECT_DIR)/$(TARGET)/%.o: %.s
-	@mkdir -p $(dir $@)
+	$(MKDIR_OBJDIR)
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(ASFLAGS) $< 
 $(OBJECT_DIR)/$(TARGET)/%.o): %.S
-	@mkdir -p $(dir $@)
+	$(MKDIR_OBJDIR)
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(ASFLAGS) $< 
 

@@ -44,6 +44,13 @@
 #define U_ID_1 (*(uint32_t*)0x1FFFF7EC)
 #define U_ID_2 (*(uint32_t*)0x1FFFF7F0)
 
+
+typedef enum HardwareRevision {
+    NAZE32 = 1,                                         // Naze32 and compatible with 8MHz HSE
+    NAZE32_REV5,                                        // Naze32 and compatible with 12MHz HSE
+    NAZE32_SP                                           // Naze32 w/Sensor Platforms
+} HardwareRevision;
+
 typedef enum {
     SENSOR_GYRO = 1 << 0, // always present
     SENSOR_ACC = 1 << 1,
@@ -61,8 +68,16 @@ typedef enum AccelSensors {
     ACC_MPU6050 = 2,
     ACC_MMA8452 = 3,
     ACC_BMA280 = 4,
-    ACC_NONE = 5
+    ACC_MPU6500 = 5,
+    ACC_NONE = 6
 } AccelSensors;
+
+typedef enum CompassSensors {
+    MAG_DEFAULT = 0,
+    MAG_HMC5883L = 1,
+    MAG_AK8975 = 2,
+    MAG_NONE = 3
+} CompassSensors;
 
 typedef enum {
     FEATURE_PPM = 1 << 0,
@@ -80,6 +95,9 @@ typedef enum {
     FEATURE_POWERMETER = 1 << 12,
     FEATURE_VARIO = 1 << 13,
     FEATURE_3D = 1 << 14,
+    FEATURE_FW_FAILSAFE_RTH = 1 << 15,
+    FEATURE_SYNCPWM = 1 << 16,
+    FEATURE_FASTPWM = 1 << 17,
 } AvailableFeatures;
 
 typedef enum {
@@ -88,7 +106,8 @@ typedef enum {
     SERIALRX_SBUS = 2,
     SERIALRX_SUMD = 3,
     SERIALRX_MSP = 4,
-    SERIALRX_PROVIDER_MAX = SERIALRX_MSP,
+    SERIALRX_IBUS = 5,
+    SERIALRX_PROVIDER_MAX = SERIALRX_IBUS,
 } SerialRXType;
 
 typedef enum {
@@ -181,7 +200,7 @@ typedef struct baro_t {
 } baro_t;
 
 // Hardware definitions and GPIO
-// Target definitions (NAZE, OLIMEXINO, CJMCU, ... are same as in Makefile
+// Target definitions (NAZE, CJMCU, ... are same as in Makefile
 #if defined(NAZE)
 // Afroflight32
 
@@ -217,19 +236,22 @@ typedef struct baro_t {
 // #define SOFT_I2C_PB1011          // If SOFT_I2C is enabled above, need to define pinout as well (I2C1 = PB67, I2C2 = PB1011)
 // #define SOFT_I2C_PB67
 
- // AfroFlight32
+// AfroFlight32
 #include "drv_adc.h"
 #include "drv_adxl345.h"
 #include "drv_bma280.h"
 #include "drv_bmp085.h"
+#include "drv_bmp280.h"
 #include "drv_ms5611.h"
 #include "drv_hmc5883l.h"
+#include "drv_ak8975.h"
 #include "drv_i2c.h"
 #include "drv_spi.h"
 #include "drv_ledring.h"
 #include "drv_mma845x.h"
 #include "drv_mpu3050.h"
 #include "drv_mpu6050.h"
+#include "drv_mpu6500.h"
 #include "drv_l3g4200d.h"
 #include "drv_pwm.h"
 #include "drv_timer.h"
@@ -237,42 +259,6 @@ typedef struct baro_t {
 #include "drv_uart.h"
 #include "drv_softserial.h"
 #include "drv_hcsr04.h"
-
-#elif defined(OLIMEXINO)
-// OLIMEXINO
-
-#ifdef OLIMEXINO_UNCUT_LED2_E_JUMPER
-// LED2 is using one of the pwm pins (PWM2), so we must not use PWM2.  @See pwmInit()
-#define LED0_GPIO   GPIOA
-#define LED0_PIN    Pin_1 // D3, PA1/USART2_RTS/ADC1/TIM2_CH3 - "LED2" on silkscreen, Yellow
-#define LED0
-#endif
-
-#ifdef OLIMEXINO_UNCUT_LED1_E_JUMPER
-#define LED1_GPIO   GPIOA
-#define LED1_PIN    Pin_5 // D13, PA5/SPI1_SCK/ADC5 - "LED1" on silkscreen, Green
-#define LED1
-#endif
-
-#define GYRO
-#define ACC
-#define MOTOR_PWM_RATE 400
-
-#define SENSORS_SET (SENSOR_ACC)
-#define I2C_DEVICE (I2CDEV_2)
-
-#include "drv_adc.h"
-#include "drv_i2c.h"
-#include "drv_spi.h"
-#include "drv_adxl345.h"
-#include "drv_mpu3050.h"
-#include "drv_mpu6050.h"
-#include "drv_l3g4200d.h"
-#include "drv_pwm.h"
-#include "drv_timer.h"
-#include "drv_serial.h"
-#include "drv_uart.h"
-#include "drv_softserial.h"
 
 #elif defined(CJMCU)
 // CJMCU brushed quad pcb

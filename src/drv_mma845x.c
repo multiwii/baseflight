@@ -1,3 +1,7 @@
+/*
+ * This file is part of baseflight
+ * Licensed under GPL V3 or modified DCL - see https://github.com/multiwii/baseflight/blob/master/README.md
+ */
 #include "board.h"
 
 // MMA8452QT, Standard address 0x1C
@@ -48,7 +52,6 @@
 #define MMA8452_CTRL_REG1_ACTIVE        0x01
 
 extern uint16_t acc_1G;
-static uint8_t device_id;
 static sensor_align_e accAlign = CW90_DEG;
 
 static void mma8452Init(sensor_align_e align);
@@ -60,7 +63,7 @@ bool mma8452Detect(sensor_t *acc)
     uint8_t sig = 0;
 
     // Not supported with this frequency
-    if (hse_value == 12000000)
+    if (hw_revision >= NAZE32_REV5)
         return false;
 
     ack = i2cRead(MMA8452_ADDRESS, MMA8452_WHO_AM_I, 1, &sig);
@@ -69,7 +72,6 @@ bool mma8452Detect(sensor_t *acc)
 
     acc->init = mma8452Init;
     acc->read = mma8452Read;
-    device_id = sig;
     return true;
 }
 
@@ -78,7 +80,6 @@ static void mma8452Init(sensor_align_e align)
     gpio_config_t gpio;
 
     // PA5 - ACC_INT2 output on rev3/4 hardware
-    // OLIMEXINO - The PA5 pin is wired up to LED1, if you need to use an mma8452 on an Olimexino use a different pin and provide support in code.
     gpio.pin = Pin_5;
     gpio.speed = Speed_2MHz;
     gpio.mode = Mode_IN_FLOATING;

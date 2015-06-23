@@ -5,6 +5,7 @@
 
 #include "board.h"
 #include "mw.h"
+#include "buzzer.h"
 
 uint16_t calibratingA = 0;      // the calibration is done is the main loop. Calibrating decreases at each cycle down to 0, then we enter in a normal mode.
 uint16_t calibratingB = 0;      // baro calibration = get new ground pressure value
@@ -17,37 +18,43 @@ extern bool AccInflightCalibrationMeasurementDone;
 extern bool AccInflightCalibrationSavetoEEProm;
 extern bool AccInflightCalibrationActive;
 extern uint16_t batteryWarningVoltage;
+extern uint16_t batteryCriticalVoltage;
 extern uint8_t batteryCellCount;
 extern float magneticDeclination;
 
 sensor_t acc;                       // acc access functions
 sensor_t gyro;                      // gyro access functions
+sensor_t mag;                       // mag access functions
 baro_t baro;                        // barometer access functions
 uint8_t accHardware = ACC_DEFAULT;  // which accel chip is used/detected
+uint8_t magHardware = MAG_DEFAULT;
 
 bool sensorsAutodetect(void)
 {
     int16_t deg, min;
 #ifndef CJMCU
     drv_adxl345_config_t acc_params;
+    bool haveMpu65 = false;
 #endif
     bool haveMpu6k = false;
 
-    // Autodetect gyro hardware. We have MPU3050 or MPU6050.
+    // Autodetect gyro hardware. We have MPU3050 or MPU6050 or MPU6500 on SPI
     if (mpu6050Detect(&acc, &gyro, mcfg.gyro_lpf, &core.mpu6050_scale)) {
         // this filled up  acc.* struct with init values
         haveMpu6k = true;
     } else
 #ifndef CJMCU
-        if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
-        // well, we found our gyro
-        ;
-    } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf))
+        if (hw_revision == NAZE32_SP && mpu6500Detect(&acc, &gyro, mcfg.gyro_lpf))
+            haveMpu65 = true;
+        else if (l3g4200dDetect(&gyro, mcfg.gyro_lpf)) {
+            // well, we found our gyro
+            ;
+        } else if (!mpu3050Detect(&gyro, mcfg.gyro_lpf))
 #endif
-    {
-        // if this fails, we get a beep + blink pattern. we're doomed, no gyro or i2c error.
-        return false;
-    }
+        {
+            // if this fails, we get a beep + blink pattern. we're doomed, no gyro or i2c error.
+            return false;
+        }
 
     // Accelerometer. Fuck it. Let user break shit.
 retry:
@@ -75,6 +82,14 @@ retry:
             }
             ; // fallthrough
 #ifdef NAZE
+        case ACC_MPU6500: // MPU6500
+            if (haveMpu65) {
+                mpu6500Detect(&acc, &gyro, mcfg.gyro_lpf); // yes, i'm rerunning it again.  re-fill acc struct
+                accHardware = ACC_MPU6500;
+                if (mcfg.acc_hardware == ACC_MPU6500)
+                    break;
+            }
+            ; // fallthrough
         case ACC_MMA8452: // MMA8452
             if (mma8452Detect(&acc)) {
                 accHardware = ACC_MMA8452;
@@ -93,7 +108,7 @@ retry:
 
     // Found anything? Check if user fucked up or ACC is really missing.
     if (accHardware == ACC_DEFAULT) {
-        if (mcfg.acc_hardware > ACC_DEFAULT) {
+        if (mcfg.acc_hardware > ACC_DEFAULT && mcfg.acc_hardware < ACC_NONE) {
             // Nothing was found and we have a forced sensor type. Stupid user probably chose a sensor that isn't present.
             mcfg.acc_hardware = ACC_DEFAULT;
             goto retry;
@@ -105,13 +120,15 @@ retry:
 
 #ifdef BARO
     // Detect what pressure sensors are available. baro->update() is set to sensor-specific update function
-    if (!bmp085Detect(&baro)) {
-        // ms5611 disables BMP085, and tries to initialize + check PROM crc. 
-        // moved 5611 init here because there have been some reports that calibration data in BMP180
-        // has been "passing" ms5611 PROM crc check
-        if (!ms5611Detect(&baro)) {
-            // if both failed, we don't have anything
-            sensorsClear(SENSOR_BARO);
+    if (!bmp280Detect(&baro)) {
+        if (!bmp085Detect(&baro)) {
+            // ms5611 disables BMP085, and tries to initialize + check PROM crc.
+            // moved 5611 init here because there have been some reports that calibration data in BMP180
+            // has been "passing" ms5611 PROM crc check
+            if (!ms5611Detect(&baro)) {
+                // if both failed, we don't have anything
+                sensorsClear(SENSOR_BARO);
+            }
         }
     }
 #endif
@@ -123,8 +140,42 @@ retry:
     gyro.init(mcfg.gyro_align);
 
 #ifdef MAG
-    if (!hmc5883lDetect(mcfg.mag_align))
-        sensorsClear(SENSOR_MAG);
+retryMag:
+    switch (mcfg.mag_hardware) {
+        case MAG_NONE: // disable MAG
+            sensorsClear(SENSOR_MAG);
+            break;
+        case MAG_DEFAULT: // autodetect
+
+        case MAG_HMC5883L:
+            if (hmc5883lDetect(&mag)) {
+                magHardware = MAG_HMC5883L;
+                if (mcfg.mag_hardware == MAG_HMC5883L)
+                    break;
+            }
+            ; // fallthrough
+
+#ifdef NAZE
+        case MAG_AK8975:
+            if (ak8975detect(&mag)) {
+                magHardware = MAG_AK8975;
+                if (mcfg.mag_hardware == MAG_AK8975)
+                    break;
+            }
+#endif
+    }
+
+    // Found anything? Check if user fucked up or mag is really missing.
+    if (magHardware == MAG_DEFAULT) {
+        if (mcfg.mag_hardware > MAG_DEFAULT && mcfg.mag_hardware < MAG_NONE) {
+            // Nothing was found and we have a forced sensor type. Stupid user probably chose a sensor that isn't present.
+            mcfg.mag_hardware = MAG_DEFAULT;
+            goto retryMag;
+        } else {
+            // No mag present
+            sensorsClear(SENSOR_MAG);
+        }
+    }
 #endif
 
     // calculate magnetic declination
@@ -138,6 +189,24 @@ retry:
     return true;
 }
 
+uint16_t RSSI_getValue(void)
+{
+    uint16_t value = 0;
+
+    if (mcfg.rssi_aux_channel > 0) {
+        const int16_t rssiChannelData = rcData[AUX1 + mcfg.rssi_aux_channel - 1];
+        // Range of rssiChannelData is [1000;2000]. rssi should be in [0;1023];
+        value = (uint16_t)((constrain(rssiChannelData - 1000, 0, 1000) / 1000.0f) * 1023.0f);
+    } else if (mcfg.rssi_adc_channel > 0) {
+        const int16_t rssiData = (((int32_t)(adcGetChannel(ADC_RSSI) - mcfg.rssi_adc_offset)) * 1023L) / mcfg.rssi_adc_max;
+        // Set to correct range [0;1023]
+        value = constrain(rssiData, 0, 1023);
+    }
+
+    // return range [0;1023]
+    return value;
+}
+
 uint16_t batteryAdcToVoltage(uint16_t src)
 {
     // calculate battery voltage based on ADC reading
@@ -149,11 +218,11 @@ uint16_t batteryAdcToVoltage(uint16_t src)
 int32_t currentSensorToCentiamps(uint16_t src)
 {
     int32_t millivolts;
-    
+
     millivolts = ((uint32_t)src * ADCVREF * 100) / 4095;
     millivolts -= mcfg.currentoffset;
-    
-    return (millivolts * 1000) / (int32_t)mcfg.currentscale; // current in 0.01A steps 
+
+    return (millivolts * 1000) / (int32_t)mcfg.currentscale; // current in 0.01A steps
 }
 
 void batteryInit(void)
@@ -175,7 +244,8 @@ void batteryInit(void)
             break;
     }
     batteryCellCount = i;
-    batteryWarningVoltage = i * mcfg.vbatmincellvoltage; // 3.3V per cell minimum, configurable in CLI
+    batteryWarningVoltage = i * mcfg.vbatwarningcellvoltage; // 3.5V per cell minimum, configurable in CLI
+    batteryCriticalVoltage = i * mcfg.vbatmincellvoltage; // 3.3V per cell minimum, configurable in CLI
 }
 
 static void ACC_Common(void)
@@ -233,7 +303,7 @@ static void ACC_Common(void)
             if (InflightcalibratingA == 1) {
                 AccInflightCalibrationActive = false;
                 AccInflightCalibrationMeasurementDone = true;
-                toggleBeep = 2;      // buzzer for indicatiing the end of calibration
+                buzzer(BUZZER_ACC_CALIBRATION);      // buzzer for indicatiing the end of calibration
                 // recover saved values to maintain current flight behavior until new values are transferred
                 mcfg.accZero[ROLL] = accZero_saved[ROLL];
                 mcfg.accZero[PITCH] = accZero_saved[PITCH];
@@ -310,8 +380,7 @@ int Baro_update(void)
 }
 #endif /* BARO */
 
-typedef struct stdev_t
-{
+typedef struct stdev_t {
     float m_oldM, m_newM, m_oldS, m_newS;
     int m_n;
 } stdev_t;
@@ -399,7 +468,7 @@ void Mag_init(void)
 {
     // initialize and calibration. turn on led during mag calibration (calibration routine blinks it)
     LED1_ON;
-    hmc5883lInit();
+    mag.init(mcfg.mag_align);
     LED1_OFF;
     magInit = 1;
 }
@@ -416,7 +485,7 @@ int Mag_getADC(void)
     t = currentTime + 100000;
 
     // Read mag sensor
-    hmc5883lRead(magADC);
+    mag.read(magADC);
 
     if (f.CALIBRATE_MAG) {
         tCal = t;

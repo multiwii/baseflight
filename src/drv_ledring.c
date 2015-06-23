@@ -22,7 +22,7 @@ void ledringState(void)
 
     if (state == 0) {
         b[0] = 'z';
-        b[1] = (180 - heading) / 2;	// 1 unit = 2 degrees;
+        b[1] = (180 - heading) / 2; // 1 unit = 2 degrees;
         i2cWriteBuffer(LED_RING_ADDRESS, 0xFF, 2, b);
         state = 1;
     } else if (state == 1) {
@@ -32,7 +32,7 @@ void ledringState(void)
         i2cWriteBuffer(LED_RING_ADDRESS, 0xFF, 3, b);
         state = 2;
     } else if (state == 2) {
-        b[0] = 'd';		// all unicolor GREEN
+        b[0] = 'd';     // all unicolor GREEN
         b[1] = 1;
         if (f.ARMED)
             b[2] = 1;

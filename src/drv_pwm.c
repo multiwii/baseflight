@@ -38,6 +38,8 @@
 
 typedef struct {
     volatile uint16_t *ccr;
+    volatile uint16_t *cr1;
+    volatile uint16_t *cnt;
     uint16_t period;
 
     // for input only
@@ -65,6 +67,8 @@ static pwmWriteFuncPtr pwmWritePtr = NULL;
 static uint8_t numMotors = 0;
 static uint8_t numServos = 0;
 static uint8_t numInputs = 0;
+static uint8_t pwmFilter = 0;
+static bool syncPWM = false;
 static uint16_t failsafeThreshold = 985;
 // external vars (ugh)
 extern int16_t failsafeCnt;
@@ -161,7 +165,7 @@ static const uint8_t airPWM[] = {
     0xFF
 };
 
-static const uint8_t * const hardwareMaps[] = {
+static const uint8_t *const hardwareMaps[] = {
     multiPWM,
     multiPPM,
     airPWM,
@@ -169,10 +173,11 @@ static const uint8_t * const hardwareMaps[] = {
 };
 
 #define PWM_TIMER_MHZ 1
-#define PWM_BRUSHED_TIMER_MHZ 8
+#define PWM_TIMER_8_MHZ 8
 
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
 {
+    uint16_t tim_oc_preload;
     TIM_OCInitTypeDef TIM_OCInitStructure;
 
     TIM_OCStructInit(&TIM_OCInitStructure);
@@ -183,22 +188,27 @@ static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value)
     TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
     TIM_OCInitStructure.TIM_OCIdleState = TIM_OCIdleState_Set;
 
+    if (syncPWM)
+        tim_oc_preload = TIM_OCPreload_Disable;
+    else
+        tim_oc_preload = TIM_OCPreload_Enable;
+
     switch (channel) {
         case TIM_Channel_1:
             TIM_OC1Init(tim, &TIM_OCInitStructure);
-            TIM_OC1PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC1PreloadConfig(tim, tim_oc_preload);
             break;
         case TIM_Channel_2:
             TIM_OC2Init(tim, &TIM_OCInitStructure);
-            TIM_OC2PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC2PreloadConfig(tim, tim_oc_preload);
             break;
         case TIM_Channel_3:
             TIM_OC3Init(tim, &TIM_OCInitStructure);
-            TIM_OC3PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC3PreloadConfig(tim, tim_oc_preload);
             break;
         case TIM_Channel_4:
             TIM_OC4Init(tim, &TIM_OCInitStructure);
-            TIM_OC4PreloadConfig(tim, TIM_OCPreload_Enable);
+            TIM_OC4PreloadConfig(tim, tim_oc_preload);
             break;
     }
 }
@@ -212,7 +222,7 @@ void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity)
     TIM_ICInitStructure.TIM_ICPolarity = polarity;
     TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
     TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-    TIM_ICInitStructure.TIM_ICFilter = 0x00;
+    TIM_ICInitStructure.TIM_ICFilter = pwmFilter;
 
     TIM_ICInit(tim, &TIM_ICInitStructure);
 }
@@ -237,6 +247,9 @@ static pwmPortData_t *pwmOutConfig(uint8_t port, uint8_t mhz, uint16_t period, u
     if (timerHardware[port].outputEnable)
         TIM_CtrlPWMOutputs(timerHardware[port].tim, ENABLE);
     TIM_Cmd(timerHardware[port].tim, ENABLE);
+
+    p->cr1 = &timerHardware[port].tim->CR1;
+    p->cnt = &timerHardware[port].tim->CNT;
 
     switch (timerHardware[port].channel) {
         case TIM_Channel_1:
@@ -340,13 +353,26 @@ static void pwmWriteStandard(uint8_t index, uint16_t value)
     *motors[index]->ccr = value;
 }
 
+static void pwmWriteSyncPwm(uint8_t index, uint16_t value)
+{
+    *motors[index]->cr1 &= (uint16_t) ~(0x0001);    // disable timer
+    *motors[index]->cnt = 0x0000;                   // set timer counter to zero
+    *motors[index]->ccr = value;                    // set the pwm value
+    *motors[index]->cr1 |= (uint16_t) (0x0001);     // enable timer
+}
+
 bool pwmInit(drv_pwm_config_t *init)
 {
     int i = 0;
     const uint8_t *setup;
+    uint16_t period;
 
     // to avoid importing cfg/mcfg
     failsafeThreshold = init->failsafeThreshold;
+    // pwm filtering on input
+    pwmFilter = init->pwmFilter;
+
+    syncPWM = init->syncPWM;
 
     // this is pretty hacky shit, but it will do for now. array of 4 config maps, [ multiPWM multiPPM airPWM airPPM ]
     if (init->airplane)
@@ -363,12 +389,6 @@ bool pwmInit(drv_pwm_config_t *init)
         if (setup[i] == 0xFF) // terminator
             break;
 
-#ifdef OLIMEXINO_UNCUT_LED2_E_JUMPER
-        // PWM2 is connected to LED2 on the board and cannot be connected unless you cut LED2_E
-        if (port == PWM2)
-            continue;
-#endif
-
         // skip UART ports for GPS
         if (init->useUART && (port == PWM3 || port == PWM4))
             continue;
@@ -382,7 +402,7 @@ bool pwmInit(drv_pwm_config_t *init)
             continue;
 
         // hacks to allow current functionality
-        if (mask & (TYPE_IP | TYPE_IW) && !init->enableInput)
+        if ((mask & (TYPE_IP | TYPE_IW)) && !init->enableInput)
             mask = 0;
 
         if (init->useServos && !init->airplane) {
@@ -392,7 +412,7 @@ bool pwmInit(drv_pwm_config_t *init)
         }
 
         if (init->extraServos && !init->airplane) {
-            // remap PWM5..8 as servos when used in extended servo mode. 
+            // remap PWM5..8 as servos when used in extended servo mode.
             // condition for airplane because airPPM already has these as servos
             if (port >= PWM5 && port <= PWM8)
                 mask = TYPE_S;
@@ -406,13 +426,22 @@ bool pwmInit(drv_pwm_config_t *init)
             numInputs++;
         } else if (mask & TYPE_M) {
             uint32_t hz, mhz;
-            if (init->motorPwmRate > 500)
-                mhz = PWM_BRUSHED_TIMER_MHZ;
+
+            if (init->motorPwmRate > 500 || init->fastPWM)
+                mhz = PWM_TIMER_8_MHZ;
             else
                 mhz = PWM_TIMER_MHZ;
+
             hz = mhz * 1000000;
 
-            motors[numMotors++] = pwmOutConfig(port, mhz, hz / init->motorPwmRate, init->idlePulse);
+            if (init->syncPWM)
+                period = 8000 * mhz; // 8ms period in syncPWM mode, cycletime should be smaller than this
+            else if (init->fastPWM)
+                period = hz / 4000;
+            else
+                period = hz / init->motorPwmRate;
+
+            motors[numMotors++] = pwmOutConfig(port, mhz, period, init->idlePulse);
         } else if (mask & TYPE_S) {
             servos[numServos++] = pwmOutConfig(port, PWM_TIMER_MHZ, 1000000 / init->servoPwmRate, init->servoCenterPulse);
         }
@@ -422,6 +451,8 @@ bool pwmInit(drv_pwm_config_t *init)
     pwmWritePtr = pwmWriteStandard;
     if (init->motorPwmRate > 500)
         pwmWritePtr = pwmWriteBrushed;
+    else if (init->syncPWM)
+        pwmWritePtr = pwmWriteSyncPwm;
 
     // set return values in init struct
     init->numServos = numServos;
