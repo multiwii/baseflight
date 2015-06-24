@@ -607,7 +607,7 @@ void mixTable(void)
         if (motor[i] > maxMotor)
             maxMotor = motor[i];
     for (i = 0; i < numberMotor; i++) {
-        if (maxMotor > mcfg.maxthrottle)     // this is a way to still have good gyro corrections if at least one motor reaches its max.
+        if (maxMotor > mcfg.maxthrottle && !f.FIXED_WING)     // this is a way to still have good gyro corrections if at least one motor reaches its max.
             motor[i] -= maxMotor - mcfg.maxthrottle;
 
         if (feature(FEATURE_3D)) {
