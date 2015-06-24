@@ -39,6 +39,7 @@
 #define MSP_SERVO_CONF           120    //out message         Servo settings
 #define MSP_NAV_STATUS           121    //out message         Returns navigation status
 #define MSP_NAV_CONFIG           122    //out message         Returns navigation parameters
+#define MSP_FW_CONFIG            123    //out message         Returns parameters specific to Flying Wing mode
 
 #define MSP_SET_RAW_RC           200    //in message          8 rc chan
 #define MSP_SET_RAW_GPS          201    //in message          fix, numsat, lat, lon, alt, speed
@@ -55,6 +56,7 @@
 #define MSP_SET_SERVO_CONF       212    //in message          Servo settings
 #define MSP_SET_MOTOR            214    //in message          PropBalance function
 #define MSP_SET_NAV_CONFIG       215    //in message          Sets nav config parameters - write to the eeprom
+#define MSP_SET_FW_CONFIG        216    //in message          Sets parameters specific to Flying Wing mode
 
 // #define MSP_BIND                 240    //in message          no param
 
@@ -525,6 +527,50 @@ static void evaluateCommand(void)
                 mcfg.customServoMixer[i].box = read8();
             }
             loadCustomServoMixer();
+            break;
+        case MSP_FW_CONFIG:
+            headSerialReply(31);
+            serialize8(mcfg.fw_althold_dir);
+            serialize32(cfg.fw_roll_throw);
+            serialize32(cfg.fw_pitch_throw);
+            serialize8(cfg.fw_vector_trust);
+            serialize16(cfg.fw_gps_maxcorr);
+            serialize16(cfg.fw_gps_rudder);
+            serialize16(cfg.fw_gps_maxclimb);
+            serialize16(cfg.fw_gps_maxdive);
+            serialize16(cfg.fw_climb_throttle);
+            serialize16(cfg.fw_cruise_throttle);
+            serialize16(cfg.fw_idle_throttle);
+            serialize16(cfg.fw_scaler_throttle);
+            serialize32(cfg.fw_roll_comp);
+            serialize8(cfg.D8[PIDPOSR]);
+            // next added for future use
+            serialize32(0); 
+            serialize32(0);
+            serialize32(0);
+            serialize32(0);
+            break;
+        case MSP_SET_FW_CONFIG:
+            headSerialReply(0);
+            mcfg.fw_althold_dir = read8();
+            cfg.fw_roll_throw = read32();
+            cfg.fw_pitch_throw = read32();
+            cfg.fw_vector_trust = read8();
+            cfg.fw_gps_maxcorr = read16();
+            cfg.fw_gps_rudder = read16();
+            cfg.fw_gps_maxclimb = read16();
+            cfg.fw_gps_maxdive = read16();
+            cfg.fw_climb_throttle = read16();
+            cfg.fw_cruise_throttle = read16();
+            cfg.fw_idle_throttle = read16();
+            cfg.fw_scaler_throttle = read16();
+            cfg.fw_roll_comp = read32();
+            cfg.D8[PIDPOSR] = read8();
+            // next added for future use
+            read32(); 
+            read32();
+            read32();
+            read32();
             break;
         case MSP_MOTOR:
             s_struct((uint8_t *)motor, 16);
