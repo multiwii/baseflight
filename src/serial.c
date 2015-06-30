@@ -529,7 +529,7 @@ static void evaluateCommand(void)
             loadCustomServoMixer();
             break;
         case MSP_FW_CONFIG:
-            headSerialReply(31);
+            headSerialReply(47);
             serialize8(mcfg.fw_althold_dir);
             serialize32(cfg.fw_roll_throw);
             serialize32(cfg.fw_pitch_throw);
