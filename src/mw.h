@@ -293,6 +293,7 @@ typedef struct config_t {
     uint16_t fw_idle_throttle;                 // Lowest throttleValue during Descend
     uint16_t fw_scaler_throttle;               // Adjust to Match Power/Weight ratio of your model
     float fw_roll_comp;
+    uint8_t fw_rth_alt;                        // Min Altitude to keep during RTH. (Max 200m)
 
 } config_t;
 

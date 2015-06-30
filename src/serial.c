@@ -543,7 +543,7 @@ static void evaluateCommand(void)
             serialize16(cfg.fw_idle_throttle);
             serialize16(cfg.fw_scaler_throttle);
             serialize32(cfg.fw_roll_comp);
-            serialize8(cfg.D8[PIDPOSR]);
+            serialize8(cfg.fw_rth_alt);
             // next added for future use
             serialize32(0);
             serialize32(0);
@@ -565,7 +565,7 @@ static void evaluateCommand(void)
             cfg.fw_idle_throttle = read16();
             cfg.fw_scaler_throttle = read16();
             cfg.fw_roll_comp = read32();
-            cfg.D8[PIDPOSR] = read8();
+            cfg.fw_rth_alt = read8();
             // next added for future use
             read32();
             read32();
