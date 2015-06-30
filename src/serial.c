@@ -545,7 +545,7 @@ static void evaluateCommand(void)
             serialize32(cfg.fw_roll_comp);
             serialize8(cfg.D8[PIDPOSR]);
             // next added for future use
-            serialize32(0); 
+            serialize32(0);
             serialize32(0);
             serialize32(0);
             serialize32(0);
@@ -567,7 +567,7 @@ static void evaluateCommand(void)
             cfg.fw_roll_comp = read32();
             cfg.D8[PIDPOSR] = read8();
             // next added for future use
-            read32(); 
+            read32();
             read32();
             read32();
             read32();
