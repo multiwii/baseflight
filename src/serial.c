@@ -813,10 +813,12 @@ static void evaluateCommand(void)
             cfg.rollPitchRate[0] = read8();
             cfg.rollPitchRate[1] = read8();
             mcfg.power_adc_channel = read8();
+            cfg.small_angle = read8();
+            mcfg.looptime = read16();
             /// ???
             break;
         case MSP_CONFIG:
-            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1);
+            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2);
             serialize8(mcfg.mixerConfiguration);
             serialize32(featureMask());
             serialize8(mcfg.serialrx_type);
@@ -829,6 +831,8 @@ static void evaluateCommand(void)
             serialize8(cfg.rollPitchRate[0]);
             serialize8(cfg.rollPitchRate[1]);
             serialize8(mcfg.power_adc_channel);
+            serialize8(cfg.small_angle);
+            serialize16(mcfg.looptime);
             /// ???
             break;
 
