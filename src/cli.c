@@ -1051,7 +1051,7 @@ static void cliMixer(char *cmdline)
             // Really Ugly Hack
             if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
                 cfg.dynThrPID = 50;
-                cfg.rcExpo8[acroState] = 0;
+                cfg.rcExpo8[ACRO_OFF] = 0;
                 cfg.P8[PIDALT] = 30;
                 cfg.I8[PIDALT] = 20;
                 cfg.D8[PIDALT] = 45;

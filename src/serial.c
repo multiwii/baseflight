@@ -375,8 +375,8 @@ static void evaluateCommand(void)
             headSerialReply(0);
             break;
         case MSP_SET_RC_TUNING:
-            cfg.rcRate8[0] = read8();
-            cfg.rcExpo8[0] = read8();
+            cfg.rcRate8[ACRO_OFF] = read8();
+            cfg.rcExpo8[ACRO_OFF] = read8();
             read8(); // Legacy pitch-roll rate, read but not set.
             cfg.yawRate[ACRO_OFF] = read8();
             cfg.dynThrPID = read8();
