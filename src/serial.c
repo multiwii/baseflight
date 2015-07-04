@@ -115,6 +115,7 @@ static const box_t boxes[] = {
     { BOXSERVO1, "SERVO1;", 21 },
     { BOXSERVO2, "SERVO2;", 22 },
     { BOXSERVO3, "SERVO3;", 23 },
+    { BOXACROSWITCH, "ACROSWITCH;", 24 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -323,7 +324,7 @@ void serialInit(uint32_t baudrate)
         availableBoxes[idx++] = BOXSERVO2;
         availableBoxes[idx++] = BOXSERVO3;
     }
-
+    availableBoxes[idx++] = BOXACROSWITCH;
     numberBoxItems = idx;
 }
 
@@ -374,10 +375,10 @@ static void evaluateCommand(void)
             headSerialReply(0);
             break;
         case MSP_SET_RC_TUNING:
-            cfg.rcRate8 = read8();
-            cfg.rcExpo8 = read8();
+            cfg.rcRate8[0] = read8();
+            cfg.rcExpo8[0] = read8();
             read8(); // Legacy pitch-roll rate, read but not set.
-            cfg.yawRate = read8();
+            cfg.yawRate[ACRO_OFF] = read8();
             cfg.dynThrPID = read8();
             cfg.thrMid8 = read8();
             cfg.thrExpo8 = read8();
@@ -456,6 +457,7 @@ static void evaluateCommand(void)
                   rcOptions[BOXSERVO1] << BOXSERVO1 |
                   rcOptions[BOXSERVO2] << BOXSERVO2 |
                   rcOptions[BOXSERVO3] << BOXSERVO3 |
+                  rcOptions[BOXACROSWITCH] << BOXACROSWITCH |
                   f.ARMED << BOXARM;
             for (i = 0; i < numberBoxItems; i++) {
                 int flag = (tmp & (1 << availableBoxes[i]));
@@ -621,10 +623,10 @@ static void evaluateCommand(void)
             break;
         case MSP_RC_TUNING:
             headSerialReply(7);
-            serialize8(cfg.rcRate8);
-            serialize8(cfg.rcExpo8);
-            serialize8(cfg.rollPitchRate[0]); // here for legacy support
-            serialize8(cfg.yawRate);
+            serialize8(cfg.rcRate8[ACRO_OFF]);
+            serialize8(cfg.rcExpo8[ACRO_OFF]);
+            serialize8(cfg.rollPitchRate[ACRO_OFF][0]); // here for legacy support
+            serialize8(cfg.yawRate[ACRO_OFF]);
             serialize8(cfg.dynThrPID);
             serialize8(cfg.thrMid8);
             serialize8(cfg.thrExpo8);
@@ -810,8 +812,13 @@ static void evaluateCommand(void)
             mcfg.currentscale = read16();
             mcfg.currentoffset = read16();
             mcfg.motor_pwm_rate = read16();
-            cfg.rollPitchRate[0] = read8();
-            cfg.rollPitchRate[1] = read8();
+            cfg.rollPitchRate[ACRO_OFF][0] = read8();
+            cfg.rollPitchRate[ACRO_OFF][1] = read8();
+            cfg.rollPitchRate[ACRO_ON][0] = read8();
+            cfg.rollPitchRate[ACRO_ON][1] = read8();
+            cfg.yawRate[ACRO_ON] = read8();
+            cfg.rcExpo8[ACRO_ON] = read8();
+            cfg.rcRate8[ACRO_ON] = read8();
             mcfg.power_adc_channel = read8();
             cfg.small_angle = read8();
             mcfg.looptime = read16();
@@ -819,7 +826,7 @@ static void evaluateCommand(void)
             /// ???
             break;
         case MSP_CONFIG:
-            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 2 + 1);
+            headSerialReply(1 + 4 + 1 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 2 + 1 + 1 + 1 + 1 + 1 + 2 + 1);
             serialize8(mcfg.mixerConfiguration);
             serialize32(featureMask());
             serialize8(mcfg.serialrx_type);
@@ -829,8 +836,13 @@ static void evaluateCommand(void)
             serialize16(mcfg.currentscale);
             serialize16(mcfg.currentoffset);
             serialize16(mcfg.motor_pwm_rate);
-            serialize8(cfg.rollPitchRate[0]);
-            serialize8(cfg.rollPitchRate[1]);
+            serialize8(cfg.rollPitchRate[ACRO_OFF][0]);
+            serialize8(cfg.rollPitchRate[ACRO_OFF][1]);
+            serialize8(cfg.rollPitchRate[ACRO_ON][0]);
+            serialize8(cfg.rollPitchRate[ACRO_ON][1]);
+            serialize8(cfg.yawRate[ACRO_ON]);
+            serialize8(cfg.rcExpo8[ACRO_ON]);
+            serialize8(cfg.rcRate8[ACRO_ON]);
             serialize8(mcfg.power_adc_channel);
             serialize8(cfg.small_angle);
             serialize16(mcfg.looptime);

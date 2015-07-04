@@ -194,13 +194,18 @@ const clivalue_t valueTable[] = {
     { "alt_hold_fast_change", VAR_UINT8, &cfg.alt_hold_fast_change, 0, 1 },
     { "throttle_correction_value", VAR_UINT8, &cfg.throttle_correction_value, 0, 150 },
     { "throttle_correction_angle", VAR_UINT16, &cfg.throttle_correction_angle, 1, 900 },
-    { "rc_rate", VAR_UINT8, &cfg.rcRate8, 0, 250 },
-    { "rc_expo", VAR_UINT8, &cfg.rcExpo8, 0, 100 },
+    { "rc_rate", VAR_UINT8, &cfg.rcRate8[ACRO_OFF], 0, 250 },
+    { "rc_expo", VAR_UINT8, &cfg.rcExpo8[ACRO_OFF], 0, 100 },
+    { "rc_rate_acro", VAR_UINT8, &cfg.rcRate8[ACRO_ON], 0, 250 },
+    { "rc_expo_acro", VAR_UINT8, &cfg.rcExpo8[ACRO_ON], 0, 100 },    
     { "thr_mid", VAR_UINT8, &cfg.thrMid8, 0, 100 },
     { "thr_expo", VAR_UINT8, &cfg.thrExpo8, 0, 100 },
-    { "roll_rate", VAR_UINT8, &cfg.rollPitchRate[0], 0, 100 },
-    { "pitch_rate", VAR_UINT8, &cfg.rollPitchRate[1], 0, 100 },
-    { "yaw_rate", VAR_UINT8, &cfg.yawRate, 0, 100 },
+    { "roll_rate", VAR_UINT8, &cfg.rollPitchRate[ACRO_OFF][0], 0, 100 },
+    { "pitch_rate", VAR_UINT8, &cfg.rollPitchRate[ACRO_OFF][1], 0, 100 },
+    { "roll_rate_acro", VAR_UINT8, &cfg.rollPitchRate[ACRO_ON][0], 0, 100 },
+    { "pitch_rate_acro", VAR_UINT8, &cfg.rollPitchRate[ACRO_ON][1], 0, 100 },    
+    { "yaw_rate", VAR_UINT8, &cfg.yawRate[ACRO_OFF], 0, 100 },
+    { "yaw_rate_acro", VAR_UINT8, &cfg.yawRate[ACRO_ON], 0, 100 },    
     { "tpa_rate", VAR_UINT8, &cfg.dynThrPID, 0, 100},
     { "tpa_breakpoint", VAR_UINT16, &cfg.tpa_breakpoint, 1000, 2000},
     { "failsafe_delay", VAR_UINT8, &cfg.failsafe_delay, 0, 200 },
@@ -1046,7 +1051,7 @@ static void cliMixer(char *cmdline)
             // Really Ugly Hack
             if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
                 cfg.dynThrPID = 50;
-                cfg.rcExpo8 = 0;
+                cfg.rcExpo8[acroState] = 0;
                 cfg.P8[PIDALT] = 30;
                 cfg.I8[PIDALT] = 20;
                 cfg.D8[PIDALT] = 45;
