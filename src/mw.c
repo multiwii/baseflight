@@ -110,7 +110,7 @@ void annexCode(void)
     static int32_t amperageRaw = 0;
     static int64_t mAhdrawnRaw = 0;
     static int32_t vbatCycleTime = 0;
-    
+
     // Set the state to avoid changing mid loop
     acroState = rcOptions[BOXACROSWITCH];
     // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
