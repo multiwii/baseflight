@@ -529,11 +529,8 @@ static void evaluateCommand(void)
             loadCustomServoMixer();
             break;
         case MSP_FW_CONFIG:
-            headSerialReply(47);
+            headSerialReply(38);
             serialize8(mcfg.fw_althold_dir);
-            serialize32(cfg.fw_roll_throw);
-            serialize32(cfg.fw_pitch_throw);
-            serialize8(cfg.fw_vector_trust);
             serialize16(cfg.fw_gps_maxcorr);
             serialize16(cfg.fw_gps_rudder);
             serialize16(cfg.fw_gps_maxclimb);

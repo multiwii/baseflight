@@ -281,10 +281,7 @@ typedef struct config_t {
     uint16_t nav_speed_max;                 // cm/sec
     uint16_t ap_mode;                       // Temporarily Disables GPS_HOLD_MODE to be able to make it possible to adjust the Hold-position when moving the sticks, creating a deadspan for GPS
 
-    float fw_roll_throw;
-    float fw_pitch_throw;
-    uint8_t fw_vector_trust;
-    uint8_t fw_flaperons_invert;
+    // fw-related stuff
     int16_t fw_gps_maxcorr;                    // Degrees banking Allowed by GPS.
     int16_t fw_gps_rudder;                     // Maximum Rudder
     int16_t fw_gps_maxclimb;                   // Degrees climbing . To much can stall the plane.
@@ -293,7 +290,7 @@ typedef struct config_t {
     uint16_t fw_cruise_throttle;               // Throttle to set for cruisespeed.
     uint16_t fw_idle_throttle;                 // Lowest throttleValue during Descend
     uint16_t fw_scaler_throttle;               // Adjust to Match Power/Weight ratio of your model
-    float fw_roll_comp;
+    float fw_roll_comp;                        // How much Elevator compensates Roll in GPS modes
     uint8_t fw_rth_alt;                        // Min Altitude to keep during RTH. (Max 200m)
 
 } config_t;
