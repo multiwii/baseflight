@@ -48,7 +48,8 @@
 typedef enum HardwareRevision {
     NAZE32 = 1,                                         // Naze32 and compatible with 8MHz HSE
     NAZE32_REV5,                                        // Naze32 and compatible with 12MHz HSE
-    NAZE32_SP                                           // Naze32 w/Sensor Platforms
+    NAZE32_SP,                                          // Naze32 w/Sensor Platforms
+    NAZE32_REV6,                                        // Naze32 rev6
 } HardwareRevision;
 
 typedef enum {
@@ -249,6 +250,7 @@ typedef struct baro_t {
 #include "drv_spi.h"
 #include "drv_ledring.h"
 #include "drv_mma845x.h"
+#include "drv_mpu.h"
 #include "drv_mpu3050.h"
 #include "drv_mpu6050.h"
 #include "drv_mpu6500.h"
