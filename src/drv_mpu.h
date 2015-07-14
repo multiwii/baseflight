@@ -4,8 +4,7 @@
  */
 #pragma once
 
-typedef enum mpu_hardware_e
-{
+typedef enum mpu_hardware_e {
     MPU_NONE,       // Nothing was found
     MPU_3050,       // Naze32 rev0..4
     MPU_60x0,       // Naze32 rev5

@@ -90,8 +90,7 @@ static void mpuAccRead(int16_t *accData);
 static void mpuGyroInit(sensor_align_e align);
 static void mpuGyroRead(int16_t *gyroData);
 
-typedef struct mpu_access_t
-{
+typedef struct mpu_access_t {
     mpuReadRegPtr read;
     mpuWriteRegPtr write;
     mpuInitPtr init;
@@ -148,7 +147,7 @@ bool mpuDetect(sensor_t *acc, sensor_t *gyro, mpu_params_t *init)
     }
 
     sig &= 0x7E; // mask the lower/upper bits per MPUxxxx spec
- 
+
     if (sig == MPUx0x0_WHO_AM_I_CONST) {
         hw = MPU_60x0;
         mpu6050CheckRevision();
