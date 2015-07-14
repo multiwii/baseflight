@@ -289,12 +289,12 @@ static void mpu6500Init(sensor_t *acc, sensor_t *gyro)
 
 static void dummyInit(sensor_align_e align)
 {
-    
+
 }
 
 static void dummyRead(int16_t *data)
 {
-    
+
 }
 
 static void mpuAccInit(sensor_align_e align)
@@ -382,18 +382,22 @@ static bool mpuWriteRegisterI2C(uint8_t reg, uint8_t data)
 
 static bool mpuReadRegisterSPI(uint8_t reg, uint8_t *data, int length)
 {
+#ifndef CJMCU
     spiSelect(true);
     spiTransferByte(reg | 0x80); // read transaction
     spiTransfer(data, NULL, length);
     spiSelect(false);
+#endif
     return true;
 }
 
 static bool mpuWriteRegisterSPI(uint8_t reg, uint8_t data)
 {
+#ifndef CJMCU
     spiSelect(true);
     spiTransferByte(reg);
     spiTransferByte(data);
     spiSelect(false);
+#endif
     return true;
 }

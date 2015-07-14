@@ -283,6 +283,7 @@ typedef struct baro_t {
 #include "drv_adc.h"
 #include "drv_hmc5883l.h"
 #include "drv_i2c.h"
+#include "drv_spi.h"
 #include "drv_mpu.h"
 #include "drv_pwm.h"
 #include "drv_timer.h"
