@@ -80,7 +80,7 @@ static const char *const accNames[] = {
 
 // sync this with HardwareRevision in board.h
 static const char *const hwNames[] = {
-    "", "Naze 32", "Naze32 rev.5", "Naze32 SP"
+    "", "Naze 32", "Naze32 rev.5", "Naze32 SP", "Naze32 rev.6"
 };
 
 typedef struct {
@@ -1284,11 +1284,8 @@ static void cliStatus(char *cmdline)
         if (mask & (1 << i))
             printf("%s ", sensorNames[i]);
     }
-    if (sensors(SENSOR_ACC)) {
+    if (sensors(SENSOR_ACC))
         printf("ACCHW: %s", accNames[accHardware]);
-        if (accHardware == ACC_MPU6050)
-            printf(".%c", core.mpu6050_scale ? 'o' : 'n');
-    }
     cliPrint("\r\n");
 
     printf("Cycle Time: %d, I2C Errors: %d, config size: %d\r\n", cycleTime, i2cGetErrorCounter(), sizeof(master_t));

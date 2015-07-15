@@ -280,7 +280,7 @@ void serialInit(uint32_t baudrate)
     numTelemetryPorts++;
 
     // additional telemetry port available only if spektrum sat isn't already assigned there
-    if (hw_revision >= NAZE32_SP  && !mcfg.spektrum_sat_on_flexport) {
+    if (hw_revision == NAZE32_SP  && !mcfg.spektrum_sat_on_flexport) {
         core.flexport = uartOpen(USART3, NULL, baudrate, MODE_RXTX);
         ports[1].port = core.flexport;
         numTelemetryPorts++;

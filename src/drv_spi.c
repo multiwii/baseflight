@@ -12,8 +12,10 @@
 // PB12     25      SPI2_NSS
 
 static int spiDetect(void);
+static bool isSPI = false;
 
 #define FLASH_M25P16    (0x202015)
+
 
 int spiInit(void)
 {
@@ -50,12 +52,16 @@ int spiInit(void)
     spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
     SPI_Init(SPI2, &spi);
     SPI_Cmd(SPI2, ENABLE);
+    isSPI = true;
 
     return spiDetect();
 }
 
 void spiSelect(bool select)
 {
+    if (!isSPI)
+        return;
+
     if (select) {
         digitalLo(GPIOB, Pin_12);
     } else {
@@ -66,6 +72,10 @@ void spiSelect(bool select)
 uint8_t spiTransferByte(uint8_t in)
 {
     uint8_t rx;
+
+    if (!isSPI)
+        return 0;
+
     SPI2->DR;
     SPI2->DR = in;
     while (!(SPI2->SR & SPI_I2S_FLAG_RXNE));
@@ -78,6 +88,10 @@ uint8_t spiTransferByte(uint8_t in)
 bool spiTransfer(uint8_t *out, uint8_t *in, int len)
 {
     uint8_t b;
+
+    if (!isSPI)
+        return false;
+
     SPI2->DR;
     while (len--) {
         b = in ? *(in++) : 0xFF;
@@ -115,5 +129,6 @@ static int spiDetect(void)
     if (in[0] == 0x70)
         return SPI_DEVICE_MPU;
 
+    isSPI = false;
     return SPI_DEVICE_NONE;
 }
