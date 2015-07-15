@@ -91,9 +91,9 @@ void activateConfig(void)
     uint8_t i;
     for (i = 0; i < PITCH_LOOKUP_LENGTH; i++)
         lookupPitchRollRC[ACRO_OFF][i] = (2500 + cfg.rcExpo8[ACRO_OFF] * (i * i - 25)) * i * (int32_t)cfg.rcRate8[ACRO_OFF] / 2500;
-    
+
     for (i = 0; i < PITCH_LOOKUP_LENGTH; i++)
-        lookupPitchRollRC[ACRO_ON][i] = (2500 + cfg.rcExpo8[ACRO_ON] * (i * i - 25)) * i * (int32_t)cfg.rcRate8[ACRO_ON] / 2500;    
+        lookupPitchRollRC[ACRO_ON][i] = (2500 + cfg.rcExpo8[ACRO_ON] * (i * i - 25)) * i * (int32_t)cfg.rcRate8[ACRO_ON] / 2500;
 
     for (i = 0; i < THROTTLE_LOOKUP_LENGTH; i++) {
         int16_t tmp = 10 * i - cfg.thrMid8;
@@ -256,6 +256,7 @@ static void resetConf(void)
     mcfg.emf_avoidance = 0;
     mcfg.rssi_aux_channel = 0;
     mcfg.rssi_adc_max = 4095;
+    mcfg.buzzer_mute;
 
     cfg.pidController = 0;
     cfg.P8[ROLL] = 40;
