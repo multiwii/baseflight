@@ -380,6 +380,16 @@ void writeServos(void)
     if (!core.useServo)
         return;
 
+    // forward AUX1-4 to servo outputs (not constrained)
+    if (cfg.gimbal_flags & GIMBAL_FORWARDAUX) {
+        int offset = core.numServos - 4;
+        // offset servos based off number already used in mixer types
+        // airplane and servo_tilt together can't be used
+        // calculate offset by taking 4 from core.numServos
+        for (i = 0; i < 4; i++)
+            pwmWriteServo(i + offset, rcData[AUX1 + i]);
+    }
+
     // apply servos for the specific mixerConfiguration
     switch (mcfg.mixerConfiguration) {
         case MULTITYPE_BI:
@@ -604,16 +614,6 @@ void mixTable(void)
     // constrain servos
     for (i = 0; i < MAX_SERVOS; i++)
         servo[i] = constrain(servo[i], cfg.servoConf[i].min, cfg.servoConf[i].max); // limit the values
-
-    // forward AUX1-4 to servo outputs (not constrained)
-    if (cfg.gimbal_flags & GIMBAL_FORWARDAUX) {
-        int offset = core.numServos - 4;
-        // offset servos based off number already used in mixer types
-        // airplane and servo_tilt together can't be used
-        // calculate offset by taking 4 from core.numServos
-        for (i = 0; i < 4; i++)
-            pwmWriteServo(i + offset, rcData[AUX1 + i]);
-    }
 
     maxMotor = motor[0];
     for (i = 1; i < numberMotor; i++)
