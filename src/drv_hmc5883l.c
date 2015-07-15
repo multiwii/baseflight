@@ -107,11 +107,12 @@ void hmc5883lInit(sensor_align_e align)
     if (align > 0)
         magAlign = align;
 
+    gpio.speed = Speed_2MHz;
+    gpio.mode = Mode_IN_FLOATING;
+
     if (hw_revision == NAZE32) {
         // PB12 - MAG_DRDY output on rev4 hardware
         gpio.pin = Pin_12;
-        gpio.speed = Speed_2MHz;
-        gpio.mode = Mode_IN_FLOATING;
         gpioInit(GPIOB, &gpio);
     } else if (hw_revision >= NAZE32_REV5) {
         // PC14 - MAG_DRDY output on rev5 hardware
