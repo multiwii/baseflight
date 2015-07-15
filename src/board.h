@@ -99,6 +99,7 @@ typedef enum {
     FEATURE_FW_FAILSAFE_RTH = 1 << 15,
     FEATURE_SYNCPWM = 1 << 16,
     FEATURE_FASTPWM = 1 << 17,
+    FEATURE_SERVO_MIXER = 1 << 18,
 } AvailableFeatures;
 
 typedef enum {
