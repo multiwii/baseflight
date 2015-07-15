@@ -212,6 +212,7 @@ const clivalue_t valueTable[] = {
     { "rssi_adc_channel", VAR_INT8, &mcfg.rssi_adc_channel, 0, 9 },
     { "rssi_adc_max", VAR_INT16, &mcfg.rssi_adc_max, 1, 4095 },
     { "rssi_adc_offset", VAR_INT16, &mcfg.rssi_adc_offset, 0, 4095 },
+    { "buzzer_mute", VAR_INT8, &mcfg.buzzer_mute, 0, 1 },
     { "yaw_direction", VAR_INT8, &cfg.yaw_direction, -1, 1 },
     { "tri_unarmed_servo", VAR_INT8, &cfg.tri_unarmed_servo, 0, 1 },
     { "gimbal_flags", VAR_UINT8, &cfg.gimbal_flags, 0, 255},
