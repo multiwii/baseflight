@@ -474,9 +474,11 @@ void writeAllMotors(int16_t mc)
     writeMotors();
 }
 
-static void resetServos(void) {
+static void resetServos(void)
+{
+    int i;
+
     // reset all servos to their middle value
-    uint8_t i;
     for (i = 0; i < MAX_SERVOS; i++)
         servo[i] = servoMiddle(i);
 }
@@ -529,8 +531,7 @@ static void servoMixer(void)
             if (currentServoMixer[i].speed == 0) {
                 // directly use the input value if speed is not provided
                 currentOutput[i] = input[from];
-            }
-            else {
+            } else {
                 // apply speed constraints
                 if (currentOutput[i] < input[from])
                     currentOutput[i] = constrain(currentOutput[i] + currentServoMixer[i].speed, currentOutput[i], input[from]);
@@ -539,7 +540,7 @@ static void servoMixer(void)
             }
 
             // start with the output value
-            servo[target] = (int32_t)currentOutput[i];
+            servo[target] = (int16_t)currentOutput[i];
 
             // apply rate from mixer rule
             servo[target] *= ((float)currentServoMixer[i].rate / 100);
@@ -581,10 +582,9 @@ void mixTable(void)
             motor[0] = constrain(rcCommand[THROTTLE], mcfg.minthrottle, mcfg.maxthrottle);
     }
 
-    if (core.useServo == 1) {
-        // reset all servos
+    // reset all servos
+    if (core.useServo)
         resetServos();
-    }
 
     if (mcfg.mixerConfiguration == MULTITYPE_GIMBAL) {
         // set servo output for gimbal type
@@ -606,10 +606,9 @@ void mixTable(void)
         }
     }
 
-    if (core.useServo == 1) {
-        // run the servo mixer if necessary
+    // run the servo mixer if necessary
+    if (core.useServo)
         servoMixer();
-    }
 
     // constrain servos
     for (i = 0; i < MAX_SERVOS; i++)
