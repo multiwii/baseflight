@@ -17,6 +17,9 @@
 
 #define RC_CHANS    (18)
 
+#define ACRO_OFF 0
+#define ACRO_ON 1
+
 // Serial GPS only variables
 // navigation mode
 typedef enum NavigationMode {
@@ -121,6 +124,7 @@ enum {
     BOXSERVO1,
     BOXSERVO2,
     BOXSERVO3,
+    BOXACROSWITCH,
     CHECKBOXITEMS
 };
 
@@ -220,13 +224,13 @@ typedef struct config_t {
     uint8_t I8[PIDITEMS];
     uint8_t D8[PIDITEMS];
 
-    uint8_t rcRate8;
-    uint8_t rcExpo8;
+    uint8_t rcRate8[2];
+    uint8_t rcExpo8[2];
     uint8_t thrMid8;
     uint8_t thrExpo8;
 
-    uint8_t rollPitchRate[2];
-    uint8_t yawRate;
+    uint8_t rollPitchRate[2][2];
+    uint8_t yawRate[2];
 
     uint8_t dynThrPID;
     uint16_t tpa_breakpoint;                // Breakpoint where TPA is activated
@@ -350,7 +354,7 @@ typedef struct master_t {
     uint8_t vbatmincellvoltage;             // minimum voltage per cell, this triggers FASTER battery out alarm, in 0.1V units, default is 33 (3.3V)
     uint8_t vbatwarningcellvoltage;         // minimum voltage per cell, this triggers SLOWER battery out alarm, in 0.1V units, default is 35 (3.5V)
     uint8_t power_adc_channel;              // which channel is used for current sensor. Right now, only 3 places are supported: RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), ADC_EXTERNAL_PAD (Rev5 only, = 5), 0 to disable
-
+    uint8_t buzzer_mute;                    // buzzer is only activated when BOXITEM is selected
     // Radio/ESC-related configuration
     uint8_t rcmap[8];                       // mapping of radio channels to internal RPYTA+ order
     uint8_t serialrx_type;                  // type of UART-based receiver (0 = spek 10, 1 = spek 11, 2 = sbus). Must be enabled by FEATURE_SERIALRX first.
@@ -472,8 +476,9 @@ extern int32_t mAhdrawn;              // milli ampere hours drawn from battery s
 
 #define PITCH_LOOKUP_LENGTH 7
 #define THROTTLE_LOOKUP_LENGTH 12
-extern int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];   // lookup table for expo & RC rate PITCH+ROLL
+extern int16_t lookupPitchRollRC[2][PITCH_LOOKUP_LENGTH];   // lookup table for expo & RC rate PITCH+ROLL
 extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for expo & mid THROTTLE
+extern bool acroState;
 
 // GPS stuff
 extern int32_t  GPS_coord[2];

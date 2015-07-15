@@ -80,7 +80,8 @@ static void buzzerCalculations(void);
 void buzzer(uint8_t mode)
 {
     uint8_t i = 0;
-
+    if (mcfg.buzzer_mute)
+        return;
     // Just return if same or higher priority sound is active.
     if (buzzerMode <= mode)
         return;
