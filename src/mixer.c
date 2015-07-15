@@ -377,6 +377,8 @@ void mixerLoadMix(int index)
 
 void writeServos(void)
 {
+    int i;
+
     if (!core.useServo)
         return;
 
