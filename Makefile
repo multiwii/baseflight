@@ -138,7 +138,7 @@ INCLUDE_DIRS	 = $(SRC_DIR) \
 ARCH_FLAGS	 = -mthumb -mcpu=cortex-m3
 
 ifeq ($(DEBUG),GDB)
-OPTIMIZE	 = -O0
+OPTIMIZE	 = -Og
 LTO_FLAGS	 = $(OPTIMIZE)
 else
 OPTIMIZE	 = -Os
