@@ -83,6 +83,9 @@ typedef bool (*mpuWriteRegPtr)(uint8_t reg, uint8_t data);
 typedef void (*mpuInitPtr)(sensor_t *acc, sensor_t *gyro);
 // General forward declarations
 static void mpu6050CheckRevision(void);
+#ifdef PROD_DEBUG
+static void mpu6050SelfTest(void);
+#endif
 static void dummyInit(sensor_align_e align);
 static void dummyRead(int16_t *data);
 static void mpuAccInit(sensor_align_e align);
@@ -151,6 +154,9 @@ bool mpuDetect(sensor_t *acc, sensor_t *gyro, mpu_params_t *init)
     if (sig == MPUx0x0_WHO_AM_I_CONST) {
         hw = MPU_60x0;
         mpu6050CheckRevision();
+#ifdef PROD_DEBUG
+        mpu6050SelfTest();
+#endif
         mpu.init = mpu6050Init;
     } else if (sig == MPU6500_WHO_AM_I_CONST) {
         if (useSpi)
@@ -229,12 +235,30 @@ static void mpu3050Init(sensor_t *acc, sensor_t *gyro)
 #define MPU_RA_CONFIG           0x1A
 #define MPU_RA_GYRO_CONFIG      0x1B
 #define MPU_RA_ACCEL_CONFIG     0x1C
+#define MPU_RA_FIFO_EN          0x23
+#define MPU_RA_I2C_MST_CTRL     0x24
 #define MPU_RA_INT_PIN_CFG      0x37
 #define MPU_RA_INT_ENABLE       0x38
 #define MPU_RA_SIGNAL_PATH_RST  0x68
+#define MPU_RA_USER_CTRL        0x6A
 #define MPU_RA_PWR_MGMT_1       0x6B
+#define MPU_RA_PWR_MGMT_2       0x6C
+#define MPU_RA_FIFO_COUNT_H     0x72
+#define MPU_RA_FIFO_R_W         0x74
+
 // MPU6050 bits
 #define MPU6050_INV_CLK_GYROZ   0x03
+#define MPU6050_BIT_FIFO_RST    0x04
+#define MPU6050_BIT_DMP_RST     0x08
+#define MPU6050_BIT_FIFO_EN     0x40
+
+#define INV_X_GYRO              0x40
+#define INV_Y_GYRO              0x20
+#define INV_Z_GYRO              0x10
+#define INV_XYZ_GYRO            (INV_X_GYRO | INV_Y_GYRO | INV_Z_GYRO)
+#define INV_XYZ_ACCEL           0x08
+
+#define MPU6050_MAX_PACKET_LEN  12
 
 static void mpu6050Init(sensor_t *acc, sensor_t *gyro)
 {
@@ -368,6 +392,190 @@ static void mpu6050CheckRevision(void)
     if (half)
         acc_1G = 255 * 8;
 }
+
+#ifdef PROD_DEBUG
+
+// Self-test constants
+#define GYRO_SENS           (32768 / 250)
+#define ACCEL_SENS          (32768 / 16)
+#define MAX_ACCEL_VAR       (0.14f)
+#define MIN_G               (0.3f)
+#define MAX_G               (0.95f)
+#define MIN_DPS             (10.f)
+#define MAX_DPS             (105.f)
+#define MAX_GYRO_VAR        (0.14f)
+
+static void mpu6050GetBiases(int32_t *gyro, int32_t *accel, int hw_test)
+{
+    uint8_t data[MPU6050_MAX_PACKET_LEN];
+    int fifo_count, packet_count, i;
+
+    // get self-test biases
+    mpu.write(MPU_RA_PWR_MGMT_1, 0x01);
+    mpu.write(MPU_RA_PWR_MGMT_2, 0x00);
+    delay(200);
+    mpu.write(MPU_RA_INT_ENABLE, 0);
+    mpu.write(MPU_RA_FIFO_EN, 0);
+    mpu.write(MPU_RA_PWR_MGMT_1, 0);
+    mpu.write(MPU_RA_I2C_MST_CTRL, 0);
+    mpu.write(MPU_RA_USER_CTRL, 0);
+    mpu.write(MPU_RA_USER_CTRL, MPU6050_BIT_FIFO_RST | MPU6050_BIT_DMP_RST);
+    delay(15);
+    mpu.write(MPU_RA_CONFIG, 1); // 188Hz
+    mpu.write(MPU_RA_SMPLRT_DIV, 0); // 1kHz
+    if (hw_test) {
+        mpu.write(MPU_RA_GYRO_CONFIG, 0 | 0xE0); // 250dps w/test
+        mpu.write(MPU_RA_ACCEL_CONFIG, 0x18 | 0xE0); // 16g w/test
+        delay(200);
+    } else {
+        mpu.write(MPU_RA_GYRO_CONFIG, 0); // 250dps w/o test
+        mpu.write(MPU_RA_ACCEL_CONFIG, 0x18); // 16g w/o test
+    }
+
+    // Enable FIFO
+    mpu.write(MPU_RA_USER_CTRL, MPU6050_BIT_FIFO_EN);
+    mpu.write(MPU_RA_FIFO_EN, INV_XYZ_GYRO | INV_XYZ_ACCEL);
+
+    // Read back test samples
+    mpu.read(MPU_RA_FIFO_COUNT_H, data, 2);
+    fifo_count = (data[0] << 8) | data[1];
+    packet_count = fifo_count / MPU6050_MAX_PACKET_LEN;
+    gyro[0] = gyro[1] = gyro[2] = 0;
+    accel[0] = accel[1] = accel[2] = 0;
+
+    for (i = 0; i < packet_count; i++) {
+        int16_t accel_cur[3], gyro_cur[3];
+        mpu.read(MPU_RA_FIFO_R_W, data, MPU6050_MAX_PACKET_LEN);
+        accel_cur[0] = ((int16_t)data[0] << 8) | data[1];
+        accel_cur[1] = ((int16_t)data[2] << 8) | data[3];
+        accel_cur[2] = ((int16_t)data[4] << 8) | data[5];
+        accel[0] += (int32_t)accel_cur[0];
+        accel[1] += (int32_t)accel_cur[1];
+        accel[2] += (int32_t)accel_cur[2];
+        gyro_cur[0] = (((int16_t)data[6] << 8) | data[7]);
+        gyro_cur[1] = (((int16_t)data[8] << 8) | data[9]);
+        gyro_cur[2] = (((int16_t)data[10] << 8) | data[11]);
+        gyro[0] += (int32_t)gyro_cur[0];
+        gyro[1] += (int32_t)gyro_cur[1];
+        gyro[2] += (int32_t)gyro_cur[2];
+    }
+
+    gyro[0] = (int32_t)(((int64_t)gyro[0] << 16) / GYRO_SENS / packet_count);
+    gyro[1] = (int32_t)(((int64_t)gyro[1] << 16) / GYRO_SENS / packet_count);
+    gyro[2] = (int32_t)(((int64_t)gyro[2] << 16) / GYRO_SENS / packet_count);
+    accel[0] = (int32_t)(((int64_t)accel[0] << 16) / ACCEL_SENS / packet_count);
+    accel[1] = (int32_t)(((int64_t)accel[1] << 16) / ACCEL_SENS / packet_count);
+    accel[2] = (int32_t)(((int64_t)accel[2] << 16) / ACCEL_SENS / packet_count);
+    // Don't remove gravity!
+    if (accel[2] > 0L)
+        accel[2] -= 65536L;
+    else
+        accel[2] += 65536L;
+    
+}
+
+static int mpu6050AccelSelfTest(int32_t *bias_regular, int32_t *bias_st)
+{
+    uint8_t tmp[4], shift_code[3];
+    float st_shift[3], st_shift_cust, st_shift_var;
+    const float accel_max_z_bias = (.23f * 65535.f), accel_max_xy_bias = (.18f * 65535.f);
+    int i, result = 0;
+
+    // Get accel production shift
+    mpu.read(0x0D, tmp, 4);
+    shift_code[0] = ((tmp[0] & 0xE0) >> 3) | ((tmp[3] & 0x30) >> 4);
+    shift_code[1] = ((tmp[1] & 0xE0) >> 3) | ((tmp[3] & 0x0C) >> 2);
+    shift_code[2] = ((tmp[2] & 0xE0) >> 3) | (tmp[3] & 0x03);
+    for (i = 0; i < 3; i++) {
+        if (!shift_code[i]) {
+            st_shift[i] = 0.f;
+            continue;
+        }
+        /* Equivalent to..
+         * st_shift[ii] = 0.34f * powf(0.92f/0.34f, (shift_code[ii]-1) / 30.f)
+         */
+        st_shift[i] = 0.34f;
+        while (--shift_code[i])
+            st_shift[i] *= 1.034f;
+    }
+
+    for (i = 0; i < 3; i++) {
+        st_shift_cust = abs(bias_regular[i] - bias_st[i]) / 65536.f;
+        if (st_shift[i]) {
+            st_shift_var = st_shift_cust / st_shift[i] - 1.f;
+            if (fabs(st_shift_var) > MAX_ACCEL_VAR)
+                result |= 1 << i;
+        } else if ((st_shift_cust < MIN_G) || (st_shift_cust > MAX_G)) {
+            result |= 1 << i;
+        }
+    }
+
+    if (result == 0) {
+        if (bias_regular[0]>accel_max_xy_bias)
+            result |= 1;
+        if (bias_regular[1]>accel_max_xy_bias)
+            result |= 2;
+        if (bias_regular[2]>accel_max_z_bias)
+            result |= 4;
+    }
+
+    return result;
+}
+
+static int mpu6050GyroSelfTest(int32_t *bias_regular, int32_t *bias_st)
+{
+    int i, result = 0;
+    uint8_t tmp[3];
+    float st_shift, st_shift_cust, st_shift_var;
+    const float gyro_max_bias = (20.f * 65535.f);
+
+    mpu.read(0x0D, tmp, 3);
+
+    tmp[0] &= 0x1F;
+    tmp[1] &= 0x1F;
+    tmp[2] &= 0x1F;
+
+    for (i = 0; i < 3; i++) {
+        st_shift_cust = abs(bias_regular[i] - bias_st[i]) / 65536.f;
+        if (tmp[i]) {
+            st_shift = 3275.f / GYRO_SENS;
+            while (--tmp[i])
+                st_shift *= 1.046f;
+            st_shift_var = st_shift_cust / st_shift - 1.f;
+            if (fabs(st_shift_var) > MAX_GYRO_VAR)
+                result |= 1 << i;
+        } else if ((st_shift_cust < MIN_DPS) ||
+            (st_shift_cust > MAX_DPS))
+            result |= 1 << i;
+    }
+
+    if (result == 0) {
+        if (bias_regular[0] > gyro_max_bias)
+            result |= 1;
+        if (bias_regular[1] > gyro_max_bias)
+            result |= 2;
+        if (bias_regular[2] > gyro_max_bias)
+            result |= 4;
+    }
+
+    return result;
+}
+
+static void mpu6050SelfTest(void)
+{
+    int32_t accel[3], gyro[3];
+    int32_t gyro_st[3], accel_st[3];
+    int gresult = 0, aresult = 0;
+    
+    mpu6050GetBiases(gyro, accel, 0);
+    mpu6050GetBiases(gyro, accel, 1);
+    aresult = mpu6050AccelSelfTest(accel, accel_st);
+    gresult = mpu6050GyroSelfTest(gyro, gyro_st);
+
+    if (!aresult || !gresult)
+        failureMode(10);
+}
+#endif
 
 static bool mpuReadRegisterI2C(uint8_t reg, uint8_t *data, int length)
 {
