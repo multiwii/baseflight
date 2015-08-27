@@ -471,7 +471,6 @@ static void mpu6050GetBiases(int32_t *gyro, int32_t *accel, int hw_test)
         accel[2] -= 65536L;
     else
         accel[2] += 65536L;
-    
 }
 
 static int mpu6050AccelSelfTest(int32_t *bias_regular, int32_t *bias_st)
@@ -511,11 +510,11 @@ static int mpu6050AccelSelfTest(int32_t *bias_regular, int32_t *bias_st)
     }
 
     if (result == 0) {
-        if (bias_regular[0]>accel_max_xy_bias)
+        if (bias_regular[0] > accel_max_xy_bias)
             result |= 1;
-        if (bias_regular[1]>accel_max_xy_bias)
+        if (bias_regular[1] > accel_max_xy_bias)
             result |= 2;
-        if (bias_regular[2]>accel_max_z_bias)
+        if (bias_regular[2] > accel_max_z_bias)
             result |= 4;
     }
 
@@ -544,8 +543,7 @@ static int mpu6050GyroSelfTest(int32_t *bias_regular, int32_t *bias_st)
             st_shift_var = st_shift_cust / st_shift - 1.f;
             if (fabs(st_shift_var) > MAX_GYRO_VAR)
                 result |= 1 << i;
-        } else if ((st_shift_cust < MIN_DPS) ||
-            (st_shift_cust > MAX_DPS))
+        } else if ((st_shift_cust < MIN_DPS) || (st_shift_cust > MAX_DPS))
             result |= 1 << i;
     }
 
@@ -566,7 +564,7 @@ static void mpu6050SelfTest(void)
     int32_t accel[3], gyro[3];
     int32_t gyro_st[3], accel_st[3];
     int gresult = 0, aresult = 0;
-    
+
     mpu6050GetBiases(gyro, accel, 0);
     mpu6050GetBiases(gyro, accel, 1);
     aresult = mpu6050AccelSelfTest(accel, accel_st);
