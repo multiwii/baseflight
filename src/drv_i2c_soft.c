@@ -152,7 +152,7 @@ static uint8_t I2C_ReceiveByte(void)
     return byte;
 }
 
-void i2cInit(I2C_TypeDef *I2C)
+void i2cInit(I2CDevice index)
 {
     gpio_config_t gpio;
 
