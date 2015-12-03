@@ -121,6 +121,7 @@ enum {
     BOXSERVO1,
     BOXSERVO2,
     BOXSERVO3,
+    BOXGCRUISE,
     CHECKBOXITEMS
 };
 
@@ -282,15 +283,18 @@ typedef struct config_t {
     uint16_t ap_mode;                       // Temporarily Disables GPS_HOLD_MODE to be able to make it possible to adjust the Hold-position when moving the sticks, creating a deadspan for GPS
 
     // fw-related stuff
+    uint8_t fw_vector_trust;                   // Enable Vector trust on Twin Engine models
     int16_t fw_gps_maxcorr;                    // Degrees banking Allowed by GPS.
-    int16_t fw_gps_rudder;                     // Maximum Rudder
+    int16_t fw_gps_rudder;                     // Maximum input of Rudder Allowed by GPS.
     int16_t fw_gps_maxclimb;                   // Degrees climbing . To much can stall the plane.
     int16_t fw_gps_maxdive;                    // Degrees Diving . To much can overspeed the plane.
+    uint8_t fw_glide_angle;                    // Glide angle in power off
     uint16_t fw_climb_throttle;                // Max allowed throttle in GPS modes.
     uint16_t fw_cruise_throttle;               // Throttle to set for cruisespeed.
     uint16_t fw_idle_throttle;                 // Lowest throttleValue during Descend
     uint16_t fw_scaler_throttle;               // Adjust to Match Power/Weight ratio of your model
-    float fw_roll_comp;                        // How much Elevator compensates Roll in GPS modes
+    uint8_t fw_roll_comp;                      // Adds Elevator Based on Roll Angle
+    int16_t fw_cruise_distance;                // Distance to viritual WP.
     uint8_t fw_rth_alt;                        // Min Altitude to keep during RTH. (Max 200m)
 
 } config_t;
@@ -424,6 +428,7 @@ typedef struct flags_t {
     uint8_t MOTORS_STOPPED;
     uint8_t FW_FAILSAFE_RTH_ENABLE;
     uint8_t CLIMBOUT_FW;
+    uint8_t CRUISE_MODE;
 } flags_t;
 
 extern int16_t gyroZero[3];
@@ -603,4 +608,5 @@ void GPS_reset_nav(void);
 void GPS_set_next_wp(int32_t *lat, int32_t *lon);
 int32_t wrap_18000(int32_t error);
 void fw_nav(void);
+void fw_FlyTo(void);
 

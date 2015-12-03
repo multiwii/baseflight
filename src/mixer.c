@@ -156,7 +156,7 @@ const mixer_t mixers[] = {
     { 8, 0, mixerOctoX8 },         // MULTITYPE_OCTOX8
     { 8, 0, mixerOctoFlatP },      // MULTITYPE_OCTOFLATP
     { 8, 0, mixerOctoFlatX },      // MULTITYPE_OCTOFLATX
-    { 1, 1, NULL },                // * MULTITYPE_AIRPLANE
+    { 2, 1, mixerTrustVector },    // * MULTITYPE_AIRPLANE
     { 0, 1, NULL },                // * MULTITYPE_HELI_120_CCPM
     { 0, 1, NULL },                // * MULTITYPE_HELI_90_DEG
     { 4, 0, mixerVtail4 },         // MULTITYPE_VTAIL4
@@ -166,7 +166,7 @@ const mixer_t mixers[] = {
     { 1, 1, NULL },                // MULTITYPE_SINGLECOPTER
     { 4, 0, mixerAtail4 },         // MULTITYPE_ATAIL4
     { 0, 0, NULL },                // MULTITYPE_CUSTOM
-    { 1, 1, NULL },                // MULTITYPE_CUSTOM_PLANE
+    { 2, 1, mixerTrustVector },    // MULTITYPE_CUSTOM_PLANE
 };
 
 // mixer rule format servo, input, rate, speed, min, max, box
@@ -449,6 +449,30 @@ void writeServos(void)
 
 void writeMotors(void)
 {
+    if (f.FIXED_WING){ // vector_trust handeling
+        
+        if (cfg.fw_vector_trust && f.ARMED)
+        {
+            if (f.PASSTHRU_MODE) {
+                motor[0] = rcCommand[THROTTLE] - rcCommand[YAW] * 0.5f;
+                motor[1] = rcCommand[THROTTLE] + rcCommand[YAW] * 0.5f;
+            } else {
+                motor[0] = rcCommand[THROTTLE] - axisPID[YAW] * 0.5f;
+                motor[1] = rcCommand[THROTTLE] + axisPID[YAW] * 0.5f;
+            }
+        }
+            
+        if (!cfg.fw_vector_trust) {
+            motor[0] = rcCommand[THROTTLE];
+            motor[1] = rcCommand[THROTTLE];
+            }
+        
+        if (!f.ARMED || ((rcData[THROTTLE]) < mcfg.mincheck && feature(FEATURE_MOTOR_STOP))) {
+            motor[0] = mcfg.mincommand;
+            motor[1] = mcfg.mincommand;
+        }
+    }
+
     uint8_t i;
 
     for (i = 0; i < numberMotor; i++)
@@ -639,6 +663,7 @@ void mixTable(void)
         }
         if (!f.ARMED) {
             motor[i] = motor_disarmed[i];
+            f.MOTORS_STOPPED = 1;
         }
     }
 }
