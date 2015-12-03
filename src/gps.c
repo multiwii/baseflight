@@ -505,7 +505,7 @@ static void reset_PID(PID *pid)
 
 static float dTnav;             // Delta Time in milliseconds for navigation computations, updated with every good GPS read
 static int16_t actual_speed[2] = { 0, 0 };
-static float GPS_scaleLonDown = 1.0f;  // this is used to offset the shrinking longitude as we go towards the poles
+float GPS_scaleLonDown = 1.0f;  // this is used to offset the shrinking longitude as we go towards the poles
 
 // The difference between the desired rate of travel and the actual rate of travel
 // updated after GPS read - 5-10hz
@@ -513,7 +513,7 @@ static int16_t rate_error[2];
 static int32_t error[2];
 
 // Currently used WP
-static int32_t GPS_WP[2];
+int32_t GPS_WP[2];
 
 ////////////////////////////////////////////////////////////////////////////////
 // Location & Navigation
@@ -768,6 +768,9 @@ void GPS_set_next_wp(int32_t *lat, int32_t *lon)
     GPS_WP[LON] = *lon;
 
     GPS_calc_longitude_scaling(*lat);
+    if (f.CRUISE_MODE)
+        fw_FlyTo();  // PatrikE CruiseMode version
+
     GPS_distance_cm_bearing(&GPS_coord[LAT], &GPS_coord[LON], &GPS_WP[LAT], &GPS_WP[LON], &wp_distance, &target_bearing);
 
     nav_bearing = target_bearing;
