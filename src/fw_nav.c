@@ -12,6 +12,7 @@ extern PID_PARAM altPID_PARAM;
 
 #define GPS_UPD_HZ 5            // Set loop time for NavUpdate 5 Hz is enough
 #define PITCH_COMP 0.5f         // Compensate throttle relative angle of attack
+#define GEO_SKALEFACT    89.832f  // Scale to match meters
 // Candidates for CLI
 #define SAFE_NAV_ALT 25         // Safe Altitude during climbouts Wings Level below this Alt. (ex. trees & buildings..)
 #define SAFE_DECSCEND_ZONE 50   // Radius around home where descending is OK
@@ -45,13 +46,12 @@ void fw_nav_reset(void)
 
 void fw_FlyTo(void)  // PatrikE CruiseMode version
 {
-#define GEO_SKALEFACT    89.832f  // Scale to match meters  
     int32_t holdHeading = GPS_ground_course / 10;
-    if (holdHeading > 180)
-        holdHeading -= 360;
     float scaler = ( GEO_SKALEFACT / GPS_scaleLonDown) * cfg.fw_cruise_distance;
     float wp_lat_diff = cos(holdHeading * 0.0174532925f);
     float wp_lon_diff = sin(holdHeading * 0.0174532925f) * GPS_scaleLonDown;
+    if (holdHeading > 180)
+        holdHeading -= 360;
     GPS_WP[LAT] += wp_lat_diff * scaler;
     GPS_WP[LON] += wp_lon_diff * scaler;
 }
