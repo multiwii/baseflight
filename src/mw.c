@@ -109,26 +109,26 @@ void annexCode(void)
     static int64_t mAhdrawnRaw = 0;
     static int32_t vbatCycleTime = 0;
 
-    if (!f.FIXED_WING){ // Baseflight original dynamic PID adjustemnt
-    // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
-    if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
-        prop2 = 100;
-    } else {
-        if (rcData[THROTTLE] < 2000) {
-            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
+    if (!f.FIXED_WING) { // Baseflight original dynamic PID adjustemnt
+        // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
+        if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
+            prop2 = 100;
         } else {
-            prop2 = 100 - cfg.dynThrPID;
+            if (rcData[THROTTLE] < 2000) {
+                prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
+            } else {
+                prop2 = 100 - cfg.dynThrPID;
+            }
         }
-    }
     } else { // Throttle & Angle combined PID adjustemnt
         // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
         prop2 = 128; // prop2 was 100, is 128 now
         if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
-            prop2 = 128; 
+            prop2 = 128;
         } else {
-            if (rcCommand[THROTTLE]>cfg.dynThrPID) {
-                if (rcCommand[THROTTLE]<2000) {
-                    prop2 -=  ((uint16_t)cfg.dynThrPID*(rcCommand[THROTTLE]-cfg.dynThrPID)>>9); //  /512 instead of /500
+            if (rcCommand[THROTTLE] > cfg.dynThrPID) {
+                if (rcCommand[THROTTLE] < 2000) {
+                    prop2 -=  ((uint16_t)cfg.dynThrPID * (rcCommand[THROTTLE] - cfg.dynThrPID) >> 9); //  /512 instead of /500
                 } else {
                     prop2 -=  cfg.dynThrPID;
                 }
@@ -136,9 +136,9 @@ void annexCode(void)
         }
         // APA dynamic PID adjustemnt, depending on Angle of attack
         uint16_t MaxBrkpoint = 300; // Max angle
-        if (angle[1]>20)
-            prop2 -= ((uint16_t)cfg.dynThrPID*(min(angle[1], MaxBrkpoint)) >>8);
-        prop2 =max((128-cfg.dynThrPID),prop2);
+        if (angle[1] > 20)
+            prop2 -= ((uint16_t)cfg.dynThrPID * (min(angle[1], MaxBrkpoint)) >> 8);
+        prop2 = max((128 - cfg.dynThrPID), prop2);
     }
 
 
@@ -714,7 +714,7 @@ void loop(void)
         for (i = 0; i < CHECKBOXITEMS; i++)
             rcOptions[i] = (auxState & cfg.activate[i]) > 0;
         f.CRUISE_MODE = rcOptions[BOXGCRUISE];
-        if (f.CRUISE_MODE){
+        if (f.CRUISE_MODE) {
             rcOptions[BOXGPSHOLD] = true;
             rcOptions[BOXHORIZON] = true;
         }

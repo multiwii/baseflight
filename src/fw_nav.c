@@ -43,16 +43,17 @@ void fw_nav_reset(void)
     }
 }
 
-void fw_FlyTo(void){ // PatrikE CruiseMode version
-    #define GEO_SKALEFACT    89.832f  // Scale to match meters  
+void fw_FlyTo(void)  // PatrikE CruiseMode version
+{
+#define GEO_SKALEFACT    89.832f  // Scale to match meters  
     int32_t holdHeading = GPS_ground_course / 10;
-    if (holdHeading >180)
-        holdHeading -=360;
-    float scaler = ( GEO_SKALEFACT/GPS_scaleLonDown) * cfg.fw_cruise_distance;
-    float wp_lat_diff = cos(holdHeading*0.0174532925f);
-    float wp_lon_diff = sin(holdHeading*0.0174532925f) * GPS_scaleLonDown;    
-    GPS_WP[LAT] += wp_lat_diff*scaler;
-    GPS_WP[LON] += wp_lon_diff*scaler;
+    if (holdHeading > 180)
+        holdHeading -= 360;
+    float scaler = ( GEO_SKALEFACT / GPS_scaleLonDown) * cfg.fw_cruise_distance;
+    float wp_lat_diff = cos(holdHeading * 0.0174532925f);
+    float wp_lon_diff = sin(holdHeading * 0.0174532925f) * GPS_scaleLonDown;
+    GPS_WP[LAT] += wp_lat_diff * scaler;
+    GPS_WP[LON] += wp_lon_diff * scaler;
 }
 
 void fw_nav(void)
@@ -238,7 +239,7 @@ void fw_nav(void)
 
         // constrain throttle to Max climb.
         NAV_Thro = constrain(NAV_Thro, cfg.fw_idle_throttle, cfg.fw_climb_throttle);
-        
+
     }
     // End of NavTimer
 
