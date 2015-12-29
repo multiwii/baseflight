@@ -363,7 +363,7 @@ typedef struct master_t {
     uint8_t disarm_kill_switch;             // AUX disarm independently of throttle value
     int8_t fw_althold_dir;                  // +1 or -1 for pitch/althold gain. later check if need more than just sign
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.
-    uint16_t rssi_aux_max;                  // max value for injected RSSI on AUX channel, range (0...1000), default is 1000  
+    uint16_t rssi_aux_max;                  // max value for injected RSSI on AUX channel, range (0...1000), default is 1000
     uint8_t rssi_adc_channel;               // Read analog-rssi from RC-filter (RSSI-PWM to RSSI-Analog), RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), ADC_EXTERNAL_PAD (Rev5 only, = 5), 0 to disable (disabled if rssi_aux_channel > 0 or rssi_adc_channel == power_adc_channel)
     uint16_t rssi_adc_max;                  // max input voltage defined by RC-filter (is RSSI never 100% reduce the value) (1...4095)
     uint16_t rssi_adc_offset;               // input offset defined by RC-filter (0...4095)
