@@ -252,6 +252,7 @@ static void resetConf(void)
     mcfg.looptime = 3500;
     mcfg.emf_avoidance = 0;
     mcfg.rssi_aux_channel = 0;
+    mcfg.rssi_aux_max = 1000;
     mcfg.rssi_adc_max = 4095;
 
     cfg.pidController = 0;
