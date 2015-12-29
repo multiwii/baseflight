@@ -209,6 +209,7 @@ const clivalue_t valueTable[] = {
     { "failsafe_detect_threshold", VAR_UINT16, &cfg.failsafe_detect_threshold, 100, 2000 },
     { "auto_disarm_board", VAR_UINT8, &mcfg.auto_disarm_board, 0, 60 },
     { "rssi_aux_channel", VAR_INT8, &mcfg.rssi_aux_channel, 0, 4 },
+    { "rssi_aux_max", VAR_UINT16, &mcfg.rssi_aux_max, 0, 1000 },
     { "rssi_adc_channel", VAR_INT8, &mcfg.rssi_adc_channel, 0, 9 },
     { "rssi_adc_max", VAR_INT16, &mcfg.rssi_adc_max, 1, 4095 },
     { "rssi_adc_offset", VAR_INT16, &mcfg.rssi_adc_offset, 0, 4095 },
