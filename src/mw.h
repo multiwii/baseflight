@@ -367,6 +367,7 @@ typedef struct master_t {
     uint8_t rssi_adc_channel;               // Read analog-rssi from RC-filter (RSSI-PWM to RSSI-Analog), RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), ADC_EXTERNAL_PAD (Rev5 only, = 5), 0 to disable (disabled if rssi_aux_channel > 0 or rssi_adc_channel == power_adc_channel)
     uint16_t rssi_adc_max;                  // max input voltage defined by RC-filter (is RSSI never 100% reduce the value) (1...4095)
     uint16_t rssi_adc_offset;               // input offset defined by RC-filter (0...4095)
+    uint8_t buzzer_mute;                    // buzzer is only activated when BOXITEM is selected
 
     // gps-related stuff
     uint8_t gps_type;                       // See GPSHardware enum.

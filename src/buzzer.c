@@ -81,6 +81,9 @@ void buzzer(uint8_t mode)
 {
     uint8_t i = 0;
 
+    if (mcfg.buzzer_mute)
+        return;
+
     // Just return if same or higher priority sound is active.
     if (buzzerMode <= mode)
         return;
@@ -166,6 +169,21 @@ void buzzer(uint8_t mode)
  */
 void buzzerUpdate(void)
 {
+    if (mcfg.buzzer_mute) {
+        if (buzzerIsOn && rcOptions[BOXBEEPERON]) {
+            return;
+        } else if (!buzzerIsOn && rcOptions[BOXBEEPERON]) {
+            BEEP_ON;
+            buzzerIsOn = 1;
+            return;
+        } else {
+            BEEP_OFF;
+            buzzerIsOn = 0;
+            return;
+        }
+    }
+
+
     // If beeper option from AUX switch has been selected
     if (rcOptions[BOXBEEPERON]) {
         if (buzzerMode > BUZZER_TX_SET)
