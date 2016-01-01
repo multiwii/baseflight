@@ -145,7 +145,6 @@ void fw_nav(void)
         if (abs(navDiff) > 170)
             navDiff = 175;      // Forced turn.
 
-
         // PID for Navigating planes.
         navDT = (float) (millis() - nav_loopT) / 1000;
         nav_loopT = millis();

@@ -809,6 +809,9 @@ void loop(void)
 #ifdef GPS
         if (sensors(SENSOR_GPS)) {
             if (f.GPS_FIX && GPS_numSat >= 5) {
+                if (nav_mode != NAV_MODE_NONE && (!f.HORIZON_MODE && !f.ANGLE_MODE))
+                    f.ANGLE_MODE = true; // Force a stable mode in GPS Mode
+                    
                 // if both GPS_HOME & GPS_HOLD are checked => GPS_HOME is the priority
                 if (rcOptions[BOXGPSHOME] || f.FW_FAILSAFE_RTH_ENABLE ) {
                     if (!f.GPS_HOME_MODE) {
