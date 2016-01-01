@@ -300,24 +300,45 @@ static void failsafeCheck(uint8_t channel, uint16_t pulse)
     }
 }
 
+// Contains detection & fix for the "8 channels in 18ms Frsky problem" see:
+// http://diydrones.com/profiles/blogs/why-frsky-cppm-signal-is-so-disappointing
+// http://forums.openpilot.org/topic/16146-cc3d-with-frsky-8-channels-in-cppm-mode/
+// Tested on: Frsky D8R-II and Frsky D4FR
 static void ppmCallback(uint8_t port, uint16_t capture)
 {
     (void)port;
-    uint16_t diff;
-    static uint16_t now;
+    uint16_t newval = capture;
     static uint16_t last = 0;
-    static uint8_t chan = 0;
+    static uint16_t frametime = 0;
+    static int8_t chan = 0;
+    static int8_t chan_order = 0;
+    static uint8_t frsky_problemcnt = 0;
+    uint16_t diff = newval - last;
+    bool sync = diff > 2700;                                               // rcgroups.com/forums/showpost.php?p=21996147&postcount=3960 "So, if you use 2.5ms or higher as being the reset for the PPM stream start, you will be fine. I use 2.7ms just to be safe."
+    last = newval;
 
-    last = now;
-    now = capture;
-    diff = now - last;
+    if (frsky_problemcnt == 30)
+        sync |= chan == 8;                                                 // FrSky 18ms Fix, force sync after 8 channels
+    else 
+        frametime += diff;
 
-    if (diff > 2700) { // Per http://www.rcgroups.com/forums/showpost.php?p=21996147&postcount=3960 "So, if you use 2.5ms or higher as being the reset for the PPM stream start, you will be fine. I use 2.7ms just to be safe."
+    if (sync) {
+        if (frsky_problemcnt != 30) {
+            if (frametime < 18300 && chan == 8)
+                frsky_problemcnt++;
+            else
+                frsky_problemcnt = 0;
+            frametime = 0;            
+        }
         chan = 0;
+        chan_order = 0;
     } else {
-        if (diff > PULSE_MIN && diff < PULSE_MAX && chan < MAX_INPUTS) {   // 750 to 2250 ms is our 'valid' channel range
-            captures[chan] = diff;
-            failsafeCheck(chan, diff);
+        if (diff > PULSE_MIN && diff < PULSE_MAX && chan == chan_order) {  // Only capture if channel order is correct and Range: 750 to 2250 ms
+            if (chan < MAX_INPUTS) {                                       // Needed and incoming channelnumbers can be different.
+                captures[chan] = diff;
+                failsafeCheck(chan, diff);
+            }
+            chan_order++;
         }
         chan++;
     }
