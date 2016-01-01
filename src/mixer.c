@@ -550,7 +550,6 @@ void mixTable(void)
             motor[i] = rcCommand[THROTTLE] * currentMixer[i].throttle + axisPID[PITCH] * currentMixer[i].pitch + axisPID[ROLL] * currentMixer[i].roll + -cfg.yaw_direction * axisPID[YAW] * currentMixer[i].yaw;
 
     if (f.FIXED_WING) { // vector_trust handeling
-        
         if (cfg.fw_vector_trust && f.ARMED) {
             if (f.PASSTHRU_MODE) {
                 motor[0] = rcCommand[THROTTLE] - rcCommand[YAW] * 0.5f;
@@ -560,12 +559,10 @@ void mixTable(void)
                 motor[1] = rcCommand[THROTTLE] + axisPID[YAW] * 0.5f;
             }
         }
-            
         if (!cfg.fw_vector_trust) {
             motor[0] = rcCommand[THROTTLE];
             motor[1] = rcCommand[THROTTLE];
         }
-        
         if (!f.ARMED || ((rcData[THROTTLE]) < mcfg.mincheck && feature(FEATURE_MOTOR_STOP))) {
             motor[0] = mcfg.mincommand;
             motor[1] = mcfg.mincommand;
