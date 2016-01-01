@@ -115,7 +115,7 @@ static const box_t boxes[] = {
     { BOXSERVO1, "SERVO1;", 21 },
     { BOXSERVO2, "SERVO2;", 22 },
     { BOXSERVO3, "SERVO3;", 23 },
-    { BOXGCRUISE,"CRUISE;", 24 },
+    { BOXGCRUISE, "CRUISE;", 24 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -311,7 +311,7 @@ void serialInit(uint32_t baudrate)
         availableBoxes[idx++] = BOXGPSHOME;
         availableBoxes[idx++] = BOXGPSHOLD;
     }
-    if (f.FIXED_WING){
+    if (f.FIXED_WING) {
         availableBoxes[idx++] = BOXPASSTHRU;
         availableBoxes[idx++] = BOXGCRUISE;
     }
@@ -447,7 +447,7 @@ static void evaluateCommand(void)
                   f.BARO_MODE << BOXBARO | f.MAG_MODE << BOXMAG | f.HEADFREE_MODE << BOXHEADFREE | rcOptions[BOXHEADADJ] << BOXHEADADJ |
                   rcOptions[BOXCAMSTAB] << BOXCAMSTAB | rcOptions[BOXCAMTRIG] << BOXCAMTRIG |
                   f.GPS_HOME_MODE << BOXGPSHOME | f.GPS_HOLD_MODE << BOXGPSHOLD |
-                  f.CRUISE_MODE << BOXGCRUISE |f.PASSTHRU_MODE << BOXPASSTHRU |
+                  f.CRUISE_MODE << BOXGCRUISE | f.PASSTHRU_MODE << BOXPASSTHRU |
                   rcOptions[BOXBEEPERON] << BOXBEEPERON |
                   rcOptions[BOXLEDMAX] << BOXLEDMAX |
                   rcOptions[BOXLLIGHTS] << BOXLLIGHTS |
