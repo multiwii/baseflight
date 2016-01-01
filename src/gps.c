@@ -770,7 +770,7 @@ void GPS_set_next_wp(int32_t *lat, int32_t *lon)
     GPS_calc_longitude_scaling(*lat);
     if (f.CRUISE_MODE)
         fw_FlyTo();  // PatrikE CruiseMode version
-    
+
     GPS_distance_cm_bearing(&GPS_coord[LAT], &GPS_coord[LON], &GPS_WP[LAT], &GPS_WP[LON], &wp_distance, &target_bearing);
 
     nav_bearing = target_bearing;
