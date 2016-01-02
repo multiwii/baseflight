@@ -18,6 +18,7 @@ extern PID_PARAM altPID_PARAM;
 // For speedBoost
 #define GPS_MINSPEED 500        // 500= ~18km/h
 #define I_TERM 0.1f
+#define GEO_SKALEFACT  89.832f  // Scale to match meters  
 
 float navErrorI;
 float altErrorI;
@@ -45,13 +46,13 @@ void fw_nav_reset(void)
 
 void fw_FlyTo(void) // PatrikE CruiseMode version
 {
-#define GEO_SKALEFACT    89.832f  // Scale to match meters  
+    float wp_lat_diff, wp_lon_diff, scaler;
     int32_t holdHeading = GPS_ground_course / 10;
     if (holdHeading > 180)
         holdHeading -= 360;
-    float scaler = ( GEO_SKALEFACT / GPS_scaleLonDown) * cfg.fw_cruise_distance;
-    float wp_lat_diff = cos(holdHeading * 0.0174532925f);
-    float wp_lon_diff = sin(holdHeading * 0.0174532925f) * GPS_scaleLonDown;    
+    scaler = ( GEO_SKALEFACT / GPS_scaleLonDown) * cfg.fw_cruise_distance;
+    wp_lat_diff = cos(holdHeading * 0.0174532925f);
+    wp_lon_diff = sin(holdHeading * 0.0174532925f) * GPS_scaleLonDown;
     GPS_WP[LAT] += wp_lat_diff * scaler;
     GPS_WP[LON] += wp_lon_diff * scaler;
 }
