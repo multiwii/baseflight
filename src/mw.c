@@ -120,15 +120,16 @@ void annexCode(void)
                 prop2 = 100 - cfg.dynThrPID;
             }
         }
-    } else { // Throttle & Angle combined PID adjustemnt
-        // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
+    } else {
+        // Throttle & Angle combined PID Attenuation
+        // Will dampen the PID's in High speeds dive on Fixed Wing Only
         prop2 = 128; // prop2 was 100, is 128 now
         if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
-            prop2 = 128; 
+            prop2 = 128; // Higher prop2 for Fixed wing Same as used in MWii
         } else {
-            if (rcCommand[THROTTLE] > cfg.dynThrPID) {
+            if (rcCommand[THROTTLE] > cfg.dynThrPID) { // Using rcCommand() to include Tpa even in Gps modes.
                 if (rcCommand[THROTTLE] < 2000) {
-                    prop2 -=  ((uint16_t)cfg.dynThrPID * (rcCommand[THROTTLE] - cfg.dynThrPID) >> 9); //  /512 instead of /500
+                    prop2 -=  ((uint16_t)cfg.dynThrPID * (rcCommand[THROTTLE] - cfg.dynThrPID) >> 9);
                 } else {
                     prop2 -=  cfg.dynThrPID;
                 }
