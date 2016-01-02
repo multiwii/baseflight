@@ -101,6 +101,7 @@ void annexCode(void)
     static uint32_t calibratedAccTime;
     int32_t tmp, tmp2;
     int32_t axis, prop1, prop2;
+    static uint16_t MaxBrkpoint = 300; // Max angle of APA
 
     // vbat shit
     static uint8_t vbatTimer = 0;
@@ -136,7 +137,6 @@ void annexCode(void)
             }
         }
         // APA dynamic PID adjustemnt, depending on Angle of attack
-        uint16_t MaxBrkpoint = 300; // Max angle
         if (angle[1] > 20)
             prop2 -= ((uint16_t)cfg.dynThrPID * (min(angle[1], MaxBrkpoint)) >> 8);
         prop2 = max((128 - cfg.dynThrPID), prop2);
