@@ -186,7 +186,7 @@ int main(void)
     for (i = 0; i < RC_CHANS; i++)
         rcData[i] = 1502;
     rcReadRawFunc = pwmReadRawRC;
-    core.numRCChannels = MAX_INPUTS;
+    core.numRCChannels = MAX_PWM_INPUTS;
 
     if (feature(FEATURE_SERIALRX)) {
         switch (mcfg.serialrx_type) {
@@ -213,13 +213,17 @@ int main(void)
     // gpsInit will return if FEATURE_GPS is not enabled.
     gpsInit(mcfg.gps_baudrate);
 #endif
-#ifdef SONAR
-    // sonar stuff only works with PPM
+
     if (feature(FEATURE_PPM)) {
+        core.numRCChannels = MAX_PPM_INPUTS;
+#ifdef SONAR
+        // sonar stuff only works with PPM
         if (feature(FEATURE_SONAR))
             Sonar_init();
-    }
 #endif
+    }
+
+    core.numAuxChannels = constrain((mcfg.rc_channel_count - 4), 4, 8);
 
 #ifndef CJMCU
     if (feature(FEATURE_SOFTSERIAL)) {
