@@ -545,18 +545,19 @@ void mixTable(void)
     }
 
     // motors for non-servo mixes
-    if (numberMotor > 1)
+    if (numberMotor > 1) {
         for (i = 0; i < numberMotor; i++) {
             motor[i] = rcCommand[THROTTLE] * currentMixer[i].throttle + axisPID[PITCH] * currentMixer[i].pitch + axisPID[ROLL] * currentMixer[i].roll + -cfg.yaw_direction * axisPID[YAW] * currentMixer[i].yaw;
-    if (f.FIXED_WING) { // vector_trust handeling
+            if (f.FIXED_WING) { // vector_trust handeling
                 if (cfg.fw_vector_trust) {
                     if (f.PASSTHRU_MODE)
                         motor[i] = rcCommand[THROTTLE] - rcCommand[YAW] * (i - 0.5f);
                 } else { // Override mixerTrustVector
                     motor[i] = rcCommand[THROTTLE];
+                }
             }
         }
-        }
+    }
 
     // airplane / servo mixes
     switch (mcfg.mixerConfiguration) {
