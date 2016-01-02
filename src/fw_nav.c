@@ -50,7 +50,7 @@ void fw_FlyTo(void) // PatrikE CruiseMode version
     int32_t holdHeading = GPS_ground_course / 10;
     if (holdHeading > 180)
         holdHeading -= 360;
-    scaler = ( GEO_SKALEFACT / GPS_scaleLonDown) * cfg.fw_cruise_distance;
+    scaler = (GEO_SKALEFACT / GPS_scaleLonDown) * cfg.fw_cruise_distance;
     wp_lat_diff = cos(holdHeading * 0.0174532925f);
     wp_lon_diff = sin(holdHeading * 0.0174532925f) * GPS_scaleLonDown;
     GPS_WP[LAT] += wp_lat_diff * scaler;
