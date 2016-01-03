@@ -22,7 +22,7 @@
 
 master_t mcfg;  // master config struct with data independent from profiles
 config_t cfg;   // profile config struct
-const char rcChannelLetters[] = "AERT1234";
+const char rcChannelLetters[] = "AERT123456789LMNOP";  // hack for the char-based channel mapping stuff, 18 channels hard max
 
 static const uint8_t EEPROM_CONF_VERSION = 75;
 static uint32_t enabledSensors = 0;
@@ -254,6 +254,7 @@ static void resetConf(void)
     mcfg.rssi_aux_channel = 0;
     mcfg.rssi_aux_max = 1000;
     mcfg.rssi_adc_max = 4095;
+    mcfg.rc_channel_count = 8;
 
     cfg.pidController = 0;
     cfg.P8[ROLL] = 40;
@@ -309,7 +310,7 @@ static void resetConf(void)
     cfg.small_angle = 25;
 
     // Radio
-    parseRcChannels("AETR1234");
+    parseRcChannels( "AETR123456789LMNOP" );    //18 channels max
     cfg.deadband = 0;
     cfg.yawdeadband = 0;
     cfg.alt_hold_throttle_neutral = 40;

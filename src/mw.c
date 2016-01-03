@@ -261,13 +261,13 @@ void computeRC(void)
     int i, chan;
 
     if (feature(FEATURE_SERIALRX)) {
-        for (chan = 0; chan < 8; chan++)
+        for (chan = 0; chan < mcfg.rc_channel_count; chan++)
             rcData[chan] = rcReadRawFunc(chan);
     } else {
-        static int16_t rcDataAverage[8][4];
+        static int16_t rcDataAverage[RC_CHANS][4];
         static int rcAverageIndex = 0;
 
-        for (chan = 0; chan < 8; chan++) {
+        for (chan = 0; chan < mcfg.rc_channel_count; chan++) {
             capture = rcReadRawFunc(chan);
 
             // validate input
@@ -478,7 +478,7 @@ void loop(void)
     static int16_t initialThrottleHold;
 #endif
     static uint32_t loopTime;
-    uint16_t auxState = 0;
+    uint32_t auxState = 0;
 #ifdef GPS
     static uint8_t GPSNavReset = 1;
 #endif
@@ -687,7 +687,8 @@ void loop(void)
         }
 
         // Check AUX switches
-        for (i = 0; i < 4; i++)
+
+        for (i = 0; i < core.numAuxChannels; i++)
             auxState |= (rcData[AUX1 + i] < 1300) << (3 * i) | (1300 < rcData[AUX1 + i] && rcData[AUX1 + i] < 1700) << (3 * i + 1) | (rcData[AUX1 + i] > 1700) << (3 * i + 2);
         for (i = 0; i < CHECKBOXITEMS; i++)
             rcOptions[i] = (auxState & cfg.activate[i]) > 0;

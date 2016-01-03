@@ -83,6 +83,7 @@
 #define MSP_BUILDINFO            69     //out message         build date as well as some space for future expansion
 
 #define INBUF_SIZE 128
+#define MAX_SERIAL_INPUTS 8
 
 typedef struct box_t {
     const uint8_t boxIndex;         // this is from boxnames enum
@@ -833,13 +834,13 @@ static void evaluateCommand(void)
             break;
 
         case MSP_RCMAP:
-            headSerialReply(MAX_INPUTS); // TODO fix this
-            for (i = 0; i < MAX_INPUTS; i++)
+            headSerialReply(MAX_SERIAL_INPUTS); // TODO fix this
+            for (i = 0; i < MAX_SERIAL_INPUTS; i++)
                 serialize8(mcfg.rcmap[i]);
             break;
         case MSP_SET_RCMAP:
             headSerialReply(0);
-            for (i = 0; i < MAX_INPUTS; i++)
+            for (i = 0; i < MAX_SERIAL_INPUTS; i++)
                 mcfg.rcmap[i] = read8();
             break;
 
