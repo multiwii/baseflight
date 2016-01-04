@@ -17,6 +17,9 @@
 
 #define RC_CHANS    (18)
 
+#define ACRO_OFF 0
+#define ACRO_ON 1
+
 // Serial GPS only variables
 // navigation mode
 typedef enum NavigationMode {
@@ -121,6 +124,7 @@ enum {
     BOXSERVO1,
     BOXSERVO2,
     BOXSERVO3,
+    BOXACROSWITCH,
     CHECKBOXITEMS
 };
 
@@ -220,13 +224,13 @@ typedef struct config_t {
     uint8_t I8[PIDITEMS];
     uint8_t D8[PIDITEMS];
 
-    uint8_t rcRate8;
-    uint8_t rcExpo8;
+    uint8_t rcRate8[2];
+    uint8_t rcExpo8[2];
     uint8_t thrMid8;
     uint8_t thrExpo8;
 
-    uint8_t rollPitchRate[2];
-    uint8_t yawRate;
+    uint8_t rollPitchRate[2][2];
+    uint8_t yawRate[2];
 
     uint8_t dynThrPID;
     uint16_t tpa_breakpoint;                // Breakpoint where TPA is activated
@@ -475,8 +479,9 @@ extern int32_t mAhdrawn;              // milli ampere hours drawn from battery s
 
 #define PITCH_LOOKUP_LENGTH 7
 #define THROTTLE_LOOKUP_LENGTH 12
-extern int16_t lookupPitchRollRC[PITCH_LOOKUP_LENGTH];   // lookup table for expo & RC rate PITCH+ROLL
+extern int16_t lookupPitchRollRC[2][PITCH_LOOKUP_LENGTH];   // lookup table for expo & RC rate PITCH+ROLL
 extern int16_t lookupThrottleRC[THROTTLE_LOOKUP_LENGTH];   // lookup table for expo & mid THROTTLE
+extern bool acroState;
 
 // GPS stuff
 extern int32_t  GPS_coord[2];
