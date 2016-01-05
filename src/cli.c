@@ -208,10 +208,12 @@ const clivalue_t valueTable[] = {
     { "failsafe_throttle", VAR_UINT16, &cfg.failsafe_throttle, 1000, 2000 },
     { "failsafe_detect_threshold", VAR_UINT16, &cfg.failsafe_detect_threshold, 100, 2000 },
     { "auto_disarm_board", VAR_UINT8, &mcfg.auto_disarm_board, 0, 60 },
-    { "rssi_aux_channel", VAR_INT8, &mcfg.rssi_aux_channel, 0, 4 },
+    { "rssi_aux_channel", VAR_INT8, &mcfg.rssi_aux_channel, 0, 14 },
+    { "rssi_aux_max", VAR_UINT16, &mcfg.rssi_aux_max, 0, 1000 },
     { "rssi_adc_channel", VAR_INT8, &mcfg.rssi_adc_channel, 0, 9 },
     { "rssi_adc_max", VAR_INT16, &mcfg.rssi_adc_max, 1, 4095 },
     { "rssi_adc_offset", VAR_INT16, &mcfg.rssi_adc_offset, 0, 4095 },
+    { "rc_channel_count", VAR_UINT8, &mcfg.rc_channel_count, 8, 18 },
     { "yaw_direction", VAR_INT8, &cfg.yaw_direction, -1, 1 },
     { "tri_unarmed_servo", VAR_INT8, &cfg.tri_unarmed_servo, 0, 1 },
     { "gimbal_flags", VAR_UINT8, &cfg.gimbal_flags, 0, 255},
@@ -260,7 +262,7 @@ const clivalue_t valueTable[] = {
     { "p_vel", VAR_UINT8, &cfg.P8[PIDVEL], 0, 200 },
     { "i_vel", VAR_UINT8, &cfg.I8[PIDVEL], 0, 200 },
     { "d_vel", VAR_UINT8, &cfg.D8[PIDVEL], 0, 200 },
-    { "fw_vector_trust", VAR_UINT8, &cfg.fw_vector_trust, 0, 1},
+    { "fw_vector_thrust", VAR_UINT8, &cfg.fw_vector_thrust, 0, 1},
     { "fw_gps_maxcorr", VAR_INT16, &cfg.fw_gps_maxcorr, -45, 45 },
     { "fw_gps_rudder", VAR_INT16, &cfg.fw_gps_rudder,  -45, 45 },
     { "fw_gps_maxclimb", VAR_INT16, &cfg.fw_gps_maxclimb,  -45, 45 },
@@ -881,7 +883,7 @@ static void cliDump(char *cmdline)
     }
 
     // print RC MAPPING
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < mcfg.rc_channel_count; i++)
         buf[mcfg.rcmap[i]] = rcChannelLetters[i];
     buf[i] = '\0';
     printf("map %s\r\n", buf);
@@ -993,11 +995,11 @@ static void cliMap(char *cmdline)
 
     len = strlen(cmdline);
 
-    if (len == 8) {
+    if (len == mcfg.rc_channel_count) {
         // uppercase it
-        for (i = 0; i < 8; i++)
+        for (i = 0; i < mcfg.rc_channel_count; i++)
             cmdline[i] = toupper((unsigned char)cmdline[i]);
-        for (i = 0; i < 8; i++) {
+        for (i = 0; i < mcfg.rc_channel_count; i++) {
             if (strchr(rcChannelLetters, cmdline[i]) && !strchr(cmdline + i + 1, cmdline[i]))
                 continue;
             cliPrint("Must be any order of AETR1234\r\n");
@@ -1006,7 +1008,7 @@ static void cliMap(char *cmdline)
         parseRcChannels(cmdline);
     }
     cliPrint("Current assignment: ");
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < mcfg.rc_channel_count; i++)
         out[mcfg.rcmap[i]] = rcChannelLetters[i];
     out[i] = '\0';
     printf("%s\r\n", out);

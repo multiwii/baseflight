@@ -134,7 +134,7 @@ static const motorMixer_t mixerDualcopter[] = {
     { 1.0f,  0.0f,  0.0f,  1.0f },          // RIGHT
 };
 
-static const motorMixer_t mixerTrustVector[] = {
+static const motorMixer_t mixerVectorThrust[] = {
     { 1.0f,  0.0f,  0.0f, -0.5f },          // LEFT
     { 1.0f,  0.0f,  0.0f,  0.5f },          // RIGHT
 };
@@ -150,13 +150,13 @@ const mixer_t mixers[] = {
     { 0, 1, NULL },                // * MULTITYPE_GIMBAL
     { 6, 0, mixerY6 },             // MULTITYPE_Y6
     { 6, 0, mixerHex6P },          // MULTITYPE_HEX6
-    { 2, 1, mixerTrustVector },     // * MULTITYPE_FLYING_WING
+    { 2, 1, mixerVectorThrust },     // * MULTITYPE_FLYING_WING
     { 4, 0, mixerY4 },             // MULTITYPE_Y4
     { 6, 0, mixerHex6X },          // MULTITYPE_HEX6X
     { 8, 0, mixerOctoX8 },         // MULTITYPE_OCTOX8
     { 8, 0, mixerOctoFlatP },      // MULTITYPE_OCTOFLATP
     { 8, 0, mixerOctoFlatX },      // MULTITYPE_OCTOFLATX
-    { 2, 1, mixerTrustVector },    // * MULTITYPE_AIRPLANE
+    { 2, 1, mixerVectorThrust },    // * MULTITYPE_AIRPLANE
     { 0, 1, NULL },                // * MULTITYPE_HELI_120_CCPM
     { 0, 1, NULL },                // * MULTITYPE_HELI_90_DEG
     { 4, 0, mixerVtail4 },         // MULTITYPE_VTAIL4
@@ -166,7 +166,7 @@ const mixer_t mixers[] = {
     { 1, 1, NULL },                // MULTITYPE_SINGLECOPTER
     { 4, 0, mixerAtail4 },         // MULTITYPE_ATAIL4
     { 0, 0, NULL },                // MULTITYPE_CUSTOM
-    { 2, 1, mixerTrustVector },    // MULTITYPE_CUSTOM_PLANE
+    { 2, 1, mixerVectorThrust },    // MULTITYPE_CUSTOM_PLANE
 };
 
 // mixer rule format servo, input, rate, speed, min, max, box
@@ -548,11 +548,11 @@ void mixTable(void)
     if (numberMotor > 1) {
         for (i = 0; i < numberMotor; i++) {
             motor[i] = rcCommand[THROTTLE] * currentMixer[i].throttle + axisPID[PITCH] * currentMixer[i].pitch + axisPID[ROLL] * currentMixer[i].roll + -cfg.yaw_direction * axisPID[YAW] * currentMixer[i].yaw;
-            if (f.FIXED_WING) { // vector_trust handeling
-                if (cfg.fw_vector_trust) {
+            if (f.FIXED_WING) { // vector_thrust handeling
+                if (cfg.fw_vector_thrust) {
                     if (f.PASSTHRU_MODE)
                         motor[i] = rcCommand[THROTTLE] - rcCommand[YAW] * (i - 0.5f);
-                } else { // Override mixerTrustVector
+                } else { // Override mixerVectorThrust
                     motor[i] = rcCommand[THROTTLE];
                 }
             }

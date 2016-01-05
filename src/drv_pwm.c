@@ -60,7 +60,7 @@ enum {
 typedef void (*pwmWriteFuncPtr)(uint8_t index, uint16_t value);  // function pointer used to write motors
 
 static pwmPortData_t pwmPorts[MAX_PORTS];
-static uint16_t captures[MAX_INPUTS];
+static uint16_t captures[MAX_PPM_INPUTS];    // max out the captures array, just in case...
 static pwmPortData_t *motors[MAX_MOTORS];
 static pwmPortData_t *servos[MAX_SERVOS];
 static pwmWriteFuncPtr pwmWritePtr = NULL;
@@ -315,7 +315,7 @@ static void ppmCallback(uint8_t port, uint16_t capture)
     if (diff > 2700) { // Per http://www.rcgroups.com/forums/showpost.php?p=21996147&postcount=3960 "So, if you use 2.5ms or higher as being the reset for the PPM stream start, you will be fine. I use 2.7ms just to be safe."
         chan = 0;
     } else {
-        if (diff > PULSE_MIN && diff < PULSE_MAX && chan < MAX_INPUTS) {   // 750 to 2250 ms is our 'valid' channel range
+        if (diff > PULSE_MIN && diff < PULSE_MAX && chan < MAX_PPM_INPUTS) {   // 750 to 2250 ms is our 'valid' channel range
             captures[chan] = diff;
             failsafeCheck(chan, diff);
         }

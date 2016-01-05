@@ -111,16 +111,16 @@ void annexCode(void)
     static int32_t vbatCycleTime = 0;
 
     if (!f.FIXED_WING) { // Baseflight original dynamic PID adjustemnt
-        // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
-        if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
-            prop2 = 100;
+    // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
+    if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
+        prop2 = 100;
+    } else {
+        if (rcData[THROTTLE] < 2000) {
+            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
         } else {
-            if (rcData[THROTTLE] < 2000) {
-                prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
-            } else {
-                prop2 = 100 - cfg.dynThrPID;
-            }
+            prop2 = 100 - cfg.dynThrPID;
         }
+    }
     } else {
         // Throttle & Angle combined PID Attenuation
         // Will dampen the PID's in High speeds dive on Fixed Wing Only
@@ -284,13 +284,13 @@ void computeRC(void)
     int i, chan;
 
     if (feature(FEATURE_SERIALRX)) {
-        for (chan = 0; chan < 8; chan++)
+        for (chan = 0; chan < mcfg.rc_channel_count; chan++)
             rcData[chan] = rcReadRawFunc(chan);
     } else {
-        static int16_t rcDataAverage[8][4];
+        static int16_t rcDataAverage[RC_CHANS][4];
         static int rcAverageIndex = 0;
 
-        for (chan = 0; chan < 8; chan++) {
+        for (chan = 0; chan < mcfg.rc_channel_count; chan++) {
             capture = rcReadRawFunc(chan);
 
             // validate input
@@ -501,7 +501,7 @@ void loop(void)
     static int16_t initialThrottleHold;
 #endif
     static uint32_t loopTime;
-    uint16_t auxState = 0;
+    uint32_t auxState = 0;
 #ifdef GPS
     static uint8_t GPSNavReset = 1;
 #endif
@@ -710,7 +710,8 @@ void loop(void)
         }
 
         // Check AUX switches
-        for (i = 0; i < 4; i++)
+
+        for (i = 0; i < core.numAuxChannels; i++)
             auxState |= (rcData[AUX1 + i] < 1300) << (3 * i) | (1300 < rcData[AUX1 + i] && rcData[AUX1 + i] < 1700) << (3 * i + 1) | (rcData[AUX1 + i] > 1700) << (3 * i + 2);
         for (i = 0; i < CHECKBOXITEMS; i++)
             rcOptions[i] = (auxState & cfg.activate[i]) > 0;

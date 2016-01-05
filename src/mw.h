@@ -247,7 +247,7 @@ typedef struct config_t {
     uint8_t acc_unarmedcal;                 // turn automatic acc compensation on/off
     uint8_t small_angle;                    // what is considered a safe angle for arming
 
-    uint16_t activate[CHECKBOXITEMS];       // activate switches
+    uint32_t activate[CHECKBOXITEMS];       // activate switches
 
     // Radio/ESC-related configuration
     uint8_t deadband;                       // introduce a deadband around the stick center for pitch and roll axis. Must be greater than zero.
@@ -283,7 +283,7 @@ typedef struct config_t {
     uint16_t ap_mode;                       // Temporarily Disables GPS_HOLD_MODE to be able to make it possible to adjust the Hold-position when moving the sticks, creating a deadspan for GPS
 
     // fw-related stuff
-    uint8_t fw_vector_trust;                   // Enable Vector trust on Twin Engine models
+    uint8_t fw_vector_thrust;                   // Enable Vector trust on Twin Engine models
     int16_t fw_gps_maxcorr;                    // Degrees banking Allowed by GPS.
     int16_t fw_gps_rudder;                     // Maximum input of Rudder Allowed by GPS.
     int16_t fw_gps_maxclimb;                   // Degrees climbing . To much can stall the plane.
@@ -356,7 +356,7 @@ typedef struct master_t {
     uint8_t power_adc_channel;              // which channel is used for current sensor. Right now, only 3 places are supported: RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), ADC_EXTERNAL_PAD (Rev5 only, = 5), 0 to disable
 
     // Radio/ESC-related configuration
-    uint8_t rcmap[8];                       // mapping of radio channels to internal RPYTA+ order
+    uint8_t rcmap[RC_CHANS];                // mapping of radio channels to internal RPYTA+ order
     uint8_t serialrx_type;                  // type of UART-based receiver (0 = spek 10, 1 = spek 11, 2 = sbus). Must be enabled by FEATURE_SERIALRX first.
     uint8_t spektrum_sat_bind;              // Spektrum satellite bind. 0 - 10 (0 = disabled)
     uint8_t spektrum_sat_on_flexport;       // Spektrum satellite on USART3 (flexport, available with rev5sp hardware)
@@ -367,9 +367,11 @@ typedef struct master_t {
     uint8_t disarm_kill_switch;             // AUX disarm independently of throttle value
     int8_t fw_althold_dir;                  // +1 or -1 for pitch/althold gain. later check if need more than just sign
     uint8_t rssi_aux_channel;               // Read rssi from channel. 1+ = AUX1+, 0 to disable.
+    uint16_t rssi_aux_max;                  // max value for injected RSSI on AUX channel, range (0...1000), default is 1000
     uint8_t rssi_adc_channel;               // Read analog-rssi from RC-filter (RSSI-PWM to RSSI-Analog), RC_CH2 (unused when in CPPM mode, = 1), RC_CH8 (last channel in PWM mode, = 9), ADC_EXTERNAL_PAD (Rev5 only, = 5), 0 to disable (disabled if rssi_aux_channel > 0 or rssi_adc_channel == power_adc_channel)
     uint16_t rssi_adc_max;                  // max input voltage defined by RC-filter (is RSSI never 100% reduce the value) (1...4095)
     uint16_t rssi_adc_offset;               // input offset defined by RC-filter (0...4095)
+    uint8_t rc_channel_count;               // total number of incoming RC channels that should be processed, range (8...18), default is 8
 
     // gps-related stuff
     uint8_t gps_type;                       // See GPSHardware enum.
@@ -403,6 +405,7 @@ typedef struct core_t {
     serialPort_t *telemport;
     serialPort_t *rcvrport;
     uint8_t numRCChannels;                  // number of rc channels as reported by current input driver
+    uint8_t numAuxChannels;
     bool useServo;                          // feature SERVO_TILT or wing/airplane mixers will enable this
     uint8_t numServos;                      // how many total hardware servos we have. used by mixer
 } core_t;

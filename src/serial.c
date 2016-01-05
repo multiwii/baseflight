@@ -83,6 +83,7 @@
 #define MSP_BUILDINFO            69     //out message         build date as well as some space for future expansion
 
 #define INBUF_SIZE 128
+#define MAX_SERIAL_INPUTS 8
 
 typedef struct box_t {
     const uint8_t boxIndex;         // this is from boxnames enum
@@ -534,7 +535,7 @@ static void evaluateCommand(void)
         case MSP_FW_CONFIG:
             headSerialReply(38);
             serialize8(mcfg.fw_althold_dir);
-            // serialize8(cfg.fw_vector_trust); // Future Gui setting?
+            // serialize8(cfg.fw_vector_thrust); // Future Gui setting?
             serialize16(cfg.fw_gps_maxcorr);
             serialize16(cfg.fw_gps_rudder);
             serialize16(cfg.fw_gps_maxclimb);
@@ -543,7 +544,7 @@ static void evaluateCommand(void)
             serialize16(cfg.fw_cruise_throttle);
             serialize16(cfg.fw_idle_throttle);
             serialize16(cfg.fw_scaler_throttle);
-            serialize32(cfg.fw_roll_comp); // Float is Not compatible with Gui. Changing to uint8_t
+            serialize32(cfg.fw_roll_comp); // Float is Not compatible with Gui. Change to serialize8
             serialize8(cfg.fw_rth_alt);
             // next added for future use
             serialize32(0);
@@ -554,7 +555,7 @@ static void evaluateCommand(void)
         case MSP_SET_FW_CONFIG:
             headSerialReply(0);
             mcfg.fw_althold_dir = read8();
-            // cfg.fw_vector_trust = read8(); // Future Gui setting?
+            // cfg.fw_vector_thrust = read8(); // Future Gui setting?
             cfg.fw_gps_maxcorr = read16();
             cfg.fw_gps_rudder = read16();
             cfg.fw_gps_maxclimb = read16();
@@ -563,7 +564,7 @@ static void evaluateCommand(void)
             cfg.fw_cruise_throttle = read16();
             cfg.fw_idle_throttle = read16();
             cfg.fw_scaler_throttle = read16();
-            //cfg.fw_gps_maxdive = read32();// Wrong when using float in MSP!... Change to uint8
+            //cfg.fw_gps_maxdive = read32();// Wrong when using float in MSP!... Change to read8
             read32(); // Just read and skip
             cfg.fw_rth_alt = read8();
             // next added for future use
@@ -839,13 +840,13 @@ static void evaluateCommand(void)
             break;
 
         case MSP_RCMAP:
-            headSerialReply(MAX_INPUTS); // TODO fix this
-            for (i = 0; i < MAX_INPUTS; i++)
+            headSerialReply(MAX_SERIAL_INPUTS); // TODO fix this
+            for (i = 0; i < MAX_SERIAL_INPUTS; i++)
                 serialize8(mcfg.rcmap[i]);
             break;
         case MSP_SET_RCMAP:
             headSerialReply(0);
-            for (i = 0; i < MAX_INPUTS; i++)
+            for (i = 0; i < MAX_SERIAL_INPUTS; i++)
                 mcfg.rcmap[i] = read8();
             break;
 
