@@ -111,7 +111,7 @@ void annexCode(void)
     static int32_t vbatCycleTime = 0;
 
     if (!f.FIXED_WING) { // Baseflight original dynamic PID adjustemnt
-    // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
+        // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
         if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
             prop2 = 100;
         } else {
