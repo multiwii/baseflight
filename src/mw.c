@@ -112,15 +112,15 @@ void annexCode(void)
 
     if (!f.FIXED_WING) { // Baseflight original dynamic PID adjustemnt
     // PITCH & ROLL only dynamic PID adjustemnt,  depending on throttle value
-    if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
-        prop2 = 100;
-    } else {
-        if (rcData[THROTTLE] < 2000) {
-            prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
+        if (rcData[THROTTLE] < cfg.tpa_breakpoint) {
+            prop2 = 100;
         } else {
-            prop2 = 100 - cfg.dynThrPID;
+            if (rcData[THROTTLE] < 2000) {
+                prop2 = 100 - (uint16_t)cfg.dynThrPID * (rcData[THROTTLE] - cfg.tpa_breakpoint) / (2000 - cfg.tpa_breakpoint);
+            } else {
+                prop2 = 100 - cfg.dynThrPID;
+            }
         }
-    }
     } else {
         // Throttle & Angle combined PID Attenuation
         // Will dampen the PID's in High speeds dive on Fixed Wing Only
