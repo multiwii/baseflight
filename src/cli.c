@@ -262,16 +262,19 @@ const clivalue_t valueTable[] = {
     { "p_vel", VAR_UINT8, &cfg.P8[PIDVEL], 0, 200 },
     { "i_vel", VAR_UINT8, &cfg.I8[PIDVEL], 0, 200 },
     { "d_vel", VAR_UINT8, &cfg.D8[PIDVEL], 0, 200 },
+    { "fw_vector_thrust", VAR_UINT8, &cfg.fw_vector_thrust, 0, 1},
     { "fw_gps_maxcorr", VAR_INT16, &cfg.fw_gps_maxcorr, -45, 45 },
     { "fw_gps_rudder", VAR_INT16, &cfg.fw_gps_rudder,  -45, 45 },
     { "fw_gps_maxclimb", VAR_INT16, &cfg.fw_gps_maxclimb,  -45, 45 },
     { "fw_gps_maxdive", VAR_INT16, &cfg.fw_gps_maxdive,  -45, 45 },
+    { "fw_glide_angle", VAR_UINT8, &cfg.fw_glide_angle, 0, 100 },
     { "fw_climb_throttle", VAR_UINT16, &cfg.fw_climb_throttle, 1000, 2000 },
     { "fw_cruise_throttle", VAR_UINT16, &cfg.fw_cruise_throttle, 1000, 2000 },
     { "fw_idle_throttle", VAR_UINT16, &cfg.fw_idle_throttle, 1000, 2000 },
     { "fw_scaler_throttle", VAR_UINT16, &cfg.fw_scaler_throttle, 0, 15 },
-    { "fw_roll_comp", VAR_FLOAT, &cfg.fw_roll_comp, 0, 2 },
-    { "fw_rth_alt", VAR_UINT8, &cfg.fw_rth_alt, 0, 200 },
+    { "fw_roll_comp", VAR_UINT8, &cfg.fw_roll_comp, 0, 250 },
+    { "fw_rth_alt", VAR_UINT8, &cfg.fw_rth_alt, 0, 250 },
+    { "fw_cruise_distance", VAR_UINT16, &cfg.fw_cruise_distance, 0, 2000},
 };
 
 #define VALUE_COUNT (sizeof(valueTable) / sizeof(clivalue_t))
@@ -1044,12 +1047,11 @@ static void cliMixer(char *cmdline)
             // Presets for planes. Not functional with current reset
             // Really Ugly Hack
             if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE) {
-                cfg.dynThrPID = 50;
+                cfg.dynThrPID = 90;
                 cfg.rcExpo8 = 0;
                 cfg.P8[PIDALT] = 30;
                 cfg.I8[PIDALT] = 20;
                 cfg.D8[PIDALT] = 45;
-                cfg.D8[PIDPOSR] = 50; // RTH Alt
                 cfg.P8[PIDNAVR] = 30;
                 cfg.I8[PIDNAVR] = 20;
                 cfg.D8[PIDNAVR] = 45;

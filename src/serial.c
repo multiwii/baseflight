@@ -116,6 +116,7 @@ static const box_t boxes[] = {
     { BOXSERVO1, "SERVO1;", 21 },
     { BOXSERVO2, "SERVO2;", 22 },
     { BOXSERVO3, "SERVO3;", 23 },
+    { BOXGCRUISE, "CRUISE;", 24 },
     { CHECKBOXITEMS, NULL, 0xFF }
 };
 
@@ -311,8 +312,10 @@ void serialInit(uint32_t baudrate)
         availableBoxes[idx++] = BOXGPSHOME;
         availableBoxes[idx++] = BOXGPSHOLD;
     }
-    if (mcfg.mixerConfiguration == MULTITYPE_FLYING_WING || mcfg.mixerConfiguration == MULTITYPE_AIRPLANE || mcfg.mixerConfiguration == MULTITYPE_CUSTOM_PLANE)
+    if (f.FIXED_WING) {
         availableBoxes[idx++] = BOXPASSTHRU;
+        availableBoxes[idx++] = BOXGCRUISE;
+    }
     availableBoxes[idx++] = BOXBEEPERON;
     if (feature(FEATURE_INFLIGHT_ACC_CAL))
         availableBoxes[idx++] = BOXCALIB;
@@ -445,7 +448,7 @@ static void evaluateCommand(void)
                   f.BARO_MODE << BOXBARO | f.MAG_MODE << BOXMAG | f.HEADFREE_MODE << BOXHEADFREE | rcOptions[BOXHEADADJ] << BOXHEADADJ |
                   rcOptions[BOXCAMSTAB] << BOXCAMSTAB | rcOptions[BOXCAMTRIG] << BOXCAMTRIG |
                   f.GPS_HOME_MODE << BOXGPSHOME | f.GPS_HOLD_MODE << BOXGPSHOLD |
-                  f.PASSTHRU_MODE << BOXPASSTHRU |
+                  f.CRUISE_MODE << BOXGCRUISE | f.PASSTHRU_MODE << BOXPASSTHRU |
                   rcOptions[BOXBEEPERON] << BOXBEEPERON |
                   rcOptions[BOXLEDMAX] << BOXLEDMAX |
                   rcOptions[BOXLLIGHTS] << BOXLLIGHTS |
@@ -532,6 +535,7 @@ static void evaluateCommand(void)
         case MSP_FW_CONFIG:
             headSerialReply(38);
             serialize8(mcfg.fw_althold_dir);
+            // serialize8(cfg.fw_vector_thrust); // Future Gui setting?
             serialize16(cfg.fw_gps_maxcorr);
             serialize16(cfg.fw_gps_rudder);
             serialize16(cfg.fw_gps_maxclimb);
@@ -540,7 +544,7 @@ static void evaluateCommand(void)
             serialize16(cfg.fw_cruise_throttle);
             serialize16(cfg.fw_idle_throttle);
             serialize16(cfg.fw_scaler_throttle);
-            serialize32(cfg.fw_roll_comp);
+            serialize32(cfg.fw_roll_comp); // Float is Not compatible with Gui. Change to serialize8
             serialize8(cfg.fw_rth_alt);
             // next added for future use
             serialize32(0);
@@ -551,6 +555,7 @@ static void evaluateCommand(void)
         case MSP_SET_FW_CONFIG:
             headSerialReply(0);
             mcfg.fw_althold_dir = read8();
+            // cfg.fw_vector_thrust = read8(); // Future Gui setting?
             cfg.fw_gps_maxcorr = read16();
             cfg.fw_gps_rudder = read16();
             cfg.fw_gps_maxclimb = read16();
@@ -559,7 +564,8 @@ static void evaluateCommand(void)
             cfg.fw_cruise_throttle = read16();
             cfg.fw_idle_throttle = read16();
             cfg.fw_scaler_throttle = read16();
-            cfg.fw_roll_comp = read32();
+            //cfg.fw_gps_maxdive = read32();// Wrong when using float in MSP!... Change to read8
+            read32(); // Just read and skip
             cfg.fw_rth_alt = read8();
             // next added for future use
             read32();
