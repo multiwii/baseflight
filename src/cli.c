@@ -512,7 +512,7 @@ static void cliAux(char *cmdline)
 static void cliCMix(char *cmdline)
 {
     int i, check = 0;
-    int num_motors = 0;
+    int num_motors;
     uint8_t len;
     char buf[16];
     float mixsum[3];
@@ -525,13 +525,13 @@ static void cliCMix(char *cmdline)
         for (i = 0; i < MAX_MOTORS; i++) {
             if (mcfg.customMixer[i].throttle == 0.0f)
                 break;
-            num_motors++;
             printf("#%d:\t", i + 1);
             printf("%s\t", ftoa(mcfg.customMixer[i].throttle, buf));
             printf("%s\t", ftoa(mcfg.customMixer[i].roll, buf));
             printf("%s\t", ftoa(mcfg.customMixer[i].pitch, buf));
             printf("%s\r\n", ftoa(mcfg.customMixer[i].yaw, buf));
         }
+        num_motors = i;
         mixsum[0] = mixsum[1] = mixsum[2] = 0.0f;
         for (i = 0; i < num_motors; i++) {
             mixsum[0] += mcfg.customMixer[i].roll;
@@ -566,8 +566,8 @@ static void cliCMix(char *cmdline)
         }
     } else {
         ptr = cmdline;
-        i = atoi(ptr); // get motor number
-        if (--i < MAX_MOTORS) {
+        i = atoi(ptr) - 1; // get motor number
+        if (i >= 0 && i < MAX_MOTORS) {
             ptr = strchr(ptr, ' ');
             if (ptr) {
                 mcfg.customMixer[i].throttle = _atof(++ptr);
