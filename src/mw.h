@@ -477,6 +477,8 @@ extern uint16_t vbat;                  // battery voltage in 0.1V steps
 extern int16_t telemTemperature1;      // gyro sensor temperature
 extern int32_t amperage;               // amperage read by current sensor in 0.01A steps
 extern int32_t mAhdrawn;              // milli ampere hours drawn from battery since start
+extern int16_t airspeedVelocity;
+extern int16_t airspeedTemp;
 
 #define PITCH_LOOKUP_LENGTH 7
 #define THROTTLE_LOOKUP_LENGTH 12
@@ -513,6 +515,7 @@ extern flags_t f;
 extern sensor_t acc;
 extern sensor_t gyro;
 extern baro_t baro;
+extern sensor_t airspeed;
 
 // main
 void setPIDController(int type);
@@ -538,6 +541,7 @@ int Mag_getADC(void);
 void Sonar_init(void);
 void Sonar_update(void);
 uint16_t RSSI_getValue(void);
+void Airspeed_update(void);
 
 // Output
 void mixerInit(void);

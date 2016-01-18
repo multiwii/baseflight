@@ -924,7 +924,7 @@ void loop(void)
                 }
 #endif
             case 4:
-                taskOrder = 0;
+                taskOrder++;
 #ifdef SONAR
                 if (sensors(SENSOR_SONAR)) {
                     Sonar_update();
@@ -932,6 +932,14 @@ void loop(void)
 #endif
                 if (feature(FEATURE_VARIO) && f.VARIO_MODE)
                     mwVario();
+                break;
+            case 5:
+                taskOrder = 0;
+#ifdef AIRSPEED
+                if (sensors(SENSOR_AIRSPEED)) {
+                    Airspeed_update();
+                }
+#endif
                 break;
         }
     }

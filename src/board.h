@@ -60,6 +60,7 @@ typedef enum {
     SENSOR_SONAR = 1 << 4,
     SENSOR_GPS = 1 << 5,
     SENSOR_GPSMAG = 1 << 6,
+    SENSOR_AIRSPEED = 1 << 7,
 } AvailableSensors;
 
 // Type of accelerometer used/detected
@@ -223,6 +224,7 @@ typedef struct baro_t {
 #define GPS
 #define LEDRING
 #define SONAR
+#define AIRSPEED
 #define BUZZER
 #define LED0
 #define LED1
@@ -243,6 +245,7 @@ typedef struct baro_t {
 #include "drv_bma280.h"
 #include "drv_bmp085.h"
 #include "drv_bmp280.h"
+#include "drv_ms4525.h"
 #include "drv_ms5611.h"
 #include "drv_hmc5883l.h"
 #include "drv_ak8975.h"

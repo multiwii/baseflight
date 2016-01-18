@@ -12,6 +12,8 @@ uint16_t calibratingB = 0;      // baro calibration = get new ground pressure va
 uint16_t calibratingG = 0;
 uint16_t acc_1G = 256;          // this is the 1G measured acceleration.
 int16_t heading, magHold;
+int16_t airspeedVelocity = 0;       // raw airspeed
+int16_t airspeedTemp = 0;           // raw air temperature
 
 extern uint16_t InflightcalibratingA;
 extern bool AccInflightCalibrationMeasurementDone;
@@ -26,6 +28,7 @@ sensor_t acc;                       // acc access functions
 sensor_t gyro;                      // gyro access functions
 sensor_t mag;                       // mag access functions
 baro_t baro;                        // barometer access functions
+sensor_t airspeed;                  // airspeed access functions
 uint8_t accHardware = ACC_DEFAULT;  // which accel chip is used/detected
 uint8_t magHardware = MAG_DEFAULT;
 
@@ -128,6 +131,12 @@ retry:
             }
         }
     }
+#endif
+
+#ifdef AIRSPEED
+    sensorsSet(SENSOR_AIRSPEED);
+    if (!ms4525Detect(&airspeed))
+        sensorsClear(SENSOR_AIRSPEED);
 #endif
 
     // Now time to init things, acc first
@@ -536,3 +545,28 @@ void Sonar_update(void)
 }
 
 #endif
+
+#ifdef AIRSPEED
+void Airspeed_update(void)
+{
+    static uint32_t lastMeasurement = 0;
+    static int32_t delay = 50000; // ~20 hz
+
+    if (lastMeasurement > currentTime) // protect from overflow of currentTime
+        lastMeasurement = currentTime;
+
+    if ((int32_t)(currentTime - lastMeasurement) < delay)
+        return;
+
+    lastMeasurement = currentTime;
+
+    int16_t airspeedData[2];
+    airspeed.read(airspeedData);
+
+    if(airspeedData[0] != 0)
+    {
+        airspeedVelocity = airspeedData[0];
+        airspeedTemp = airspeedData[1];
+    }
+}
+#endif /* AIRSPEED */
