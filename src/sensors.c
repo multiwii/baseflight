@@ -12,8 +12,8 @@ uint16_t calibratingB = 0;      // baro calibration = get new ground pressure va
 uint16_t calibratingG = 0;
 uint16_t acc_1G = 256;          // this is the 1G measured acceleration.
 int16_t heading, magHold;
-int16_t airspeedVelocity = 0;       // airspeed m/s
-int16_t airspeedTemp = 0;           // air temperature deg C
+int16_t airspeedVelocity = 0;       // raw airspeed
+int16_t airspeedTemp = 0;           // raw air temperature
 
 extern uint16_t InflightcalibratingA;
 extern bool AccInflightCalibrationMeasurementDone;
