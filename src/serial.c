@@ -40,6 +40,7 @@
 #define MSP_NAV_STATUS           121    //out message         Returns navigation status
 #define MSP_NAV_CONFIG           122    //out message         Returns navigation parameters
 #define MSP_FW_CONFIG            123    //out message         Returns parameters specific to Flying Wing mode
+#define MSP_RAW_AIRSPEED         124    //out message         airspeed, temperature
 
 #define MSP_SET_RAW_RC           200    //in message          8 rc chan
 #define MSP_SET_RAW_GPS          201    //in message          fix, numsat, lat, lon, alt, speed
@@ -609,6 +610,11 @@ static void evaluateCommand(void)
             headSerialReply(6);
             serialize32(EstAlt);
             serialize16(vario);
+            break;
+        case MSP_RAW_AIRSPEED:
+            headSerialReply(4);
+            serialize16(airspeedVelocity);
+            serialize16(airspeedTemp);
             break;
         case MSP_ANALOG:
             headSerialReply(7);

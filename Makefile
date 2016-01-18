@@ -81,6 +81,7 @@ NAZE_SRC	 = drv_adc.c \
 		   drv_ak8975.c \
 		   drv_bma280.c \
 		   drv_bmp085.c \
+		   drv_ms4525.c \
 		   drv_ms5611.c \
 		   drv_bmp280.c \
 		   drv_hcsr04.c \
