@@ -417,7 +417,7 @@ static void GYRO_Common(void)
     static int32_t g[3];
     static stdev_t var[3];
 
-    if (calibratingG > 0) {
+    if(calibratingG > 0){
         for (axis = 0; axis < 3; axis++) {
             // Reset g[axis] at start of calibration
             if (calibratingG == CALIBRATING_GYRO_CYCLES) {
@@ -447,7 +447,7 @@ static void GYRO_Common(void)
         }
         calibratingG--;
     }
-    for (axis = 0; axis < 3; axis++)
+    for(axis = 0; axis < 3; axis++)
         gyroADC[axis] -= gyroZero[axis];
 }
 

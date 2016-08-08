@@ -65,7 +65,7 @@ bool ibusFrameComplete(void)
 
         rxsum = ibus[30] + (ibus[31] << 8);
 
-        if (chksum == rxsum) {
+        if(chksum == rxsum) {
             ibusChannelData[0] = (ibus[ 3] << 8) + ibus[ 2];
             ibusChannelData[1] = (ibus[ 5] << 8) + ibus[ 4];
             ibusChannelData[2] = (ibus[ 7] << 8) + ibus[ 6];
