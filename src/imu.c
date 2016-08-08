@@ -231,7 +231,7 @@ static int16_t calculateHeading(t_fp_vector *vec)
     float sinePitch = sinf(anglerad[PITCH]);
     float Xh = vec->A[X] * cosinePitch + vec->A[Y] * sineRoll * sinePitch + vec->A[Z] * sinePitch * cosineRoll;
     float Yh = vec->A[Y] * cosineRoll - vec->A[Z] * sineRoll;
-    float hd = (atan2f(Yh, Xh) * 1800.0f / M_PI + magneticDeclination) / 10.0f;
+    float hd = -(atan2f(-Yh, Xh) * 1800.0f / M_PI + magneticDeclination) / 10.0f;
     head = lrintf(hd);
     if (head < 0)
         head += 360;
