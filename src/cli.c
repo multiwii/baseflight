@@ -28,6 +28,7 @@ static void cliServo(char *cmdline);
 static void cliServoMix(char *cmdline);
 static void cliStatus(char *cmdline);
 static void cliVersion(char *cmdline);
+static void backToMsp(char *cmdline);
 
 // from sensors.c
 extern uint8_t batteryCellCount;
@@ -104,6 +105,7 @@ const clicmd_t cmdTable[] = {
     { "map", "mapping of rc channel order", cliMap },
     { "mixer", "mixer name or list", cliMixer },
     { "motor", "get/set motor output value", cliMotor },
+    { "msp", "return to msp without saving", backToMsp },
     { "profile", "index (0 to 2)", cliProfile },
     { "save", "save and reboot", cliSave },
     { "servo", "edit servo configuration", cliServo },
@@ -895,6 +897,14 @@ static void cliDump(char *cmdline)
         cliPrintVar(setval, 0);
         cliPrint("\r\n");
     }
+}
+
+static void backToMsp(char *cmdline)
+{
+    cliPrint("\r\nBack to MSP (no save)...\r\n");
+    *cliBuffer = '\0';
+    bufferIndex = 0;
+    cliMode = 0;
 }
 
 static void cliExit(char *cmdline)
