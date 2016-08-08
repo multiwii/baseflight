@@ -128,7 +128,7 @@ int main(void)
 
     LED1_ON;
     LED0_OFF;
-    for (i = 0; i < 10; i++) {
+    for(i = 0; i < 10;i++) {
         LED1_TOGGLE;
         LED0_TOGGLE;
         delay(25);
@@ -168,15 +168,15 @@ int main(void)
     pwm_params.servoCenterPulse = mcfg.midrc;
     pwm_params.failsafeThreshold = cfg.failsafe_detect_threshold;
     switch (mcfg.power_adc_channel) {
-        case 1:
-            pwm_params.adcChannel = PWM2;
-            break;
-        case 9:
-            pwm_params.adcChannel = PWM8;
-            break;
-        default:
-            pwm_params.adcChannel = 0;
-            break;
+    case 1:
+        pwm_params.adcChannel = PWM2;
+        break;
+    case 9:
+        pwm_params.adcChannel = PWM8;
+        break;
+    default:
+        pwm_params.adcChannel = 0;
+        break;
     }
 
     pwmInit(&pwm_params);
@@ -257,7 +257,7 @@ int main(void)
     while (1) {
         loop();
 #ifdef SOFTSERIAL_LOOPBACK
-        if (loopbackPort1) {
+        if(loopbackPort1){
             while (serialTotalBytesWaiting(loopbackPort1)) {
                 uint8_t b = serialRead(loopbackPort1);
                 serialWrite(loopbackPort1, b);
