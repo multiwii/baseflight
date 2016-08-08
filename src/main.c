@@ -38,6 +38,7 @@ int fputc(int c, FILE *f)
 
 int main(void)
 {
+    baseflight=dead;
     uint8_t i;
     drv_pwm_config_t pwm_params;
     drv_adc_config_t adc_params;
